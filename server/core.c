@@ -3488,22 +3488,22 @@ AP_DECLARE(void) ap_add_version_component(apr_pool_t *pconf, const char *compone
  * This routine adds the real server base identity to the banner string,
  * and then locks out changes until the next reconfig.
  */
-static void set_banner(apr_pool_t *pconf)
+static void set_banner(apr_pool_t *pconf) //***
 {
     if (ap_server_tokens == SrvTk_PRODUCT_ONLY) {
         ap_add_version_component(pconf, AP_SERVER_BASEPRODUCT);
     }
     else if (ap_server_tokens == SrvTk_MINIMAL) {
-        ap_add_version_component(pconf, AP_SERVER_BASEVERSION);
+        ap_add_version_component(pconf, AP_SERVER_BASEPRODUCT);
     }
     else if (ap_server_tokens == SrvTk_MINOR) {
-        ap_add_version_component(pconf, AP_SERVER_BASEPRODUCT "/" AP_SERVER_MINORREVISION);
+        ap_add_version_component(pconf, AP_SERVER_BASEPRODUCT);
     }
     else if (ap_server_tokens == SrvTk_MAJOR) {
-        ap_add_version_component(pconf, AP_SERVER_BASEPRODUCT "/" AP_SERVER_MAJORVERSION);
+        ap_add_version_component(pconf, AP_SERVER_BASEPRODUCT);
     }
     else {
-        ap_add_version_component(pconf, AP_SERVER_BASEVERSION " (" PLATFORM ")");
+        ap_add_version_component(pconf, AP_SERVER_BASEPRODUCT);
     }
 
     /*
@@ -3513,7 +3513,7 @@ static void set_banner(apr_pool_t *pconf)
     if (ap_server_tokens != SrvTk_FULL) {
         banner_locked++;
     }
-    server_description = AP_SERVER_BASEVERSION " (" PLATFORM ")";
+    server_description = AP_SERVER_BASEPRODUCT;
 }
 
 static const char *set_serv_tokens(cmd_parms *cmd, void *dummy,
