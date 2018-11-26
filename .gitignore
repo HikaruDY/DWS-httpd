@@ -3,13 +3,24 @@
 
 # Generated
 Release
+Release_x86
+Release_x64
 BuildVS/TEMP
 include/ap_config_layout.h
 server/test_char.h
+
+*.exe
+*.dll
+*.lib
+*.so
+*.res
+*.manifest
+
 *.obj
 *.exp
 *.pdb
 *.cache
+
 
 # VisualStudio
 *.suo
@@ -20,6 +31,7 @@ server/test_char.h
 *.ipch
 *.log
 *.tlog
+
 
 # OS related extra files
 Git.cmd
