@@ -1,0 +1,192 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(SolutionDir)\Common.props" />
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectName>libapriconv-1</ProjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)'=='Release'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)'=='Release'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup />
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
+    <ClCompile />
+    <PreBuildEvent>
+      <Command>"$(ProjectDir)/../Scripts/libapr-init.cmd" "$(libapr)"</Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="$(libapr)\atomic\win32\apr_atomic.c" />
+    <ClCompile Include="$(libapr)\dso\win32\dso.c" />
+    <ClCompile Include="$(libapr)\encoding\apr_escape.c" />
+    <ClCompile Include="$(libapr)\file_io\win32\buffer.c" />
+    <ClCompile Include="$(libapr)\file_io\win32\dir.c" />
+    <ClCompile Include="$(libapr)\file_io\win32\filedup.c" />
+    <ClCompile Include="$(libapr)\file_io\win32\filepath.c" />
+    <ClCompile Include="$(libapr)\file_io\win32\filestat.c" />
+    <ClCompile Include="$(libapr)\file_io\win32\filesys.c" />
+    <ClCompile Include="$(libapr)\file_io\win32\flock.c" />
+    <ClCompile Include="$(libapr)\file_io\win32\open.c" />
+    <ClCompile Include="$(libapr)\file_io\win32\pipe.c" />
+    <ClCompile Include="$(libapr)\file_io\win32\readwrite.c" />
+    <ClCompile Include="$(libapr)\file_io\win32\seek.c" />
+    <ClCompile Include="$(libapr)\locks\win32\proc_mutex.c" />
+    <ClCompile Include="$(libapr)\locks\win32\thread_cond.c" />
+    <ClCompile Include="$(libapr)\locks\win32\thread_mutex.c" />
+    <ClCompile Include="$(libapr)\locks\win32\thread_rwlock.c" />
+    <ClCompile Include="$(libapr)\misc\win32\charset.c" />
+    <ClCompile Include="$(libapr)\misc\win32\env.c" />
+    <ClCompile Include="$(libapr)\misc\win32\internal.c" />
+    <ClCompile Include="$(libapr)\misc\win32\misc.c" />
+    <ClCompile Include="$(libapr)\misc\win32\rand.c" />
+    <ClCompile Include="$(libapr)\misc\win32\start.c" />
+    <ClCompile Include="$(libapr)\misc\win32\utf8.c" />
+    <ClCompile Include="$(libapr)\mmap\win32\mmap.c" />
+    <ClCompile Include="$(libapr)\network_io\win32\sendrecv.c" />
+    <ClCompile Include="$(libapr)\network_io\win32\sockets.c" />
+    <ClCompile Include="$(libapr)\network_io\win32\sockopt.c" />
+    <ClCompile Include="$(libapr)\passwd\apr_getpass.c" />
+    <ClCompile Include="$(libapr)\shmem\win32\shm.c" />
+    <ClCompile Include="$(libapr)\strings\apr_cpystrn.c" />
+    <ClCompile Include="$(libapr)\strings\apr_fnmatch.c" />
+    <ClCompile Include="$(libapr)\strings\apr_snprintf.c" />
+    <ClCompile Include="$(libapr)\strings\apr_strings.c" />
+    <ClCompile Include="$(libapr)\strings\apr_strnatcmp.c" />
+    <ClCompile Include="$(libapr)\strings\apr_strtok.c" />
+    <ClCompile Include="$(libapr)\tables\apr_hash.c" />
+    <ClCompile Include="$(libapr)\tables\apr_skiplist.c" />
+    <ClCompile Include="$(libapr)\tables\apr_tables.c" />
+    <ClCompile Include="$(libapr)\threadproc\win32\proc.c" />
+    <ClCompile Include="$(libapr)\threadproc\win32\signals.c" />
+    <ClCompile Include="$(libapr)\threadproc\win32\thread.c" />
+    <ClCompile Include="$(libapr)\threadproc\win32\threadpriv.c" />
+    <ClCompile Include="$(libapr)\time\win32\time.c" />
+    <ClCompile Include="$(libapr)\time\win32\timestr.c" />
+    <ClCompile Include="$(libapr)\user\win32\groupinfo.c" />
+    <ClCompile Include="$(libapr)\user\win32\userinfo.c" />
+    <ClCompile Include="$(libapr)\file_io\unix\copy.c" />
+    <ClCompile Include="$(libapr)\file_io\unix\fileacc.c" />
+    <ClCompile Include="$(libapr)\file_io\unix\filepath_util.c" />
+    <ClCompile Include="$(libapr)\file_io\unix\fullrw.c" />
+    <ClCompile Include="$(libapr)\file_io\unix\mktemp.c" />
+    <ClCompile Include="$(libapr)\file_io\unix\tempdir.c" />
+    <ClCompile Include="$(libapr)\memory\unix\apr_pools.c" />
+    <ClCompile Include="$(libapr)\misc\unix\errorcodes.c" />
+    <ClCompile Include="$(libapr)\misc\unix\getopt.c" />
+    <ClCompile Include="$(libapr)\misc\unix\otherchild.c" />
+    <ClCompile Include="$(libapr)\misc\unix\version.c" />
+    <ClCompile Include="$(libapr)\network_io\unix\inet_ntop.c" />
+    <ClCompile Include="$(libapr)\network_io\unix\inet_pton.c" />
+    <ClCompile Include="$(libapr)\network_io\unix\multicast.c" />
+    <ClCompile Include="$(libapr)\network_io\unix\sockaddr.c" />
+    <ClCompile Include="$(libapr)\network_io\unix\socket_util.c" />
+    <ClCompile Include="$(libapr)\poll\unix\epoll.c" />
+    <ClCompile Include="$(libapr)\poll\unix\kqueue.c" />
+    <ClCompile Include="$(libapr)\poll\unix\poll.c" />
+    <ClCompile Include="$(libapr)\poll\unix\pollcb.c" />
+    <ClCompile Include="$(libapr)\poll\unix\pollset.c" />
+    <ClCompile Include="$(libapr)\poll\unix\port.c" />
+    <ClCompile Include="$(libapr)\poll\unix\select.c" />
+    <ClCompile Include="$(libapr)\poll\unix\wakeup.c" />
+    <ClCompile Include="$(libapr)\poll\unix\z_asio.c" />
+    <ClCompile Include="$(libapr-iconv)\lib\iconv.c" />
+    <ClCompile Include="$(libapr-iconv)\lib\iconv_ccs.c" />
+    <ClCompile Include="$(libapr-iconv)\lib\iconv_ces.c" />
+    <ClCompile Include="$(libapr-iconv)\lib\iconv_ces_euc.c" />
+    <ClCompile Include="$(libapr-iconv)\lib\iconv_ces_iso2022.c" />
+    <ClCompile Include="$(libapr-iconv)\lib\iconv_int.c" />
+    <ClCompile Include="$(libapr-iconv)\lib\iconv_module.c" />
+    <ClCompile Include="$(libapr-iconv)\lib\iconv_uc.c" />
+    <ClCompile Include="$(libapr-iconv)\util\iconv_stream.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="$(libapr)\include\apr.h" />
+    <ClInclude Include="$(libapr)\include\apr_allocator.h" />
+    <ClInclude Include="$(libapr)\include\apr_atomic.h" />
+    <ClInclude Include="$(libapr)\include\apr_dso.h" />
+    <ClInclude Include="$(libapr)\include\apr_env.h" />
+    <ClInclude Include="$(libapr)\include\apr_errno.h" />
+    <ClInclude Include="$(libapr)\include\apr_escape.h" />
+    <ClInclude Include="$(libapr)\include\apr_escape_test_char.h" />
+    <ClInclude Include="$(libapr)\include\apr_file_info.h" />
+    <ClInclude Include="$(libapr)\include\apr_file_io.h" />
+    <ClInclude Include="$(libapr)\include\apr_fnmatch.h" />
+    <ClInclude Include="$(libapr)\include\apr_general.h" />
+    <ClInclude Include="$(libapr)\include\apr_getopt.h" />
+    <ClInclude Include="$(libapr)\include\apr_global_mutex.h" />
+    <ClInclude Include="$(libapr)\include\apr_hash.h" />
+    <ClInclude Include="$(libapr)\include\apr_inherit.h" />
+    <ClInclude Include="$(libapr)\include\apr_lib.h" />
+    <ClInclude Include="$(libapr)\include\apr_mmap.h" />
+    <ClInclude Include="$(libapr)\include\apr_network_io.h" />
+    <ClInclude Include="$(libapr)\include\apr_poll.h" />
+    <ClInclude Include="$(libapr)\include\apr_pools.h" />
+    <ClInclude Include="$(libapr)\include\apr_portable.h" />
+    <ClInclude Include="$(libapr)\include\apr_proc_mutex.h" />
+    <ClInclude Include="$(libapr)\include\apr_random.h" />
+    <ClInclude Include="$(libapr)\include\apr_ring.h" />
+    <ClInclude Include="$(libapr)\include\apr_shm.h" />
+    <ClInclude Include="$(libapr)\include\apr_signal.h" />
+    <ClInclude Include="$(libapr)\include\apr_skiplist.h" />
+    <ClInclude Include="$(libapr)\include\apr_strings.h" />
+    <ClInclude Include="$(libapr)\include\apr_support.h" />
+    <ClInclude Include="$(libapr)\include\apr_tables.h" />
+    <ClInclude Include="$(libapr)\include\apr_thread_cond.h" />
+    <ClInclude Include="$(libapr)\include\apr_thread_mutex.h" />
+    <ClInclude Include="$(libapr)\include\apr_thread_proc.h" />
+    <ClInclude Include="$(libapr)\include\apr_thread_rwlock.h" />
+    <ClInclude Include="$(libapr)\include\apr_time.h" />
+    <ClInclude Include="$(libapr)\include\apr_user.h" />
+    <ClInclude Include="$(libapr)\include\apr_version.h" />
+    <ClInclude Include="$(libapr)\include\apr_want.h" />
+    <ClInclude Include="$(libapr)\include\arch\apr_private_common.h" />
+    <ClInclude Include="$(libapr)\include\arch\win32\apr_arch_atime.h" />
+    <ClInclude Include="$(libapr)\include\arch\win32\apr_arch_dso.h" />
+    <ClInclude Include="$(libapr)\include\arch\win32\apr_arch_file_io.h" />
+    <ClInclude Include="$(libapr)\include\arch\win32\apr_arch_inherit.h" />
+    <ClInclude Include="$(libapr)\include\arch\win32\apr_arch_misc.h" />
+    <ClInclude Include="$(libapr)\include\arch\win32\apr_arch_networkio.h" />
+    <ClInclude Include="$(libapr)\include\arch\win32\apr_arch_proc_mutex.h" />
+    <ClInclude Include="$(libapr)\include\arch\win32\apr_arch_threadproc.h" />
+    <ClInclude Include="$(libapr)\include\arch\win32\apr_arch_thread_cond.h" />
+    <ClInclude Include="$(libapr)\include\arch\win32\apr_arch_thread_mutex.h" />
+    <ClInclude Include="$(libapr)\include\arch\win32\apr_arch_thread_rwlock.h" />
+    <ClInclude Include="$(libapr)\include\arch\win32\apr_arch_utf8.h" />
+    <ClInclude Include="$(libapr)\include\arch\win32\apr_dbg_win32_handles.h" />
+    <ClInclude Include="$(libapr)\include\arch\win32\apr_private.h" />
+    <ClInclude Include="$(libapr)\include\arch\unix\apr_arch_atomic.h" />
+    <ClInclude Include="$(libapr)\include\arch\unix\apr_arch_global_mutex.h" />
+    <ClInclude Include="$(libapr)\include\arch\unix\apr_arch_internal_time.h" />
+    <ClInclude Include="$(libapr)\include\arch\unix\apr_arch_poll_private.h" />
+    <ClInclude Include="$(libapr)\include\arch\unix\apr_arch_shm.h" />
+    <ClInclude Include="$(libapr)\include\api_version.h" />
+    <ClInclude Include="$(libapr)\include\apr_iconv.h" />
+    <ClInclude Include="$(libapr)\lib\charset_alias.h" />
+    <ClInclude Include="$(libapr)\lib\iconv.h" />
+    <ClInclude Include="$(libapr)\util\iconv_stream.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

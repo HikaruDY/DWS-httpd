@@ -1,0 +1,124 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+	<PropertyGroup>
+		<TrackFileAccess>true</TrackFileAccess>
+		<IntDir>$(SolutionDir)/TEMP/$(MSBuildProjectName)/</IntDir>
+	</PropertyGroup>
+	<PropertyGroup Label="UserMacros">
+		<root>$(SolutionDir)/../</root>
+		<aproot>$(root)</aproot>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Platform)'=='Win32'">
+		<OutDir>$(SolutionDir)$(Configuration)_x86/</OutDir>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Platform)'=='x64'">
+		<OutDir>$(SolutionDir)$(Configuration)_x64/</OutDir>
+	</PropertyGroup>
+
+	<Import Project="$(SolutionDir)\PathEnv.props" />
+	<ItemDefinitionGroup>
+		<ClCompile>
+			<MultiProcessorCompilation>true</MultiProcessorCompilation>
+			<Optimization>Full</Optimization>
+			<InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+			<IntrinsicFunctions>true</IntrinsicFunctions>
+			<FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+			<OmitFramePointers>true</OmitFramePointers>
+			<BufferSecurityCheck>false</BufferSecurityCheck>
+			<FunctionLevelLinking>true</FunctionLevelLinking>
+			<EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+			<PreprocessorDefinitions>DWS;NDEBUG;WIN32;WINNT;_WINDOWS;HAVE_MEMMOVE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+		</ClCompile>
+		<Link>
+			<AdditionalDependencies>ws2_32.lib;Mswsock.lib;Rpcrt4.lib;%(AdditionalDependencies)</AdditionalDependencies>
+		</Link>
+	</ItemDefinitionGroup>
+
+  	<ItemGroup Condition="('$(ProjectName)'!='AM') and ('$(ProjectName)'!='ApacheMonitor')">
+		<ResourceCompile Include="$(SolutionDir)\Resources\DWS.rc">
+			<AdditionalIncludeDirectories>$(SolutionDir)/Resouces;$(root)/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+		</ResourceCompile>
+	</ItemGroup>
+
+<!--EXPORTS magic//-->
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='libapr-1')"><ClCompile>
+		<PreprocessorDefinitions>APR_DECLARE_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+	</ClCompile></ItemDefinitionGroup>
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='libapriconv-1')"><ClCompile>
+		<PreprocessorDefinitions>APR_DECLARE_EXPORT;API_DECLARE_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+	</ClCompile></ItemDefinitionGroup>
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='libaprutil-1')"><ClCompile>
+		<PreprocessorDefinitions>APU_DECLARE_EXPORT;APU_USE_SDBM;XML_STATIC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+	</ClCompile></ItemDefinitionGroup>
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='libhttpd')"><ClCompile>
+		<PreprocessorDefinitions>AP_DECLARE_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+	</ClCompile></ItemDefinitionGroup>
+
+<!--httpd//-->
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='httpd')">
+		<Link>
+			<AdditionalDependencies>$(OutDir)/libhttpd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+		</Link>
+	</ItemDefinitionGroup>
+  	<ItemGroup Condition="('$(ProjectName)'=='httpd')">
+		<ResourceCompile Include="$(SolutionDir)\Resources\DWS_Icon.rc">
+			<AdditionalIncludeDirectories>$(SolutionDir)/Resouces;$(root)/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+		</ResourceCompile>
+	</ItemGroup>
+
+
+<!--libapr and children//-->
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='libapr-1') or ('$(ProjectName)'=='libapriconv-1') or ('$(ProjectName)'=='libaprutil-1') or ('$(ProjectName)'=='libhttpd') or ('$(ProjectName)'=='libhttpd-gen_test_char') or ('$(ProjectName)'=='httpd')">
+		<ClCompile>
+			<AdditionalIncludeDirectories>$(libapr)/include;$(libapr)/include/private;$(libapr)/include/arch;$(libapr)/include/arch/win32;$(libapr)/include/arch/unix;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+
+		</ClCompile>
+	</ItemDefinitionGroup>
+<!--libapr-iconv and children//-->
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='libapriconv-1') or ('$(ProjectName)'=='libaprutil-1')">
+		<ClCompile>
+			<AdditionalIncludeDirectories>$(libapr-iconv)/include;$(libapr-iconv)/lib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+		</ClCompile>
+		<Link>
+			<AdditionalDependencies>$(OutDir)/libapr-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
+		</Link>
+	</ItemDefinitionGroup>
+<!--libapr-util//-->
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='libaprutil-1') or ('$(ProjectName)'=='httpd')">
+		<ClCompile>
+			<AdditionalIncludeDirectories>$(libapr-util)/include;$(libapr-util)/include/private;$(libapr-util)/xml/expat/lib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+		</ClCompile>
+		<Link>
+			<AdditionalDependencies>wldap32.lib;$(OutDir)/libapriconv-1.lib;$(OutDir)/libapriconv-1.lib;$(OutDir)/libaprutil-expat_xml.lib;%(AdditionalDependencies)</AdditionalDependencies>
+		</Link>
+	</ItemDefinitionGroup>
+
+<!--libapr-util-xml_expat//-->
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='libaprutil-expat_xml')">
+		<ClCompile>
+			<AdditionalIncludeDirectories>$(libapr-util)/include;$(libapr-util)/include/private;$(libapr-util)/xml/expat/lib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+		</ClCompile>
+		<Link>
+			<AdditionalDependencies>$(OutDir)/libapriconv-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
+		</Link>
+	</ItemDefinitionGroup>
+
+<!--libhttpd//-->
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='libhttpd') or ('$(ProjectName)'=='httpd')">
+		<ClCompile>
+			<AdditionalIncludeDirectories>$(root)/include;$(root)/server;$(root)/modules/core;$(root)/modules/proxy;$(root)/modules/generators;$(root)/modules/filters;$(root)/os/win32;$(libapr-util)/include;$(pcre)/BuildVS;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+		</ClCompile>
+		<Link>
+			<AdditionalDependencies>$(OutDir)/libapr-1.lib;$(OutDir)/libaprutil-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
+		</Link>
+	</ItemDefinitionGroup>
+
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='libhttpd') or ('$(ProjectName)'=='httpd')">
+		<Link>
+			<AdditionalDependencies>$(OutDir)/pcre.lib;%(AdditionalDependencies)</AdditionalDependencies>
+		</Link>
+	</ItemDefinitionGroup>
+</Project>
+
+<!--$(libapr-util)/include/private;$(libapr-util)/xml/expat-->
