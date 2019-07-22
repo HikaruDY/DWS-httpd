@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  	<ItemGroup Condition="('$(ProjectName)'=='httpd')">
+		<ResourceCompile Include="$(SolutionDir)\Resources\DWS_Icon.rc">
+			<AdditionalIncludeDirectories>$(SolutionDir)/Resouces;$(root)/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+		</ResourceCompile>
+	</ItemGroup>
+
+  	<ItemDefinitionGroup Condition="('$(ProjectName)'=='abs')">
+		<ClCompile>
+			<AdditionalIncludeDirectories>$(openssl);$(openssl)/include;$(openssl)/ms;$(root)/modules/generators;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+			<PreprocessorDefinitions>HAVE_OPENSSL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+		</ClCompile>
+		<Link>
+			<AdditionalDependencies>$(openssl)/libcrypto.lib;$(openssl)/libssl.lib;%(AdditionalDependencies)</AdditionalDependencies>
+		</Link>
+
+	</ItemDefinitionGroup>
+</Project>

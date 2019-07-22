@@ -1,0 +1,88 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libapr-1", "Projects\libapr.vcxproj", "{5147ED2D-C41D-8035-F95A-9F0B71C93E8E}"
+	ProjectSection(ProjectDependencies) = postProject
+		{F14EDC63-5269-5E0B-2DE5-E9D1CE1DC670} = {F14EDC63-5269-5E0B-2DE5-E9D1CE1DC670}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libapr-gen_test_char", "Projects\libapr-gen_test_char.vcxproj", "{F14EDC63-5269-5E0B-2DE5-E9D1CE1DC670}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libaprutil-1", "Projects\libaprutil.vcxproj", "{24BE9327-5D81-2716-1311-F09AC2E793EB}"
+	ProjectSection(ProjectDependencies) = postProject
+		{1AD3FB04-2DA1-D949-8CDE-9D32CECA6147} = {1AD3FB04-2DA1-D949-8CDE-9D32CECA6147}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libapriconv-1", "Projects\libapriconv.vcxproj", "{02FFFA45-CCAD-5CD5-F966-2513AD7AED31}"
+	ProjectSection(ProjectDependencies) = postProject
+		{5147ED2D-C41D-8035-F95A-9F0B71C93E8E} = {5147ED2D-C41D-8035-F95A-9F0B71C93E8E}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libaprutil-expat_xml", "Projects\libaprutil-expat_xml.vcxproj", "{1AD3FB04-2DA1-D949-8CDE-9D32CECA6147}"
+	ProjectSection(ProjectDependencies) = postProject
+		{02FFFA45-CCAD-5CD5-F966-2513AD7AED31} = {02FFFA45-CCAD-5CD5-F966-2513AD7AED31}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libhttpd", "Projects\libhttpd.vcxproj", "{09ADBB86-A93C-76FB-AC5E-531C14357907}"
+	ProjectSection(ProjectDependencies) = postProject
+		{551B9A13-1636-2178-C922-5C3CFF0553BA} = {551B9A13-1636-2178-C922-5C3CFF0553BA}
+		{24BE9327-5D81-2716-1311-F09AC2E793EB} = {24BE9327-5D81-2716-1311-F09AC2E793EB}
+		{38C63D7D-0B80-5BF3-7865-D6FC4A3EB0F1} = {38C63D7D-0B80-5BF3-7865-D6FC4A3EB0F1}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libhttpd-gen_test_char", "Projects\libhttpd-gen_test_char.vcxproj", "{551B9A13-1636-2178-C922-5C3CFF0553BA}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pcre", "..\srclib\pcre\BuildVS\pcre.vcxproj", "{38C63D7D-0B80-5BF3-7865-D6FC4A3EB0F1}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "httpd", "Projects\httpd.vcxproj", "{26D723EF-38DE-F049-2DC8-D108DCECE6AD}"
+	ProjectSection(ProjectDependencies) = postProject
+		{09ADBB86-A93C-76FB-AC5E-531C14357907} = {09ADBB86-A93C-76FB-AC5E-531C14357907}
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Release|Win32 = Release|Win32
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{5147ED2D-C41D-8035-F95A-9F0B71C93E8E}.Release|Win32.ActiveCfg = Release|Win32
+		{5147ED2D-C41D-8035-F95A-9F0B71C93E8E}.Release|Win32.Build.0 = Release|Win32
+		{5147ED2D-C41D-8035-F95A-9F0B71C93E8E}.Release|x64.ActiveCfg = Release|x64
+		{5147ED2D-C41D-8035-F95A-9F0B71C93E8E}.Release|x64.Build.0 = Release|x64
+		{F14EDC63-5269-5E0B-2DE5-E9D1CE1DC670}.Release|Win32.ActiveCfg = Release|Win32
+		{F14EDC63-5269-5E0B-2DE5-E9D1CE1DC670}.Release|Win32.Build.0 = Release|Win32
+		{F14EDC63-5269-5E0B-2DE5-E9D1CE1DC670}.Release|x64.ActiveCfg = Release|x64
+		{F14EDC63-5269-5E0B-2DE5-E9D1CE1DC670}.Release|x64.Build.0 = Release|x64
+		{24BE9327-5D81-2716-1311-F09AC2E793EB}.Release|Win32.ActiveCfg = Release|Win32
+		{24BE9327-5D81-2716-1311-F09AC2E793EB}.Release|Win32.Build.0 = Release|Win32
+		{24BE9327-5D81-2716-1311-F09AC2E793EB}.Release|x64.ActiveCfg = Release|x64
+		{24BE9327-5D81-2716-1311-F09AC2E793EB}.Release|x64.Build.0 = Release|x64
+		{02FFFA45-CCAD-5CD5-F966-2513AD7AED31}.Release|Win32.ActiveCfg = Release|Win32
+		{02FFFA45-CCAD-5CD5-F966-2513AD7AED31}.Release|Win32.Build.0 = Release|Win32
+		{02FFFA45-CCAD-5CD5-F966-2513AD7AED31}.Release|x64.ActiveCfg = Release|x64
+		{02FFFA45-CCAD-5CD5-F966-2513AD7AED31}.Release|x64.Build.0 = Release|x64
+		{1AD3FB04-2DA1-D949-8CDE-9D32CECA6147}.Release|Win32.ActiveCfg = Release|Win32
+		{1AD3FB04-2DA1-D949-8CDE-9D32CECA6147}.Release|Win32.Build.0 = Release|Win32
+		{1AD3FB04-2DA1-D949-8CDE-9D32CECA6147}.Release|x64.ActiveCfg = Release|x64
+		{1AD3FB04-2DA1-D949-8CDE-9D32CECA6147}.Release|x64.Build.0 = Release|x64
+		{09ADBB86-A93C-76FB-AC5E-531C14357907}.Release|Win32.ActiveCfg = Release|Win32
+		{09ADBB86-A93C-76FB-AC5E-531C14357907}.Release|Win32.Build.0 = Release|Win32
+		{09ADBB86-A93C-76FB-AC5E-531C14357907}.Release|x64.ActiveCfg = Release|x64
+		{09ADBB86-A93C-76FB-AC5E-531C14357907}.Release|x64.Build.0 = Release|x64
+		{551B9A13-1636-2178-C922-5C3CFF0553BA}.Release|Win32.ActiveCfg = Release|Win32
+		{551B9A13-1636-2178-C922-5C3CFF0553BA}.Release|Win32.Build.0 = Release|Win32
+		{551B9A13-1636-2178-C922-5C3CFF0553BA}.Release|x64.ActiveCfg = Release|x64
+		{551B9A13-1636-2178-C922-5C3CFF0553BA}.Release|x64.Build.0 = Release|x64
+		{38C63D7D-0B80-5BF3-7865-D6FC4A3EB0F1}.Release|Win32.ActiveCfg = Release|Win32
+		{38C63D7D-0B80-5BF3-7865-D6FC4A3EB0F1}.Release|Win32.Build.0 = Release|Win32
+		{38C63D7D-0B80-5BF3-7865-D6FC4A3EB0F1}.Release|x64.ActiveCfg = Release|x64
+		{38C63D7D-0B80-5BF3-7865-D6FC4A3EB0F1}.Release|x64.Build.0 = Release|x64
+		{26D723EF-38DE-F049-2DC8-D108DCECE6AD}.Release|Win32.ActiveCfg = Release|Win32
+		{26D723EF-38DE-F049-2DC8-D108DCECE6AD}.Release|Win32.Build.0 = Release|Win32
+		{26D723EF-38DE-F049-2DC8-D108DCECE6AD}.Release|x64.ActiveCfg = Release|x64
+		{26D723EF-38DE-F049-2DC8-D108DCECE6AD}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

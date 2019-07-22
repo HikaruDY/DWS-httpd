@@ -1,0 +1,131 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(SolutionDir)\Common.props" />
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectName>libaprutil-1</ProjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)'=='Release'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)'=='Release'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup />
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
+    <PreBuildEvent>
+      <Command>"$(ProjectDir)/../Scripts/libapr-util-init.cmd" "$(libapr-util)"</Command>
+    </PreBuildEvent>
+    <ClCompile />
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="$(libapr-util)\buckets\apr_brigade.c" />
+    <ClCompile Include="$(libapr-util)\buckets\apr_buckets.c" />
+    <ClCompile Include="$(libapr-util)\buckets\apr_buckets_alloc.c" />
+    <ClCompile Include="$(libapr-util)\buckets\apr_buckets_eos.c" />
+    <ClCompile Include="$(libapr-util)\buckets\apr_buckets_file.c" />
+    <ClCompile Include="$(libapr-util)\buckets\apr_buckets_flush.c" />
+    <ClCompile Include="$(libapr-util)\buckets\apr_buckets_heap.c" />
+    <ClCompile Include="$(libapr-util)\buckets\apr_buckets_mmap.c" />
+    <ClCompile Include="$(libapr-util)\buckets\apr_buckets_pipe.c" />
+    <ClCompile Include="$(libapr-util)\buckets\apr_buckets_pool.c" />
+    <ClCompile Include="$(libapr-util)\buckets\apr_buckets_refcount.c" />
+    <ClCompile Include="$(libapr-util)\buckets\apr_buckets_simple.c" />
+    <ClCompile Include="$(libapr-util)\buckets\apr_buckets_socket.c" />
+    <ClCompile Include="$(libapr-util)\crypto\apr_crypto.c" />
+    <ClCompile Include="$(libapr-util)\crypto\apr_crypto_nss.c" />
+    <ClCompile Include="$(libapr-util)\crypto\apr_crypto_openssl.c" />
+    <ClCompile Include="$(libapr-util)\crypto\apr_md4.c" />
+    <ClCompile Include="$(libapr-util)\crypto\apr_md5.c" />
+    <ClCompile Include="$(libapr-util)\crypto\apr_passwd.c" />
+    <ClCompile Include="$(libapr-util)\crypto\apr_sha1.c" />
+    <ClCompile Include="$(libapr-util)\crypto\crypt_blowfish.c" />
+    <ClCompile Include="$(libapr-util)\crypto\getuuid.c" />
+    <ClCompile Include="$(libapr-util)\crypto\uuid.c" />
+    <ClCompile Include="$(libapr-util)\dbd\apr_dbd.c" />
+    <ClCompile Include="$(libapr-util)\dbm\apr_dbm.c" />
+    <ClCompile Include="$(libapr-util)\dbm\apr_dbm_ndbm.c" />
+    <ClCompile Include="$(libapr-util)\dbm\apr_dbm_sdbm.c" />
+    <ClCompile Include="$(libapr-util)\dbm\sdbm\sdbm.c" />
+    <ClCompile Include="$(libapr-util)\dbm\sdbm\sdbm_hash.c" />
+    <ClCompile Include="$(libapr-util)\dbm\sdbm\sdbm_lock.c" />
+    <ClCompile Include="$(libapr-util)\dbm\sdbm\sdbm_pair.c" />
+    <ClCompile Include="$(libapr-util)\encoding\apr_base64.c" />
+    <ClCompile Include="$(libapr-util)\hooks\apr_hooks.c" />
+    <ClCompile Include="$(libapr-util)\memcache\apr_memcache.c" />
+    <ClCompile Include="$(libapr-util)\misc\apr_date.c" />
+    <ClCompile Include="$(libapr-util)\misc\apr_queue.c" />
+    <ClCompile Include="$(libapr-util)\misc\apr_reslist.c" />
+    <ClCompile Include="$(libapr-util)\misc\apr_rmm.c" />
+    <ClCompile Include="$(libapr-util)\misc\apr_thread_pool.c" />
+    <ClCompile Include="$(libapr-util)\misc\apu_dso.c" />
+    <ClCompile Include="$(libapr-util)\misc\apu_version.c" />
+    <ClCompile Include="$(libapr-util)\strmatch\apr_strmatch.c" />
+    <ClCompile Include="$(libapr-util)\uri\apr_uri.c" />
+    <ClCompile Include="$(libapr-util)\xlate\xlate.c" />
+    <ClCompile Include="$(libapr-util)\xml\apr_xml.c" />
+    <ClCompile Include="$(libapr-util)\ldap\apr_ldap_init.c" />
+    <ClCompile Include="$(libapr-util)\ldap\apr_ldap_option.c" />
+    <ClCompile Include="$(libapr-util)\ldap\apr_ldap_rebind.c" />
+    <ClCompile Include="$(libapr-util)\ldap\apr_ldap_stub.c" />
+    <ClCompile Include="$(libapr-util)\ldap\apr_ldap_url.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="$(libapr-util)\crypto\crypt_blowfish.h" />
+    <ClInclude Include="$(libapr-util)\dbm\sdbm\sdbm_pair.h" />
+    <ClInclude Include="$(libapr-util)\dbm\sdbm\sdbm_private.h" />
+    <ClInclude Include="$(libapr-util)\dbm\sdbm\sdbm_tune.h" />
+    <ClInclude Include="$(libapr-util)\include\apr_anylock.h" />
+    <ClInclude Include="$(libapr-util)\include\apr_base64.h" />
+    <ClInclude Include="$(libapr-util)\include\apr_buckets.h" />
+    <ClInclude Include="$(libapr-util)\include\apr_crypto.h" />
+    <ClInclude Include="$(libapr-util)\include\apr_date.h" />
+    <ClInclude Include="$(libapr-util)\include\apr_dbd.h" />
+    <ClInclude Include="$(libapr-util)\include\apr_dbm.h" />
+    <ClInclude Include="$(libapr-util)\include\apr_hooks.h" />
+    <ClInclude Include="$(libapr-util)\include\apr_ldap_url.h" />
+    <ClInclude Include="$(libapr-util)\include\apr_md4.h" />
+    <ClInclude Include="$(libapr-util)\include\apr_md5.h" />
+    <ClInclude Include="$(libapr-util)\include\apr_memcache.h" />
+    <ClInclude Include="$(libapr-util)\include\apr_optional.h" />
+    <ClInclude Include="$(libapr-util)\include\apr_optional_hooks.h" />
+    <ClInclude Include="$(libapr-util)\include\apr_queue.h" />
+    <ClInclude Include="$(libapr-util)\include\apr_reslist.h" />
+    <ClInclude Include="$(libapr-util)\include\apr_rmm.h" />
+    <ClInclude Include="$(libapr-util)\include\apr_sdbm.h" />
+    <ClInclude Include="$(libapr-util)\include\apr_sha1.h" />
+    <ClInclude Include="$(libapr-util)\include\apr_strmatch.h" />
+    <ClInclude Include="$(libapr-util)\include\apr_thread_pool.h" />
+    <ClInclude Include="$(libapr-util)\include\apr_uri.h" />
+    <ClInclude Include="$(libapr-util)\include\apr_uuid.h" />
+    <ClInclude Include="$(libapr-util)\include\apr_xlate.h" />
+    <ClInclude Include="$(libapr-util)\include\apr_xml.h" />
+    <ClInclude Include="$(libapr-util)\include\apu.h" />
+    <ClInclude Include="$(libapr-util)\include\apu_errno.h" />
+    <ClInclude Include="$(libapr-util)\include\apu_version.h" />
+    <ClInclude Include="$(libapr-util)\include\private\apr_crypto_internal.h" />
+    <ClInclude Include="$(libapr-util)\include\private\apu_config.h" />
+    <ClInclude Include="$(libapr-util)\include\private\apu_internal.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

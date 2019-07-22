@@ -1,0 +1,232 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+	<PropertyGroup>
+		<TargetExt>.so</TargetExt>
+	</PropertyGroup>
+
+<!--Module//-->
+	<ItemDefinitionGroup>
+		<ClCompile>
+			<AdditionalIncludeDirectories>$(root)/include;$(root)/os/win32;$(libapr)/include;$(libapr-util)/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+		</ClCompile>
+		<Link>
+			<AdditionalDependencies>$(OutDir)/libhttpd.lib;$(OutDir)/libapr-1.lib;$(OutDir)/libaprutil-1.lib;$(OutDir)/pcre.lib;%(AdditionalDependencies)</AdditionalDependencies>
+		</Link>
+	</ItemDefinitionGroup>
+
+
+
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='mod_auth_form')">
+		<ClCompile>
+			<AdditionalIncludeDirectories>$(root)/modules/session;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+		</ClCompile>
+	</ItemDefinitionGroup>
+
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='mod_authnz_ldap')">
+		<Link>
+			<AdditionalDependencies>wldap32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+		</Link>
+	</ItemDefinitionGroup>
+
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='mod_authz_dbd')">
+		<ClCompile>
+			<PreprocessorDefinitions>AUTHZ_DBD_DECLARE_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+		</ClCompile>
+	</ItemDefinitionGroup>
+
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='mod_cache')">
+		<ClCompile>
+			<PreprocessorDefinitions>CACHE_DECLARE_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+		</ClCompile>
+	</ItemDefinitionGroup>
+
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='mod_cache_disk')">
+		<Link>
+			<AdditionalDependencies>$(OutDir)/mod_cache.lib;%(AdditionalDependencies)</AdditionalDependencies>
+		</Link>
+	</ItemDefinitionGroup>
+
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='mod_cache_socache')">
+		<ClCompile>
+			<AdditionalIncludeDirectories>$(root)/modules/generators;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+		</ClCompile>
+		<Link>
+			<AdditionalDependencies>$(OutDir)/mod_cache.lib;%(AdditionalDependencies)</AdditionalDependencies>
+		</Link>
+	</ItemDefinitionGroup>
+
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='mod_cgi')">
+		<ClCompile>
+			<AdditionalIncludeDirectories>$(root)/modules/generators;$(root)/modules/filters;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+		</ClCompile>
+	</ItemDefinitionGroup>
+
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='mod_deflate')">
+		<ClCompile>
+			<AdditionalIncludeDirectories>$(root)/modules/ssl;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+		</ClCompile>
+	</ItemDefinitionGroup>
+
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='mod_dav')">
+		<ClCompile>
+			<PreprocessorDefinitions>DAV_DECLARE_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+		</ClCompile>
+	</ItemDefinitionGroup>
+
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='mod_dav_fs') or ('$(ProjectName)'=='mod_dav_lock')">
+		<ClCompile>
+			<AdditionalIncludeDirectories>$(root)/modules/dav/main;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+		</ClCompile>
+		<Link>
+			<AdditionalDependencies>$(OutDir)/mod_dav.lib;%(AdditionalDependencies)</AdditionalDependencies>
+		</Link>
+	</ItemDefinitionGroup>
+
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='mod_dbd')">
+		<ClCompile>
+			<PreprocessorDefinitions>DBD_DECLARE_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+		</ClCompile>
+	</ItemDefinitionGroup>
+
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='mod_headers')">
+		<ClCompile>
+			<AdditionalIncludeDirectories>$(root)/modules/ssl;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+		</ClCompile>
+	</ItemDefinitionGroup>
+
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='mod_heartbeat') or ('$(ProjectName)'=='mod_heartmonitor')">
+		<ClCompile>
+			<AdditionalIncludeDirectories>$(root)/modules/core;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+		</ClCompile>
+		<Link>
+			<AdditionalDependencies>$(OutDir)/mod_watchdog.lib;%(AdditionalDependencies)</AdditionalDependencies>
+		</Link>
+	</ItemDefinitionGroup>
+
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='mod_http')">
+		<ClCompile>
+			<PreprocessorDefinitions>AP_DECLARE_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+		</ClCompile>
+	</ItemDefinitionGroup>
+
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='mod_ldap')">
+		<Link>
+			<AdditionalDependencies>wldap32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+		</Link>
+	</ItemDefinitionGroup>
+
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='mod_lbmethod_bybusyness') or ('$(ProjectName)'=='mod_lbmethod_byrequests') or ('$(ProjectName)'=='mod_lbmethod_bytraffic') or ('$(ProjectName)'=='mod_lbmethod_heartbeat')">
+		<ClCompile>
+			<AdditionalIncludeDirectories>$(root)/modules/proxy;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+		</ClCompile>
+	</ItemDefinitionGroup>
+
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='mod_log_forensic')">
+		<ClCompile>
+			<AdditionalIncludeDirectories>$(root)/server;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+		</ClCompile>
+	</ItemDefinitionGroup>
+
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='mod_lua')">
+		<ClCompile>
+			<AdditionalIncludeDirectories>$(lua);$(lua)/src;$(root)/modules/ssl;$(root)/modules/database;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+			<PreprocessorDefinitions>AP_LUA_DECLARE_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+		</ClCompile>
+		<Link>
+			<AdditionalDependencies>$(lua)/BuildVS/Release/lua_static.lib;%(AdditionalDependencies)</AdditionalDependencies>
+		</Link>
+	</ItemDefinitionGroup>
+
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='mod_netware')">
+		<ClCompile>
+			<AdditionalIncludeDirectories>$(root)/modules/generators;$(root)/modules/filters;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+		</ClCompile>
+	</ItemDefinitionGroup>
+
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='mod_optional_hook_export')">
+		<ClCompile>
+			<AdditionalIncludeDirectories>$(root)/modules/generators;$(root)/modules/ssl;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+			<PreprocessorDefinitions>AP_DECLARE_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+		</ClCompile>
+	</ItemDefinitionGroup>
+
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='mod_proxy')">
+		<ClCompile>
+			<AdditionalIncludeDirectories>$(root)/modules/generators;$(root)/modules/ssl;$(root)/modules/http2;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+			<PreprocessorDefinitions>PROXY_DECLARE_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+		</ClCompile>
+	</ItemDefinitionGroup>
+
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='mod_proxy_ajp') or ('$(ProjectName)'=='mod_proxy_balancer') or ('$(ProjectName)'=='mod_proxy_connect') or ('$(ProjectName)'=='mod_proxy_express') or ('$(ProjectName)'=='mod_proxy_fcgi') or ('$(ProjectName)'=='mod_proxy_fdpass') or ('$(ProjectName)'=='mod_proxy_ftp') or ('$(ProjectName)'=='mod_proxy_html') or ('$(ProjectName)'=='mod_proxy_http') or ('$(ProjectName)'=='mod_proxy_scgi') or ('$(ProjectName)'=='mod_proxy_wstunnel')">
+		<ClCompile>
+			<AdditionalIncludeDirectories>$(root)/modules/core;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+		</ClCompile>
+		<Link>
+			<AdditionalDependencies>$(OutDir)/mod_proxy.lib;%(AdditionalDependencies)</AdditionalDependencies>
+		</Link>
+	</ItemDefinitionGroup>
+
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='mod_ratelimit')">
+		<ClCompile>
+			<PreprocessorDefinitions>AP_RL_DECLARE_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+		</ClCompile>
+	</ItemDefinitionGroup>
+
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='mod_rewrite')">
+		<ClCompile>
+			<AdditionalIncludeDirectories>$(root)/modules/database;$(root)/modules/ssl;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+		</ClCompile>
+	</ItemDefinitionGroup>
+
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='mod_session')">
+		<ClCompile>
+			<PreprocessorDefinitions>SESSION_DECLARE_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+		</ClCompile>
+	</ItemDefinitionGroup>
+
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='mod_session_cookie') or ('$(ProjectName)'=='mod_session_crypt') or ('$(ProjectName)'=='mod_session_dbd')">
+		<Link>
+			<AdditionalDependencies>$(OutDir)/mod_session.lib;%(AdditionalDependencies)</AdditionalDependencies>
+		</Link>
+	</ItemDefinitionGroup>
+
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='mod_session_dbd') or ('$(ProjectName)'=='mod_authn_dbd') or ('$(ProjectName)'=='mod_authz_dbd')">
+		<ClCompile>
+			<AdditionalIncludeDirectories>$(root)/modules/database;$(root)/modules/ssl;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+		</ClCompile>
+	</ItemDefinitionGroup>
+
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='mod_socache_dbm') or ('$(ProjectName)'=='mod_socache_dc') or ('$(ProjectName)'=='mod_socache_memcache') or ('$(ProjectName)'=='mod_socache_shmcb')">
+		<ClCompile>
+			<AdditionalIncludeDirectories>$(root)/modules/generators;$(root)/modules/ssl;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+		</ClCompile>
+	</ItemDefinitionGroup>
+
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='mod_ssl')">
+		<ClCompile>
+			<AdditionalIncludeDirectories>$(openssl);$(openssl)/include;$(root)/modules/generators;$(root)/modules/proxy;$(root)/modules/md;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+			<PreprocessorDefinitions>SSL_DECLARE_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+		</ClCompile>
+		<Link>
+			<AdditionalDependencies>$(openssl)/libcrypto.lib;$(openssl)/libssl.lib;%(AdditionalDependencies)</AdditionalDependencies>
+		</Link>
+	</ItemDefinitionGroup>
+
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='mod_status')">
+		<ClCompile>
+			<PreprocessorDefinitions>STATUS_DECLARE_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+		</ClCompile>
+	</ItemDefinitionGroup>
+
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='mod_watchdog')">
+		<ClCompile>
+			<PreprocessorDefinitions>AP_WD_DECLARE_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+		</ClCompile>
+	</ItemDefinitionGroup>
+
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='mod_win32')"><ClCompile>
+			<AdditionalIncludeDirectories>$(root)/modules/generators;$(root)/modules/filters;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+	</ClCompile></ItemDefinitionGroup>
+
+
+</Project>

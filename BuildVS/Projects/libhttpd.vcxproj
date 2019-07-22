@@ -1,0 +1,104 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(SolutionDir)\Common.props" />
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)'=='Release'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)'=='Release'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup />
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
+    <PreBuildEvent>
+      <Command>"$(ProjectDir)/../Scripts/libhttpd-init.cmd" "$(SolutionDir)/../"</Command>
+    </PreBuildEvent>
+    <ClCompile />
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="$(root)\modules\arch\win32\mod_win32.c" />
+    <ClCompile Include="$(root)\modules\core\mod_so.c" />
+    <ClCompile Include="$(root)\modules\http\byterange_filter.c" />
+    <ClCompile Include="$(root)\modules\http\chunk_filter.c" />
+    <ClCompile Include="$(root)\modules\http\http_core.c" />
+    <ClCompile Include="$(root)\modules\http\http_etag.c" />
+    <ClCompile Include="$(root)\modules\http\http_filters.c" />
+    <ClCompile Include="$(root)\modules\http\http_protocol.c" />
+    <ClCompile Include="$(root)\modules\http\http_request.c" />
+    <ClCompile Include="$(root)\modules\http\mod_mime.c" />
+    <ClCompile Include="$(root)\os\win32\ap_regkey.c" />
+    <ClCompile Include="$(root)\os\win32\modules.c" />
+    <ClCompile Include="$(root)\os\win32\util_win32.c" />
+    <ClCompile Include="$(root)\server\buildmark.c" />
+    <ClCompile Include="$(root)\server\config.c" />
+    <ClCompile Include="$(root)\server\connection.c" />
+    <ClCompile Include="$(root)\server\core.c" />
+    <ClCompile Include="$(root)\server\core_filters.c" />
+    <ClCompile Include="$(root)\server\eoc_bucket.c" />
+    <ClCompile Include="$(root)\server\eor_bucket.c" />
+    <ClCompile Include="$(root)\server\error_bucket.c" />
+    <ClCompile Include="$(root)\server\listen.c" />
+    <ClCompile Include="$(root)\server\log.c" />
+    <ClCompile Include="$(root)\server\main.c" />
+    <ClCompile Include="$(root)\server\mpm\winnt\child.c" />
+    <ClCompile Include="$(root)\server\mpm\winnt\mpm_winnt.c" />
+    <ClCompile Include="$(root)\server\mpm\winnt\nt_eventlog.c" />
+    <ClCompile Include="$(root)\server\mpm\winnt\service.c" />
+    <ClCompile Include="$(root)\server\mpm_common.c" />
+    <ClCompile Include="$(root)\server\mpm_unix.c" />
+    <ClCompile Include="$(root)\server\protocol.c" />
+    <ClCompile Include="$(root)\server\provider.c" />
+    <ClCompile Include="$(root)\server\request.c" />
+    <ClCompile Include="$(root)\server\scoreboard.c" />
+    <ClCompile Include="$(root)\server\util.c" />
+    <ClCompile Include="$(root)\server\util_cfgtree.c" />
+    <ClCompile Include="$(root)\server\util_charset.c" />
+    <ClCompile Include="$(root)\server\util_cookies.c" />
+    <ClCompile Include="$(root)\server\util_debug.c" />
+    <ClCompile Include="$(root)\server\util_ebcdic.c" />
+    <ClCompile Include="$(root)\server\util_expr_eval.c" />
+    <ClCompile Include="$(root)\server\util_expr_parse.c" />
+    <ClCompile Include="$(root)\server\util_expr_scan.c" />
+    <ClCompile Include="$(root)\server\util_fcgi.c" />
+    <ClCompile Include="$(root)\server\util_filter.c" />
+    <ClCompile Include="$(root)\server\util_md5.c" />
+    <ClCompile Include="$(root)\server\util_mutex.c" />
+    <ClCompile Include="$(root)\server\util_pcre.c" />
+    <ClCompile Include="$(root)\server\util_regex.c" />
+    <ClCompile Include="$(root)\server\util_script.c" />
+    <ClCompile Include="$(root)\server\util_time.c" />
+    <ClCompile Include="$(root)\server\util_xml.c" />
+    <ClCompile Include="$(root)\server\vhost.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="$(root)\os\win32\os.h" />
+    <ClInclude Include="$(root)\os\win32\win32_config_layout.h" />
+    <ClInclude Include="$(root)\server\mpm\winnt\mpm_default.h" />
+    <ClInclude Include="$(root)\server\mpm\winnt\mpm_winnt.h" />
+    <ClInclude Include="$(root)\server\util_expr_parse.h" />
+    <ClInclude Include="$(root)\server\util_expr_private.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
