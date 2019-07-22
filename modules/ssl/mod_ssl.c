@@ -331,9 +331,6 @@ static apr_status_t ssl_cleanup_pre_config(void *data)
     /*
      * Try to kill the internals of the SSL library.
      */
-#ifdef HAVE_FIPS
-    FIPS_mode_set(0);
-#endif
     /* Corresponds to OBJ_create()s */
     OBJ_cleanup();
     /* Corresponds to OPENSSL_load_builtin_modules() */
@@ -445,17 +442,20 @@ static int ssl_hook_pre_config(apr_pool_t *pconf,
 }
 
 static SSLConnRec *ssl_init_connection_ctx(conn_rec *c,
-                                           ap_conf_vector_t *per_dir_config)
+                                           ap_conf_vector_t *per_dir_config,
+                                           int new_proxy)
 {
     SSLConnRec *sslconn = myConnConfig(c);
-    SSLSrvConfigRec *sc;
+    int need_setup = 0;
 
-    if (sslconn) {
-        return sslconn;
+    if (!sslconn) {
+        sslconn = apr_pcalloc(c->pool, sizeof(*sslconn));
+        need_setup = 1;
     }
 
-    sslconn = apr_pcalloc(c->pool, sizeof(*sslconn));
-
+    /* Reinit dc in any case because it may be r->per_dir_config scoped
+     * and thus a caller like mod_proxy needs to update it per request.
+     */
     if (per_dir_config) {
         sslconn->dc = ap_get_module_config(per_dir_config, &ssl_module);
     }
@@ -464,12 +464,20 @@ static SSLConnRec *ssl_init_connection_ctx(conn_rec *c,
                                            &ssl_module);
     }
 
-    sslconn->server = c->base_server;
-    sslconn->verify_depth = UNSET;
-    sc = mySrvConfig(c->base_server);
-    sslconn->cipher_suite = sc->server->auth.cipher_suite;
+    if (need_setup) {
+        sslconn->server = c->base_server;
+        sslconn->verify_depth = UNSET;
+        if (new_proxy) {
+            sslconn->is_proxy = 1;
+            sslconn->cipher_suite = sslconn->dc->proxy->auth.cipher_suite;
+        }
+        else {
+            SSLSrvConfigRec *sc = mySrvConfig(c->base_server);
+            sslconn->cipher_suite = sc->server->auth.cipher_suite;
+        }
 
-    myConnConfigSet(c, sslconn);
+        myConnConfigSet(c, sslconn);
+    }
 
     return sslconn;
 }
@@ -510,8 +518,7 @@ static int ssl_engine_set(conn_rec *c,
     int status;
     
     if (proxy) {
-        sslconn = ssl_init_connection_ctx(c, per_dir_config);
-        sslconn->is_proxy = 1;
+        sslconn = ssl_init_connection_ctx(c, per_dir_config, 1);
     }
     else {
         sslconn = myConnConfig(c);
@@ -558,7 +565,7 @@ int ssl_init_ssl_connection(conn_rec *c, request_rec *r)
     /*
      * Create or retrieve SSL context
      */
-    sslconn = ssl_init_connection_ctx(c, r ? r->per_dir_config : NULL);
+    sslconn = ssl_init_connection_ctx(c, r ? r->per_dir_config : NULL, 0);
     server = sslconn->server;
     sc = mySrvConfig(server);
 
@@ -618,24 +625,12 @@ int ssl_init_ssl_connection(conn_rec *c, request_rec *r)
 
 static const char *ssl_hook_http_scheme(const request_rec *r)
 {
-    SSLSrvConfigRec *sc = mySrvConfig(r->server);
-
-    if (sc->enabled == SSL_ENABLED_FALSE || sc->enabled == SSL_ENABLED_OPTIONAL) {
-        return NULL;
-    }
-
-    return "https";
+    return modssl_request_is_tls(r, NULL) ? "https" : NULL;
 }
 
 static apr_port_t ssl_hook_default_port(const request_rec *r)
 {
-    SSLSrvConfigRec *sc = mySrvConfig(r->server);
-
-    if (sc->enabled == SSL_ENABLED_FALSE || sc->enabled == SSL_ENABLED_OPTIONAL) {
-        return 0;
-    }
-
-    return 443;
+    return modssl_request_is_tls(r, NULL) ? 443 : 0;
 }
 
 static int ssl_hook_pre_connection(conn_rec *c, void *csd)

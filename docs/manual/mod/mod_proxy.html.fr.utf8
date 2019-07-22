@@ -147,13 +147,14 @@
 <ul class="seealso">
 <li><code class="module"><a href="../mod/mod_cache.html">mod_cache</a></code></li>
 <li><code class="module"><a href="../mod/mod_proxy_ajp.html">mod_proxy_ajp</a></code></li>
+<li><code class="module"><a href="../mod/mod_proxy_balancer.html">mod_proxy_balancer</a></code></li>
 <li><code class="module"><a href="../mod/mod_proxy_connect.html">mod_proxy_connect</a></code></li>
 <li><code class="module"><a href="../mod/mod_proxy_fcgi.html">mod_proxy_fcgi</a></code></li>
 <li><code class="module"><a href="../mod/mod_proxy_ftp.html">mod_proxy_ftp</a></code></li>
+<li><code class="module"><a href="../mod/mod_proxy_hcheck.html">mod_proxy_hcheck</a></code></li>
 <li><code class="module"><a href="../mod/mod_proxy_http.html">mod_proxy_http</a></code></li>
 <li><code class="module"><a href="../mod/mod_proxy_scgi.html">mod_proxy_scgi</a></code></li>
 <li><code class="module"><a href="../mod/mod_proxy_wstunnel.html">mod_proxy_wstunnel</a></code></li>
-<li><code class="module"><a href="../mod/mod_proxy_balancer.html">mod_proxy_balancer</a></code></li>
 <li><code class="module"><a href="../mod/mod_ssl.html">mod_ssl</a></code></li>
 <li><a href="#comments_section">Commentaires</a></li></ul></div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
@@ -1112,9 +1113,7 @@ sont supportés à partir de la version 2.4.7 du serveur HTTP Apache</td></tr>
 
     <div class="note">Il est fortement recommandé de revoir le concept de <a href="#workers">Worker</a> avant d'aller plus loin.</div>
 
-    <div class="note">Cette directive n'est pas supportée au sein
-    des sections <code class="directive"><a href="../mod/core.html#directory">&lt;Directory&gt;</a></code>
-    et <code class="directive"><a href="../mod/core.html#files">&lt;Files&gt;</a></code>.</div>
+    <div class="note">Cette directive n'est pas supportée au sein des sections <code class="directive"><a href="../mod/core.html#directory">&lt;Directory&gt;</a></code>, <code class="directive"><a href="../mod/core.html#if">&lt;If&gt;</a></code> et <code class="directive"><a href="../mod/core.html#files">&lt;Files&gt;</a></code>.</div>
 
     <div class="warning">En général, la directive <code class="directive"><a href="#proxyrequests">ProxyRequests</a></code> doit être définie à
     <strong>off</strong> lorsqu'on utilise la directive
@@ -1124,7 +1123,7 @@ sont supportés à partir de la version 2.4.7 du serveur HTTP Apache</td></tr>
     2.4.7 du serveur HTTP Apache ; pour utiliser cette fonctionnalité,
     il suffit d'utiliser une URL cible préfixée par
     <code>unix:/path/lis.sock|</code>. Par exemple, pour mandater HTTP
-    et cibler l'UDS /home/www/socket, vous devez utiliser
+    et cibler l'UDS /home/www.socket, vous devez utiliser
     <code>unix:/home/www.socket|http://localhost/whatever/</code>.</p>
 
     <div class="note"><strong>Note :</strong>Le chemin associé à l'URL
@@ -2349,7 +2348,7 @@ var comments_identifier = 'http://httpd.apache.org/docs/2.4/mod/mod_proxy.html';
     }
 })(window, document);
 //--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2018 The Apache Software Foundation.<br />Autorisé sous <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
+<p class="apache">Copyright 2019 The Apache Software Foundation.<br />Autorisé sous <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
 <p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/directives.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossaire</a> | <a href="../sitemap.html">Plan du site</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();

@@ -183,6 +183,14 @@ int ssl_is_challenge(conn_rec *c, const char *servername,
     return 0;
 }
 
+#ifdef HAVE_FIPS
+static apr_status_t modssl_fips_cleanup(void *data)
+{
+    FIPS_mode_set(0);
+    return APR_SUCCESS;
+}
+#endif
+
 /*
  *  Per-module initialization
  */
@@ -311,11 +319,13 @@ apr_status_t ssl_init_Module(apr_pool_t *p, apr_pool_t *plog,
     ssl_rand_seed(base_server, ptemp, SSL_RSCTX_STARTUP, "Init: ");
 
 #ifdef HAVE_FIPS
-    if(sc->fips) {
+    if (sc->fips) {
         if (!FIPS_mode()) {
             if (FIPS_mode_set(1)) {
                 ap_log_error(APLOG_MARK, APLOG_NOTICE, 0, s, APLOGNO(01884)
                              "Operating in SSL FIPS mode");
+                apr_pool_cleanup_register(p, NULL, modssl_fips_cleanup,
+                                          apr_pool_cleanup_null);
             }
             else {
                 ap_log_error(APLOG_MARK, APLOG_EMERG, 0, s, APLOGNO(01885) "FIPS mode failed");
@@ -923,7 +933,7 @@ static apr_status_t ssl_init_ctx_cipher_suite(server_rec *s,
 #if SSL_HAVE_PROTOCOL_TLSV1_3
     if (mctx->auth.tls13_ciphers 
         && !SSL_CTX_set_ciphersuites(ctx, mctx->auth.tls13_ciphers)) {
-        ap_log_error(APLOG_MARK, APLOG_EMERG, 0, s, APLOGNO()
+        ap_log_error(APLOG_MARK, APLOG_EMERG, 0, s, APLOGNO(10127)
                 "Unable to configure permitted TLSv1.3 ciphers");
         ssl_log_ssl_error(SSLLOG_MARK, APLOG_EMERG, s);
         return ssl_die(s);
@@ -1038,8 +1048,10 @@ static int use_certificate_chain(
         ctx->extra_certs = NULL;
     }
 #endif
+
     /* create new extra chain by loading the certs */
     n = 0;
+    ERR_clear_error();
     while ((x509 = PEM_read_bio_X509(bio, NULL, cb, NULL)) != NULL) {
         if (!SSL_CTX_add_extra_chain_cert(ctx, x509)) {
             X509_free(x509);
