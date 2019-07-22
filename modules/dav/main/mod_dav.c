@@ -643,7 +643,7 @@ static int dav_created(request_rec *r, const char *locn, const char *what,
     const char *body;
 
     if (locn == NULL) {
-        locn = r->unparsed_uri;
+        locn = ap_escape_uri(r->pool, r->uri);
     }
 
     /* did the target resource already exist? */
@@ -2012,9 +2012,9 @@ static dav_error * dav_propfind_walker(dav_walk_resource *wres, int calltype)
                                  : DAV_PROP_INSERT_NAME;
         propstats = dav_get_allprops(propdb, what);
     }
-    dav_close_propdb(propdb);
-
     dav_stream_response(wres, 0, &propstats, ctx->scratchpool);
+
+    dav_close_propdb(propdb);
 
     /* at this point, ctx->scratchpool has been used to stream a
        single response.  this function fully controls the pool, and
@@ -2113,6 +2113,7 @@ static int dav_method_propfind(request_rec *r)
     ctx.r = r;
     ctx.bb = apr_brigade_create(r->pool, r->connection->bucket_alloc);
     apr_pool_create(&ctx.scratchpool, r->pool);
+    apr_pool_tag(ctx.scratchpool, "mod_dav-scratch");
 
     /* ### should open read-only */
     if ((err = dav_open_lockdb(r, 0, &ctx.w.lockdb)) != NULL) {

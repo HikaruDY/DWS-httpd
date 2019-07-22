@@ -28,7 +28,6 @@
 <a href="../ko/programs/ab.html" hreflang="ko" rel="alternate" title="Korean">&nbsp;ko&nbsp;</a> |
 <a href="../tr/programs/ab.html" title="Türkçe">&nbsp;tr&nbsp;</a></p>
 </div>
-<div class="outofdate">Bu çeviri güncel olmayabilir. Son değişiklikler için İngilizce sürüm geçerlidir.</div>
 
     <p><code><strong>ab</strong></code> Apache Hiper Metin Aktarım Protokolü
       (HTTP) sunucunuzun başarımını ölçmek amacıyla kullanabileceğiniz bir
@@ -53,6 +52,7 @@
     [ -<strong>C</strong> <var>çerez-ismi=değer</var> ]
     [ -<strong>d</strong> ]
     [ -<strong>e</strong> <var>csv-dosyası</var> ]
+    [ -<strong>E</strong> <var>istemci-sertifikası-dosyası</var> ]
     [ -<strong>f</strong> <var>protokol</var> ]
     [ -<strong>g</strong> <var>gnuplot-dosyası</var> ]
     [ -<strong>h</strong> ]
@@ -118,6 +118,12 @@
       cinsinden) sunulduğunu gösteren virgül ayraçlı değerler (CSV) dosyası.
       Sonuçlar 'bobin haline' getirilmiş olduğundan doğal olarak 'gnuplot'
       dosyasından daha yararlıdır.</dd>
+
+    <dt><code>-E <var>istemci-sertifikası-dosyası</var></code></dt>
+    <dd>Bir SSL sitesine bağlanırken, sunucu ile kimlik doğrulaması için
+      PEM biçeminde sağlanan sertifika kullanılır. Dosyanın sırayla istemci 
+      sertifikasını, ara sertifikaları ve özel anahtarı içermesi beklenir. 
+      2.4.36 ve sonrasında kullanılabilir.</dd>
 
     <dt><code><strong>-f</strong> <var>protokol</var></code></dt>
     <dd>SSL/TLS protokolü belirtilir (SSL2, SSL3, TLS1, TLS1.1, TLS1.2 veya
@@ -368,7 +374,7 @@ var comments_identifier = 'http://httpd.apache.org/docs/2.4/programs/ab.html';
     }
 })(window, document);
 //--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2018 The Apache Software Foundation.<br /><a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a> altında lisanslıdır.</p>
+<p class="apache">Copyright 2019 The Apache Software Foundation.<br /><a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a> altında lisanslıdır.</p>
 <p class="menu"><a href="../mod/">Modüller</a> | <a href="../mod/directives.html">Yönergeler</a> | <a href="http://wiki.apache.org/httpd/FAQ">SSS</a> | <a href="../glossary.html">Terimler</a> | <a href="../sitemap.html">Site Haritası</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();
