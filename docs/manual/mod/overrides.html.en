@@ -296,7 +296,7 @@ are groups.</td></tr>
 <tr><td><a href="mod_authnz_ldap.html#authldapsubgroupclass">AuthLDAPSubGroupClass</a></td><td class="module"><a href="mod_authnz_ldap.html">mod_authnz_ldap</a></td></tr>
 <tr><td colspan="2" class="descr">Specifies which LDAP objectClass values identify directory
 objects that are groups during sub-group processing.</td></tr>
-<tr class="odd"><td><a href="mod_authnz_ldap.html#authldapurl">AuthLDAPUrl</a></td><td class="module"><a href="mod_authnz_ldap.html">mod_authnz_ldap</a></td></tr>
+<tr class="odd"><td><a href="mod_authnz_ldap.html#authldapurl">AuthLDAPURL</a></td><td class="module"><a href="mod_authnz_ldap.html">mod_authnz_ldap</a></td></tr>
 <tr class="odd"><td colspan="2" class="descr">URL specifying the LDAP search parameters</td></tr>
 <tr><td><a href="mod_authz_core.html#authmerging">AuthMerging</a></td><td class="module"><a href="mod_authz_core.html">mod_authz_core</a></td></tr>
 <tr><td colspan="2" class="descr">Controls the manner in which each configuration section's
@@ -731,7 +731,7 @@ var comments_identifier = 'http://httpd.apache.org/docs/2.4/mod/overrides.html';
     }
 })(window, document);
 //--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2018 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
+<p class="apache">Copyright 2019 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
 <p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/directives.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossary</a> | <a href="../sitemap.html">Sitemap</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();

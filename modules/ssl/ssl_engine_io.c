@@ -200,17 +200,13 @@ static int bio_filter_out_write(BIO *bio, const char *in, int inl)
     apr_bucket *e;
     int need_flush;
 
+    BIO_clear_retry_flags(bio);
+
     /* Abort early if the client has initiated a renegotiation. */
     if (outctx->filter_ctx->config->reneg_state == RENEG_ABORT) {
         outctx->rc = APR_ECONNABORTED;
         return -1;
     }
-
-    /* when handshaking we'll have a small number of bytes.
-     * max size SSL will pass us here is about 16k.
-     * (16413 bytes to be exact)
-     */
-    BIO_clear_retry_flags(bio);
 
     /* Use a transient bucket for the output data - any downstream
      * filter must setaside if necessary. */
@@ -458,13 +454,13 @@ static int bio_filter_in_read(BIO *bio, char *in, int inlen)
     if (!in)
         return 0;
 
+    BIO_clear_retry_flags(bio);
+
     /* Abort early if the client has initiated a renegotiation. */
     if (inctx->filter_ctx->config->reneg_state == RENEG_ABORT) {
         inctx->rc = APR_ECONNABORTED;
         return -1;
     }
-
-    BIO_clear_retry_flags(bio);
 
     if (!inctx->bb) {
         inctx->rc = APR_EOF;
@@ -986,12 +982,10 @@ static apr_status_t ssl_io_filter_error(bio_filter_in_ctx_t *inctx,
             break;
 
     case MODSSL_ERROR_BAD_GATEWAY:
-        bucket = ap_bucket_error_create(HTTP_BAD_REQUEST, NULL,
-                                        f->c->pool,
-                                        f->c->bucket_alloc);
         ap_log_cerror(APLOG_MARK, APLOG_INFO, 0, f->c, APLOGNO(01997)
                       "SSL handshake failed: sending 502");
-        break;
+        f->c->aborted = 1;
+        return APR_EGENERAL;
 
     default:
         return status;
@@ -1244,7 +1238,7 @@ static apr_status_t ssl_io_filter_handshake(ssl_filter_ctx_t *filter_ctx)
                 ssl_log_ssl_error(SSLLOG_MARK, APLOG_WARNING, server);
             }
         }
-#endif
+#endif /* defined HAVE_TLSEXT */
 
         if ((n = SSL_connect(filter_ctx->pssl)) <= 0) {
             ap_log_cerror(APLOG_MARK, APLOG_INFO, 0, c, APLOGNO(02003)
@@ -1324,7 +1318,7 @@ static apr_status_t ssl_io_filter_handshake(ssl_filter_ctx_t *filter_ctx)
             /* ensure that the SSL structures etc are freed, etc: */
             ssl_filter_io_shutdown(filter_ctx, c, 1);
             apr_table_setn(c->notes, "SSL_connect_rv", "err");
-            return HTTP_BAD_GATEWAY;
+            return MODSSL_ERROR_BAD_GATEWAY;
         }
 
         apr_table_setn(c->notes, "SSL_connect_rv", "ok");

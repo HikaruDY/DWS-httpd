@@ -14,7 +14,6 @@ server/test_char.h
 *.lib
 *.so
 *.res
-*.manifest
 
 *.obj
 *.exp

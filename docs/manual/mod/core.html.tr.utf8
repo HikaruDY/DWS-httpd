@@ -33,6 +33,7 @@
 <a href="../ja/mod/core.html" hreflang="ja" rel="alternate" title="Japanese">&nbsp;ja&nbsp;</a> |
 <a href="../tr/mod/core.html" title="Türkçe">&nbsp;tr&nbsp;</a></p>
 </div>
+<div class="outofdate">Bu çeviri güncel olmayabilir. Son değişiklikler için İngilizce sürüm geçerlidir.</div>
 <table class="module"><tr><th><a href="module-dict.html#Description">Açıklama:</a></th><td>Apache HTTP Sunucusunda daima mevcut olan çekirdek
  özellikler</td></tr>
 <tr><th><a href="module-dict.html#Status">Durum:</a></th><td>Çekirdek</td></tr></table>
@@ -97,6 +98,7 @@
 <li><img alt="" src="../images/down.gif" /> <a href="#maxrangeoverlaps">MaxRangeOverlaps</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#maxrangereversals">MaxRangeReversals</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#maxranges">MaxRanges</a></li>
+<li><img alt="" src="../images/down.gif" /> <a href="#mergeslashes">MergeSlashes</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#mergetrailers">MergeTrailers</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#mutex">Mutex</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#namevirtualhost">NameVirtualHost</a></li>
@@ -3146,6 +3148,26 @@ uygulanır.</td></tr>
 &lt;/LocationMatch&gt;</pre>
 
 
+    <div class="note"><h3>/ (bölü çizgisi) hakkında</h3>
+      <p>Bölü çizgisi karakteri URL üzerinde göründüğü yere bağlı olarak farklı anlamlar içerir. İnsanlar, birden çok bitişik bölü çizgisinin sık sık 
+      tek bir bölü çizgisine daraltıldığı dosya sistemindeki davranışına 
+      alışkın olabilir (<em>örn</em>, <code>/home///foo</code> ile
+      <code>/home/foo</code> aynıdır). URL bakımından bu her zaman doğru 
+      değildir. Eğer niyetiniz buysa, <code class="directive"><a href="#locationmatch">&lt;LocationMatch&gt;</a></code> yönergesi ve <code class="directive">&lt;Location&gt;</code> yönergesinin regex ile kullanımı,
+      bölü çizgisinin özel anlam ifade etmesi nedeniyle gerektiği kadarının 
+      belirtilmesini gerektirir.</p>
+
+      <p>Örneğin, <code>&lt;LocationMatch "^/abc"&gt;</code> ile 
+      <code>/abc</code> isteği eşleşirken <code>//abc</code> isteği 
+      eşleşmez. <code class="directive">&lt;Location&gt;</code> yönergesinin
+      regex olmayan kullanımı vekil isteklerindeki gibi davranır. Fakat
+      vekil harici işlemlerde <code class="directive">&lt;Location&gt;</code> 
+      yönergesinin regex olmayan kullanımında çok sayıda bölü çizgisi örtük 
+      olarak tek bölü çizgisiyle eşleşir. Örneğin,
+      <code>&lt;Location "/abc/def"&gt;</code> belirtirseniz 
+      <code>/abc//def</code> isteği bu ifade ile eşleşecektir.</p>
+    </div>
+
 <h3>Ayrıca bakınız:</h3>
 <ul>
 <li>Bir istek alındığında farklı yapılandırma bölümlerinin nasıl bir
@@ -3471,6 +3493,19 @@ LogLevel info ssl_module:warn</pre>
     </dl>
 
 </div>
+<div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
+<div class="directive-section"><h2><a name="MergeSlashes" id="MergeSlashes">MergeSlashes</a> <a name="mergeslashes" id="mergeslashes">Yönergesi</a></h2>
+<table class="directive">
+<tr><th><a href="directive-dict.html#Description">Açıklama:</a></th><td>Controls whether the server merges consecutive slashes in URLs.
+</td></tr>
+<tr><th><a href="directive-dict.html#Syntax">Sözdizimi:</a></th><td><code>MergeSlashes ON|OFF</code></td></tr>
+<tr><th><a href="directive-dict.html#Default">Öntanımlı:</a></th><td><code>MergeSlashes ON</code></td></tr>
+<tr><th><a href="directive-dict.html#Context">Bağlam:</a></th><td>sunucu geneli, sanal konak</td></tr>
+<tr><th><a href="directive-dict.html#Status">Durum:</a></th><td>Çekirdek</td></tr>
+<tr><th><a href="directive-dict.html#Module">Modül:</a></th><td>core</td></tr>
+<tr><th><a href="directive-dict.html#Compatibility">Uyumluluk:</a></th><td>Added in 2.4.39</td></tr>
+</table><p>Bu yönergenin belgesi henüz Türkçeye çevrilmedi.
+            Lütfen İngilizce sürümüne bakınız.</p></div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="directive-section"><h2><a name="MergeTrailers" id="MergeTrailers">MergeTrailers</a> <a name="mergetrailers" id="mergetrailers">Yönergesi</a></h2>
 <table class="directive">
@@ -5066,7 +5101,7 @@ var comments_identifier = 'http://httpd.apache.org/docs/2.4/mod/core.html';
     }
 })(window, document);
 //--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2018 The Apache Software Foundation.<br /><a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a> altında lisanslıdır.</p>
+<p class="apache">Copyright 2019 The Apache Software Foundation.<br /><a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a> altında lisanslıdır.</p>
 <p class="menu"><a href="../mod/">Modüller</a> | <a href="../mod/directives.html">Yönergeler</a> | <a href="http://wiki.apache.org/httpd/FAQ">SSS</a> | <a href="../glossary.html">Terimler</a> | <a href="../sitemap.html">Site Haritası</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();
