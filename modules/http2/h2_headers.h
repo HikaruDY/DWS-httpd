@@ -44,8 +44,8 @@ apr_bucket *h2_bucket_headers_beam(struct h2_bucket_beam *beam,
  * @param raw_bytes the raw network bytes (if known) used to transmit these
  * @param pool the memory pool to use
  */
-h2_headers *h2_headers_create(int status, apr_table_t *header, 
-                              apr_table_t *notes, apr_off_t raw_bytes, 
+h2_headers *h2_headers_create(int status, const apr_table_t *header,
+                              const apr_table_t *notes, apr_off_t raw_bytes,
                               apr_pool_t *pool);
 
 /**
@@ -56,17 +56,22 @@ h2_headers *h2_headers_create(int status, apr_table_t *header,
  * @param pool the memory pool to use
  */
 h2_headers *h2_headers_rcreate(request_rec *r, int status, 
-                                 apr_table_t *header, apr_pool_t *pool);
+                               const apr_table_t *header, apr_pool_t *pool);
 
 /**
- * Clone the headers into another pool. This will not copy any
+ * Copy the headers into another pool. This will not copy any
  * header strings.
  */
 h2_headers *h2_headers_copy(apr_pool_t *pool, h2_headers *h);
 
 /**
+ * Clone the headers into another pool. This will also clone any
+ * header strings.
+ */
+h2_headers *h2_headers_clone(apr_pool_t *pool, h2_headers *h);
+
+/**
  * Create the headers for the given error.
- * @param stream_id id of the stream to create the headers for
  * @param type the error code
  * @param req the original h2_request
  * @param pool the memory pool to use
@@ -75,5 +80,10 @@ h2_headers *h2_headers_die(apr_status_t type,
                              const struct h2_request *req, apr_pool_t *pool);
 
 int h2_headers_are_response(h2_headers *headers);
+
+/**
+ * Give the number of bytes of all contained header strings.
+ */
+apr_size_t h2_headers_length(h2_headers *headers);
 
 #endif /* defined(__mod_h2__h2_headers__) */

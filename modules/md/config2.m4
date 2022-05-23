@@ -99,7 +99,7 @@ AC_DEFUN([APACHE_CHECK_CURL],[
 
     AC_CHECK_HEADERS([curl/curl.h])
 
-    AC_MSG_CHECKING([for curl version >= 7.50])
+    AC_MSG_CHECKING([for curl version >= 7.29])
     AC_TRY_COMPILE([#include <curl/curlver.h>],[
 #if !defined(LIBCURL_VERSION_MAJOR)
 #error "Missing libcurl version"
@@ -107,7 +107,7 @@ AC_DEFUN([APACHE_CHECK_CURL],[
 #if LIBCURL_VERSION_MAJOR < 7
 #error "Unsupported libcurl version " LIBCURL_VERSION
 #endif
-#if LIBCURL_VERSION_MAJOR == 7 && LIBCURL_VERSION_MINOR < 50
+#if LIBCURL_VERSION_MAJOR == 7 && LIBCURL_VERSION_MINOR < 29
 #error "Unsupported libcurl version " LIBCURL_VERSION
 #endif],
       [AC_MSG_RESULT(OK)
@@ -248,20 +248,30 @@ md_acme.lo dnl
 md_acme_acct.lo dnl
 md_acme_authz.lo dnl
 md_acme_drive.lo dnl
+md_acmev2_drive.lo dnl
+md_acme_order.lo dnl
 md_core.lo dnl
 md_curl.lo dnl
 md_crypt.lo dnl
+md_event.lo dnl
 md_http.lo dnl
 md_json.lo dnl
 md_jws.lo dnl
 md_log.lo dnl
+md_ocsp.lo dnl
+md_result.lo dnl
 md_reg.lo dnl
+md_status.lo dnl
 md_store.lo dnl
 md_store_fs.lo dnl
+md_time.lo dnl
 md_util.lo dnl
 mod_md.lo dnl
 mod_md_config.lo dnl
+mod_md_drive.lo dnl
+mod_md_ocsp.lo dnl
 mod_md_os.lo dnl
+mod_md_status.lo dnl
 "
 
 # Ensure that other modules can pick up mod_md.h
@@ -289,7 +299,10 @@ APACHE_MODULE(md, [Managed Domain handling], $md_objs, , most, [
     
     AC_CHECK_FUNCS([arc4random_buf], 
         [APR_ADDTO(MOD_CPPFLAGS, ["-DMD_HAVE_ARC4RANDOM"])], [])
-    
+
+    if test "x$enable_md" = "xshared"; then
+       APR_ADDTO(MOD_MD_LDADD, [-export-symbols-regex md_module])
+    fi
 ])
 
 dnl #  end of module specific part

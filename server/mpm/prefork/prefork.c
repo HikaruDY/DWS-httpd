@@ -223,6 +223,10 @@ static void clean_child_exit(int code)
     apr_signal(SIGHUP, SIG_IGN);
     apr_signal(SIGTERM, SIG_IGN);
 
+    if (code == 0) {
+        ap_run_child_stopping(pchild, 0);
+    }
+
     if (pchild) {
         apr_pool_destroy(pchild);
     }
@@ -376,11 +380,22 @@ static void stop_listening(int sig)
 static int requests_this_child;
 static int num_listensocks = 0;
 
+#if APR_HAS_THREADS
+static void child_sigmask(sigset_t *new_mask, sigset_t *old_mask)
+{
+#if defined(SIGPROCMASK_SETS_THREAD_MASK)
+    sigprocmask(SIG_SETMASK, new_mask, old_mask);
+#else
+    pthread_sigmask(SIG_SETMASK, new_mask, old_mask);
+#endif
+}
+#endif
+
 static void child_main(int child_num_arg, int child_bucket)
 {
 #if APR_HAS_THREADS
     apr_thread_t *thd = NULL;
-    apr_os_thread_t osthd;
+    sigset_t sig_mask;
 #endif
     apr_pool_t *ptrans;
     apr_allocator_t *allocator;
@@ -411,9 +426,23 @@ static void child_main(int child_num_arg, int child_bucket)
     apr_allocator_owner_set(allocator, pchild);
     apr_pool_tag(pchild, "pchild");
 
+#if AP_HAS_THREAD_LOCAL
+    if (one_process) {
+        thd = ap_thread_current();
+    }
+    else if ((status = ap_thread_main_create(&thd, pchild))) {
+        ap_log_error(APLOG_MARK, APLOG_EMERG, status, ap_server_conf, APLOGNO(10378)
+                     "Couldn't initialize child main thread");
+        clean_child_exit(APEXIT_CHILDFATAL);
+    }
+#elif APR_HAS_THREADS
+    {
+        apr_os_thread_t osthd = apr_os_thread_current();
+        apr_os_thread_put(&thd, &osthd, pchild);
+    }
+#endif
 #if APR_HAS_THREADS
-    osthd = apr_os_thread_current();
-    apr_os_thread_put(&thd, &osthd, pchild);
+    ap_assert(thd != NULL);
 #endif
 
     apr_pool_create(&ptrans, pchild);
@@ -446,7 +475,30 @@ static void child_main(int child_num_arg, int child_bucket)
         clean_child_exit(APEXIT_CHILDFATAL);
     }
 
+#if APR_HAS_THREADS
+    /* Save the signal mask and block all the signals from being received by
+     * threads potentially created in child_init() hooks (e.g. mod_watchdog).
+     */
+    child_sigmask(NULL, &sig_mask);
+    {
+        apr_status_t rv;
+        rv = apr_setup_signal_thread();
+        if (rv != APR_SUCCESS) {
+            ap_log_error(APLOG_MARK, APLOG_EMERG, rv, ap_server_conf, APLOGNO(10271)
+                         "Couldn't initialize signal thread");
+            clean_child_exit(APEXIT_CHILDFATAL);
+        }
+    }
+#endif /* APR_HAS_THREADS */
+
     ap_run_child_init(pchild, ap_server_conf);
+
+#if APR_HAS_THREADS
+    /* Restore the original signal mask for this main thread, the only one
+     * that should possibly get interrupted by signals.
+     */
+    child_sigmask(&sig_mask, NULL);
+#endif
 
     ap_create_sb_handle(&sbh, pchild, my_child_num, 0);
 
@@ -637,8 +689,9 @@ static void child_main(int child_num_arg, int child_bucket)
 }
 
 
-static int make_child(server_rec *s, int slot, int bucket)
+static int make_child(server_rec *s, int slot)
 {
+    int bucket = slot % retained->mpm->num_buckets;
     int pid;
 
     if (slot + 1 > retained->max_daemons_limit) {
@@ -682,6 +735,10 @@ static int make_child(server_rec *s, int slot, int bucket)
     }
 
     if (!pid) {
+#if AP_HAS_THREAD_LOCAL
+        ap_thread_current_after_fork();
+#endif
+
         my_bucket = &all_buckets[bucket];
 
 #ifdef HAVE_BINDPROCESSOR
@@ -702,8 +759,8 @@ static int make_child(server_rec *s, int slot, int bucket)
          */
         apr_signal(SIGHUP, just_die);
         apr_signal(SIGTERM, just_die);
-        /* Ignore SIGINT in child. This fixes race-condition in signals
-         * handling when httpd is runnning on foreground and user hits ctrl+c.
+        /* Ignore SIGINT in child. This fixes race-conditions in signals
+         * handling when httpd is running on foreground and user hits ctrl+c.
          * In this case, SIGINT is sent to all children followed by SIGTERM
          * from the main process, which interrupts the SIGINT handler and
          * leads to inconsistency.
@@ -716,7 +773,6 @@ static int make_child(server_rec *s, int slot, int bucket)
         child_main(slot, bucket);
     }
 
-    ap_scoreboard_image->parent[slot].bucket = bucket;
     prefork_note_child_started(slot, pid);
 
     return 0;
@@ -732,7 +788,7 @@ static void startup_children(int number_to_start)
         if (ap_scoreboard_image->servers[i][0].status != SERVER_DEAD) {
             continue;
         }
-        if (make_child(ap_server_conf, i, i % retained->mpm->num_buckets) < 0) {
+        if (make_child(ap_server_conf, i) < 0) {
             break;
         }
         --number_to_start;
@@ -741,8 +797,6 @@ static void startup_children(int number_to_start)
 
 static void perform_idle_server_maintenance(apr_pool_t *p)
 {
-    static int bucket_make_child_record = -1;
-    static int bucket_kill_child_record = -1;
     int i;
     int idle_count;
     worker_score *ws;
@@ -789,6 +843,7 @@ static void perform_idle_server_maintenance(apr_pool_t *p)
     }
     retained->max_daemons_limit = last_non_dead + 1;
     if (idle_count > ap_daemons_max_free) {
+        static int bucket_kill_child_record = -1;
         /* kill off one child... we use the pod because that'll cause it to
          * shut down gracefully, in case it happened to pick up a request
          * while we were counting
@@ -819,10 +874,7 @@ static void perform_idle_server_maintenance(apr_pool_t *p)
                     idle_count, total_non_dead);
             }
             for (i = 0; i < free_length; ++i) {
-                bucket_make_child_record++;
-                bucket_make_child_record %= retained->mpm->num_buckets;
-                make_child(ap_server_conf, free_slots[i],
-                           bucket_make_child_record);
+                make_child(ap_server_conf, free_slots[i]);
             }
             /* the next time around we want to spawn twice as many if this
              * wasn't good enough, but not if we've just done a graceful
@@ -867,7 +919,7 @@ static int prefork_run(apr_pool_t *_pconf, apr_pool_t *plog, server_rec *s)
 
     if (one_process) {
         AP_MONCONTROL(1);
-        make_child(ap_server_conf, 0, 0);
+        make_child(ap_server_conf, 0);
         /* NOTREACHED */
         ap_assert(0);
         return !OK;
@@ -976,8 +1028,7 @@ static int prefork_run(apr_pool_t *_pconf, apr_pool_t *plog, server_rec *s)
                     /* we're still doing a 1-for-1 replacement of dead
                      * children with new children
                      */
-                    make_child(ap_server_conf, child_slot,
-                               ap_get_scoreboard_process(child_slot)->bucket);
+                    make_child(ap_server_conf, child_slot);
                     --remaining_children_to_start;
                 }
 #if APR_HAS_OTHER_CHILD
@@ -1254,7 +1305,6 @@ static int prefork_pre_config(apr_pool_t *p, apr_pool_t *plog, apr_pool_t *ptemp
     if (!retained) {
         retained = ap_retained_data_create(userdata_key, sizeof(*retained));
         retained->mpm = ap_unixd_mpm_get_retained_data();
-        retained->max_daemons_limit = -1;
         retained->idle_spawn_rate = 1;
     }
     retained->mpm->mpm_state = AP_MPMQ_STARTING;
@@ -1268,7 +1318,7 @@ static int prefork_pre_config(apr_pool_t *p, apr_pool_t *plog, apr_pool_t *ptemp
     if (retained->mpm->module_loads == 2) {
         if (!one_process && !foreground) {
             /* before we detach, setup crash handlers to log to errorlog */
-            ap_fatal_signal_setup(ap_server_conf, pconf);
+            ap_fatal_signal_setup(ap_server_conf, p /* == pconf */);
             rv = apr_proc_detach(no_detach ? APR_PROC_DETACH_FOREGROUND
                                            : APR_PROC_DETACH_DAEMONIZE);
             if (rv != APR_SUCCESS) {

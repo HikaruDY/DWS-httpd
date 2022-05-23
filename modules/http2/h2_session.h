@@ -80,12 +80,13 @@ typedef struct h2_session {
     request_rec *r;                 /* the request that started this in case
                                      * of 'h2c', NULL otherwise */
     server_rec *s;                  /* server/vhost we're starting on */
-    const struct h2_config *config; /* Relevant config for this session */
     apr_pool_t *pool;               /* pool to use in session */
     struct h2_mplx *mplx;           /* multiplexer for stream data */
     struct h2_workers *workers;     /* for executing stream tasks */
     struct h2_filter_cin *cin;      /* connection input filter context */
     h2_conn_io io;                  /* io on httpd conn filters */
+    int padding_max;                /* max number of padding bytes */
+    int padding_always;             /* padding has precedence over I/O optimizations */
     struct nghttp2_session *ngh2;   /* the nghttp2 session (internal use) */
 
     h2_session_state state;         /* state session is in */
@@ -131,7 +132,7 @@ typedef struct h2_session {
     const char *last_status_msg;    /* the one already reported */
     
     struct h2_iqueue *in_pending;   /* all streams with input pending */
-    struct h2_iqueue *in_process;   /* all streams ready for processing on slave */
+    struct h2_iqueue *in_process;   /* all streams ready for processing on a secondary */
 
 } h2_session;
 
@@ -142,26 +143,14 @@ const char *h2_session_state_str(h2_session_state state);
  * The session will apply the configured parameter.
  * @param psession pointer receiving the created session on success or NULL
  * @param c       the connection to work on
+ * @param r       optional request when protocol was upgraded
  * @param cfg     the module config to apply
  * @param workers the worker pool to use
  * @return the created session
  */
 apr_status_t h2_session_create(h2_session **psession,
-                               conn_rec *c, struct h2_ctx *ctx, 
+                               conn_rec *c, request_rec *r, server_rec *, 
                                struct h2_workers *workers);
-
-/**
- * Create a new h2_session for the given request.
- * The session will apply the configured parameter.
- * @param psession pointer receiving the created session on success or NULL
- * @param r       the request that was upgraded
- * @param cfg     the module config to apply
- * @param workers the worker pool to use
- * @return the created session
- */
-apr_status_t h2_session_rcreate(h2_session **psession,
-                                request_rec *r, struct h2_ctx *ctx,
-                                struct h2_workers *workers);
 
 void h2_session_event(h2_session *session, h2_session_event_t ev, 
                              int err, const char *msg);
@@ -197,11 +186,6 @@ void h2_session_close(h2_session *session);
  * @param != 0 iff push is enabled in client settings
  */
 int h2_session_push_enabled(h2_session *session);
-
-/**
- * Look up the stream in this session with the given id.
- */
-struct h2_stream *h2_session_stream_get(h2_session *session, int stream_id);
 
 /**
  * Submit a push promise on the stream and schedule the new steam for

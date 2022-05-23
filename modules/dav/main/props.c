@@ -167,6 +167,8 @@
 
 #define DAV_EMPTY_VALUE                "\0"    /* TWO null terms */
 
+#define DAV_PROP_ELEMENT "mod_dav-element"
+
 struct dav_propdb {
     apr_pool_t *p;                /* the pool we should use */
     request_rec *r;               /* the request record */
@@ -323,7 +325,7 @@ static void dav_do_prop_subreq(dav_propdb *propdb)
 {
     /* need to escape the uri that's in the resource struct because during
      * the property walker it's not encoded. */
-    const char *e_uri = ap_escape_uri(propdb->resource->pool,
+    const char *e_uri = ap_escape_uri(propdb->p,
                                       propdb->resource->uri);
 
     /* perform a "GET" on the resource's URI (note that the resource
@@ -421,18 +423,18 @@ static dav_error * dav_insert_coreprop(dav_propdb *propdb,
             /* use D: prefix to refer to the DAV: namespace URI,
              * and let the namespace attribute default to "DAV:"
              */
-            s = apr_psprintf(propdb->p,
-                            "<D:supported-live-property D:name=\"%s\"/>" DEBUG_CR,
-                            name);
+            s = apr_pstrcat(propdb->p,
+                            "<D:supported-live-property D:name=\"",
+                            name, "\"/>" DEBUG_CR, NULL);
         }
         else if (what == DAV_PROP_INSERT_VALUE && *value != '\0') {
             /* use D: prefix to refer to the DAV: namespace URI */
-            s = apr_psprintf(propdb->p, "<D:%s>%s</D:%s>" DEBUG_CR,
-                            name, value, name);
+            s = apr_pstrcat(propdb->p, "<D:", name, ">", value, "</D:", name,
+                            ">" DEBUG_CR, NULL);
         }
         else {
             /* use D: prefix to refer to the DAV: namespace URI */
-            s = apr_psprintf(propdb->p, "<D:%s/>" DEBUG_CR, name);
+            s = apr_pstrcat(propdb->p, "<D:", name, "/>" DEBUG_CR, NULL);
         }
         apr_text_append(propdb->p, phdr, s);
 
@@ -473,11 +475,11 @@ static void dav_output_prop_name(apr_pool_t *pool,
     const char *s;
 
     if (*name->ns == '\0')
-        s = apr_psprintf(pool, "<%s/>" DEBUG_CR, name->name);
+        s = apr_pstrcat(pool, "<", name->name, "/>" DEBUG_CR, NULL);
     else {
         const char *prefix = dav_xmlns_add_uri(xi, name->ns);
 
-        s = apr_psprintf(pool, "<%s:%s/>" DEBUG_CR, prefix, name->name);
+        s = apr_pstrcat(pool, "<", prefix, ":", name->name, "/>" DEBUG_CR, NULL);
     }
 
     apr_text_append(pool, phdr, s);
@@ -524,7 +526,20 @@ DAV_DECLARE(dav_error *)dav_open_propdb(request_rec *r, dav_lockdb *lockdb,
                                         apr_array_header_t * ns_xlate,
                                         dav_propdb **p_propdb)
 {
-    dav_propdb *propdb = apr_pcalloc(r->pool, sizeof(*propdb));
+    return dav_popen_propdb(r->pool, r, lockdb, resource, ro, ns_xlate, p_propdb);
+}
+
+DAV_DECLARE(dav_error *)dav_popen_propdb(apr_pool_t *p,
+                                         request_rec *r, dav_lockdb *lockdb,
+                                         const dav_resource *resource,
+                                         int ro,
+                                         apr_array_header_t * ns_xlate,
+                                         dav_propdb **p_propdb)
+{
+    dav_propdb *propdb = NULL;
+
+    propdb = apr_pcalloc(p, sizeof(*propdb));
+    propdb->p = p;
 
     *p_propdb = NULL;
 
@@ -537,7 +552,6 @@ DAV_DECLARE(dav_error *)dav_open_propdb(request_rec *r, dav_lockdb *lockdb,
 #endif
 
     propdb->r = r;
-    apr_pool_create(&propdb->p, r->pool);
     propdb->resource = resource;
     propdb->ns_xlate = ns_xlate;
 
@@ -562,10 +576,10 @@ DAV_DECLARE(void) dav_close_propdb(dav_propdb *propdb)
         (*propdb->db_hooks->close)(propdb->db);
     }
 
-    /* Currently, mod_dav's pool usage doesn't allow clearing this pool. */
-#if 0
-    apr_pool_destroy(propdb->p);
-#endif
+    if (propdb->subreq) {
+        ap_destroy_sub_req(propdb->subreq);
+        propdb->subreq = NULL;
+    }
 }
 
 DAV_DECLARE(dav_get_props_result) dav_get_allprops(dav_propdb *propdb,
@@ -706,9 +720,23 @@ DAV_DECLARE(dav_get_props_result) dav_get_props(dav_propdb *propdb,
     apr_text_header hdr_ns = { 0 };
     int have_good = 0;
     dav_get_props_result result = { 0 };
+    dav_liveprop_elem *element;
     char *marks_liveprop;
     dav_xmlns_info *xi;
     int xi_filled = 0;
+
+    /* we lose both the document and the element when calling (insert_prop),
+     * make these available in the pool.
+     */
+    element = dav_get_liveprop_element(propdb->resource);
+    if (!element) {
+        element = apr_pcalloc(propdb->resource->pool, sizeof(dav_liveprop_elem));
+        apr_pool_userdata_setn(element, DAV_PROP_ELEMENT, NULL, propdb->resource->pool);
+    }
+    else {
+        memset(element, 0, sizeof(dav_liveprop_elem));
+    }
+    element->doc = doc;
 
     /* ### NOTE: we should pass in TWO buffers -- one for keys, one for
        the marks */
@@ -733,13 +761,16 @@ DAV_DECLARE(dav_get_props_result) dav_get_props(dav_propdb *propdb,
         dav_prop_insert inserted;
         dav_prop_name name;
 
+        element->elem = elem;
+
         /*
         ** First try live property providers; if they don't handle
         ** the property, then try looking it up in the propdb.
         */
 
         if (elem->priv == NULL) {
-            elem->priv = apr_pcalloc(propdb->p, sizeof(*priv));
+            /* elem->priv outlives propdb->p. Hence use the request pool */
+            elem->priv = apr_pcalloc(propdb->r->pool, sizeof(*priv));
         }
         priv = elem->priv;
 
@@ -909,6 +940,15 @@ DAV_DECLARE(void) dav_get_liveprop_supported(dav_propdb *propdb,
     }
 }
 
+DAV_DECLARE(dav_liveprop_elem *) dav_get_liveprop_element(const dav_resource *resource)
+{
+    dav_liveprop_elem *element;
+
+    apr_pool_userdata_get((void **)&element, DAV_PROP_ELEMENT, resource->pool);
+
+    return element;
+}
+
 DAV_DECLARE_NONSTD(void) dav_prop_validate(dav_prop_ctx *ctx)
 {
     dav_propdb *propdb = ctx->propdb;
@@ -1047,6 +1087,10 @@ DAV_DECLARE_NONSTD(void) dav_prop_exec(dav_prop_ctx *ctx)
             /*
             ** Delete the property. Ignore errors -- the property is there, or
             ** we are deleting it for a second time.
+            **
+            ** http://tools.ietf.org/html/rfc4918#section-14.23 says
+            ** "Specifying the removal of a property that does not exist is
+            ** not an error"
             */
             /* ### but what about other errors? */
             (void) (*propdb->db_hooks->remove)(propdb->db, &name);

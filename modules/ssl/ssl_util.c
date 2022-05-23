@@ -100,6 +100,23 @@ BOOL ssl_util_vhost_matches(const char *servername, server_rec *s)
     return FALSE;
 }
 
+int modssl_request_is_tls(const request_rec *r, SSLConnRec **scout)
+{
+    SSLConnRec *sslconn = myConnConfig(r->connection);
+    SSLSrvConfigRec *sc = mySrvConfig(r->server);
+
+    if (!(sslconn && sslconn->ssl) && r->connection->master) {
+        sslconn = myConnConfig(r->connection->master);
+    }
+
+    if (sc->enabled == SSL_ENABLED_FALSE || !sslconn || !sslconn->ssl)
+        return 0;
+    
+    if (scout) *scout = sslconn;
+
+    return 1;
+}
+
 apr_file_t *ssl_util_ppopen(server_rec *s, apr_pool_t *p, const char *cmd,
                             const char * const *argv)
 {
@@ -175,45 +192,37 @@ BOOL ssl_util_path_check(ssl_pathcheck_t pcm, const char *path, apr_pool_t *p)
     return TRUE;
 }
 
-/*
- * certain key data needs to survive restarts,
- * which are stored in the user data table of s->process->pool.
- * to prevent "leaking" of this data, we use malloc/free
- * rather than apr_palloc and these wrappers to help make sure
- * we do not leak the malloc-ed data.
- */
-unsigned char *ssl_asn1_table_set(apr_hash_t *table,
-                                  const char *key,
-                                  long int length)
+/* Decrypted private keys are cached to survive restarts.  The cached
+ * data must have lifetime of the process (hence malloc/free rather
+ * than pools), and uses raw DER since the EVP_PKEY structure
+ * internals may not survive across a module reload. */
+ssl_asn1_t *ssl_asn1_table_set(apr_hash_t *table, const char *key,
+                               EVP_PKEY *pkey)
 {
     apr_ssize_t klen = strlen(key);
     ssl_asn1_t *asn1 = apr_hash_get(table, key, klen);
+    apr_size_t length = i2d_PrivateKey(pkey, NULL);
+    unsigned char *p;
 
-    /*
-     * if a value for this key already exists,
-     * reuse as much of the already malloc-ed data
-     * as possible.
-     */
+    /* Re-use structure if cached previously. */
     if (asn1) {
         if (asn1->nData != length) {
-            free(asn1->cpData); /* XXX: realloc? */
-            asn1->cpData = NULL;
+            asn1->cpData = ap_realloc(asn1->cpData, length);
         }
     }
     else {
         asn1 = ap_malloc(sizeof(*asn1));
         asn1->source_mtime = 0; /* used as a note for encrypted private keys */
-        asn1->cpData = NULL;
+        asn1->cpData = ap_malloc(length);
+
+        apr_hash_set(table, key, klen, asn1);
     }
 
     asn1->nData = length;
-    if (!asn1->cpData) {
-        asn1->cpData = ap_malloc(length);
-    }
+    p = asn1->cpData;
+    i2d_PrivateKey(pkey, &p); /* increases p by length */
 
-    apr_hash_set(table, key, klen, asn1);
-
-    return asn1->cpData; /* caller will assign a value to this */
+    return asn1;
 }
 
 ssl_asn1_t *ssl_asn1_table_get(apr_hash_t *table,
@@ -289,6 +298,7 @@ static struct CRYPTO_dynlock_value *ssl_dyn_create_function(const char *file,
      * away in the destruction callback.
      */
     apr_pool_create(&p, dynlockpool);
+    apr_pool_tag(p, "modssl_dynlock_value");
     ap_log_perror(file, line, APLOG_MODULE_INDEX, APLOG_TRACE1, 0, p,
                   "Creating dynamic lock");
 
@@ -463,3 +473,13 @@ void ssl_util_thread_id_setup(apr_pool_t *p)
 }
 
 #endif /* #if APR_HAS_THREADS && MODSSL_USE_OPENSSL_PRE_1_1_API */
+
+int modssl_is_engine_id(const char *name)
+{
+#if defined(HAVE_OPENSSL_ENGINE_H) && defined(HAVE_ENGINE_INIT)
+    /* ### Can handle any other special ENGINE key names here? */
+    return strncmp(name, "pkcs11:", 7) == 0;
+#else
+    return 0;
+#endif
+}
