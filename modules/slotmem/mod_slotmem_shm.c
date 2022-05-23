@@ -56,7 +56,7 @@ struct ap_slotmem_instance_t {
 };
 
 /*
- * Layout for SHM and persited file :
+ * Layout for SHM and persisted file :
  *
  *   +-------------------------------------------------------------+~>
  *   | desc | num_free | base (slots) | inuse (array) | md5 | desc | compat..
@@ -214,7 +214,6 @@ static apr_status_t restore_slotmem(sharedslotdesc_t *desc,
         if (rv == APR_SUCCESS) {
             rv = apr_file_read_full(fp, ptr, nbytes, NULL);
             if (rv == APR_SUCCESS || rv == APR_EOF) {
-                rv = APR_SUCCESS;   /* for successful return @ EOF */
                 /*
                  * if at EOF, don't bother checking md5
                  *  - backwards compatibility

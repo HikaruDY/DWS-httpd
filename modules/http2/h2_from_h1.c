@@ -114,65 +114,11 @@ static void fix_vary(request_rec *r)
     }
 }
 
-static void set_basic_http_header(apr_table_t *headers, request_rec *r,
-                                  apr_pool_t *pool)
-{
-    char *date = NULL;
-    const char *proxy_date = NULL;
-    const char *server = NULL;
-    const char *us = ap_get_server_banner();
-    
-    /*
-     * keep the set-by-proxy server and date headers, otherwise
-     * generate a new server header / date header
-     */
-    if (r && r->proxyreq != PROXYREQ_NONE) {
-        proxy_date = apr_table_get(r->headers_out, "Date");
-        if (!proxy_date) {
-            /*
-             * proxy_date needs to be const. So use date for the creation of
-             * our own Date header and pass it over to proxy_date later to
-             * avoid a compiler warning.
-             */
-            date = apr_palloc(pool, APR_RFC822_DATE_LEN);
-            ap_recent_rfc822_date(date, r->request_time);
-        }
-        server = apr_table_get(r->headers_out, "Server");
-    }
-    else {
-        date = apr_palloc(pool, APR_RFC822_DATE_LEN);
-        ap_recent_rfc822_date(date, r? r->request_time : apr_time_now());
-    }
-    
-    apr_table_setn(headers, "Date", proxy_date ? proxy_date : date );
-    if (r) {
-        apr_table_unset(r->headers_out, "Date");
-    }
-    
-    if (!server && *us) {
-        server = us;
-    }
-    if (server) {
-        apr_table_setn(headers, "Server", server);
-        if (r) {
-            apr_table_unset(r->headers_out, "Server");
-        }
-    }
-}
-
-static int copy_header(void *ctx, const char *name, const char *value)
-{
-    apr_table_t *headers = ctx;
-    
-    apr_table_add(headers, name, value);
-    return 1;
-}
-
 static h2_headers *create_response(h2_task *task, request_rec *r)
 {
     const char *clheader;
     const char *ctype;
-    apr_table_t *headers;
+
     /*
      * Now that we are ready to send a response, we need to combine the two
      * header field tables into a single table.  If we don't do this, our
@@ -279,28 +225,24 @@ static h2_headers *create_response(h2_task *task, request_rec *r)
         apr_table_unset(r->headers_out, "Content-Length");
     }
     
-    headers = apr_table_make(r->pool, 10);
-    
-    set_basic_http_header(headers, r, r->pool);
-    if (r->status == HTTP_NOT_MODIFIED) {
-        apr_table_do(copy_header, headers, r->headers_out,
-                     "ETag",
-                     "Content-Location",
-                     "Expires",
-                     "Cache-Control",
-                     "Vary",
-                     "Warning",
-                     "WWW-Authenticate",
-                     "Proxy-Authenticate",
-                     "Set-Cookie",
-                     "Set-Cookie2",
-                     NULL);
+    /*
+     * keep the set-by-proxy server and date headers, otherwise
+     * generate a new server header / date header
+     */
+    if (r->proxyreq != PROXYREQ_RESPONSE
+            || !apr_table_get(r->headers_out, "Date")) {
+        char *date = apr_palloc(r->pool, APR_RFC822_DATE_LEN);
+        ap_recent_rfc822_date(date, r->request_time);
+        apr_table_setn(r->headers_out, "Date", date );
     }
-    else {
-        apr_table_do(copy_header, headers, r->headers_out, NULL);
+    if (r->proxyreq != PROXYREQ_RESPONSE) {
+        const char *us = ap_get_server_banner();
+        if (us) {
+            apr_table_setn(r->headers_out, "Server", us);
+        }
     }
     
-    return h2_headers_rcreate(r, r->status, headers, r->pool);
+    return h2_headers_rcreate(r, r->status, r->headers_out, r->pool);
 }
 
 typedef enum {
@@ -315,6 +257,7 @@ typedef struct h2_response_parser {
     int http_status;
     apr_array_header_t *hlines;
     apr_bucket_brigade *tmp;
+    apr_bucket_brigade *saveto;
 } h2_response_parser;
 
 static apr_status_t parse_header(h2_response_parser *parser, char *line) {
@@ -351,13 +294,17 @@ static apr_status_t get_line(h2_response_parser *parser, apr_bucket_brigade *bb,
         parser->tmp = apr_brigade_create(task->pool, task->c->bucket_alloc);
     }
     status = apr_brigade_split_line(parser->tmp, bb, APR_BLOCK_READ, 
-                                    HUGE_STRING_LEN);
+                                    len);
     if (status == APR_SUCCESS) {
         --len;
         status = apr_brigade_flatten(parser->tmp, line, &len);
         if (status == APR_SUCCESS) {
             /* we assume a non-0 containing line and remove trailing crlf. */
             line[len] = '\0';
+            /*
+             * XXX: What to do if there is an LF but no CRLF?
+             *      Should we error out?
+             */
             if (len >= 2 && !strcmp(H2_CRLF, line + len - 2)) {
                 len -= 2;
                 line[len] = '\0';
@@ -367,10 +314,47 @@ static apr_status_t get_line(h2_response_parser *parser, apr_bucket_brigade *bb,
                               task->id, line);
             }
             else {
+                apr_off_t brigade_length;
+
+                /*
+                 * If the brigade parser->tmp becomes longer than our buffer
+                 * for flattening we never have a chance to get a complete
+                 * line. This can happen if we are called multiple times after
+                 * previous calls did not find a H2_CRLF and we returned
+                 * APR_EAGAIN. In this case parser->tmp (correctly) grows
+                 * with each call to apr_brigade_split_line.
+                 *
+                 * XXX: Currently a stack based buffer of HUGE_STRING_LEN is
+                 * used. This means we cannot cope with lines larger than
+                 * HUGE_STRING_LEN which might be an issue.
+                 */
+                status = apr_brigade_length(parser->tmp, 0, &brigade_length);
+                if ((status != APR_SUCCESS) || (brigade_length > len)) {
+                    ap_log_cerror(APLOG_MARK, APLOG_ERR, 0, task->c, APLOGNO(10257)
+                                  "h2_task(%s): read response, line too long",
+                                  task->id);
+                    return APR_ENOSPC;
+                }
                 /* this does not look like a complete line yet */
                 ap_log_cerror(APLOG_MARK, APLOG_DEBUG, 0, task->c,
                               "h2_task(%s): read response, incomplete line: %s", 
                               task->id, line);
+                if (!parser->saveto) {
+                    parser->saveto = apr_brigade_create(task->pool,
+                                                        task->c->bucket_alloc);
+                }
+                /*
+                 * Be on the save side and save the parser->tmp brigade
+                 * as it could contain transient buckets which could be
+                 * invalid next time we are here.
+                 *
+                 * NULL for the filter parameter is ok since we
+                 * provide our own brigade as second parameter
+                 * and ap_save_brigade does not need to create one.
+                 */
+                ap_save_brigade(NULL, &(parser->saveto), &(parser->tmp),
+                                parser->tmp->p);
+                APR_BRIGADE_CONCAT(parser->tmp, parser->saveto);
                 return APR_EAGAIN;
             }
         }
@@ -594,18 +578,20 @@ apr_status_t h2_filter_headers_out(ap_filter_t *f, apr_bucket_brigade *bb)
         }
     }
     
-    if (r->header_only) {
+    if (r->header_only || AP_STATUS_IS_HEADER_ONLY(r->status)) {
         ap_log_cerror(APLOG_MARK, APLOG_TRACE1, 0, f->c,
-                      "h2_task(%s): header_only, cleanup output brigade", 
+                      "h2_task(%s): headers only, cleanup output brigade", 
                       task->id);
         b = body_bucket? body_bucket : APR_BRIGADE_FIRST(bb);
         while (b != APR_BRIGADE_SENTINEL(bb)) {
             next = APR_BUCKET_NEXT(b);
             if (APR_BUCKET_IS_EOS(b) || AP_BUCKET_IS_EOR(b)) {
                 break;
-            } 
-            APR_BUCKET_REMOVE(b);
-            apr_bucket_destroy(b);
+            }
+            if (!H2_BUCKET_IS_HEADERS(b)) {
+                APR_BUCKET_REMOVE(b);
+                apr_bucket_destroy(b);
+            }
             b = next;
         }
     }
@@ -625,10 +611,10 @@ static void make_chunk(h2_task *task, apr_bucket_brigade *bb,
      * to the end of the brigade. */
     char buffer[128];
     apr_bucket *c;
-    int len;
+    apr_size_t len;
     
-    len = apr_snprintf(buffer, H2_ALEN(buffer), 
-                       "%"APR_UINT64_T_HEX_FMT"\r\n", (apr_uint64_t)chunk_len);
+    len = (apr_size_t)apr_snprintf(buffer, H2_ALEN(buffer), 
+                                   "%"APR_UINT64_T_HEX_FMT"\r\n", (apr_uint64_t)chunk_len);
     c = apr_bucket_heap_create(buffer, len, NULL, bb->bucket_alloc);
     APR_BUCKET_INSERT_BEFORE(first, c);
     c = apr_bucket_heap_create("\r\n", 2, NULL, bb->bucket_alloc);

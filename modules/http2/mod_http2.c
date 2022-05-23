@@ -24,6 +24,7 @@
 #include <http_protocol.h>
 #include <http_request.h>
 #include <http_log.h>
+#include <mpm_common.h>
 
 #include "mod_http2.h"
 
@@ -172,27 +173,6 @@ static char *http2_var_lookup(apr_pool_t *, server_rec *,
                          conn_rec *, request_rec *, char *name);
 static int http2_is_h2(conn_rec *);
 
-static apr_status_t http2_req_engine_push(const char *ngn_type, 
-                                          request_rec *r, 
-                                          http2_req_engine_init *einit)
-{
-    return h2_mplx_req_engine_push(ngn_type, r, einit);
-}
-
-static apr_status_t http2_req_engine_pull(h2_req_engine *ngn, 
-                                          apr_read_type_e block, 
-                                          int capacity, 
-                                          request_rec **pr)
-{
-    return h2_mplx_req_engine_pull(ngn, block, capacity, pr);
-}
-
-static void http2_req_engine_done(h2_req_engine *ngn, conn_rec *r_conn,
-                                  apr_status_t status)
-{
-    h2_mplx_req_engine_done(ngn, r_conn, status);
-}
-
 static void http2_get_num_workers(server_rec *s, int *minw, int *maxw)
 {
     h2_get_num_workers(s, minw, maxw);
@@ -201,15 +181,33 @@ static void http2_get_num_workers(server_rec *s, int *minw, int *maxw)
 /* Runs once per created child process. Perform any process 
  * related initionalization here.
  */
-static void h2_child_init(apr_pool_t *pool, server_rec *s)
+static void h2_child_init(apr_pool_t *pchild, server_rec *s)
 {
+    apr_allocator_t *allocator;
+    apr_thread_mutex_t *mutex;
+    apr_status_t status;
+
+    /* The allocator of pchild has no mutex with MPM prefork, but we need one
+     * for h2 workers threads synchronization. Even though mod_http2 shouldn't
+     * be used with prefork, better be safe than sorry, so forcibly set the
+     * mutex here. For MPM event/worker, pchild has no allocator so pconf's
+     * is used, with its mutex.
+     */
+    allocator = apr_pool_allocator_get(pchild);
+    if (allocator) {
+        mutex = apr_allocator_mutex_get(allocator);
+        if (!mutex) {
+            apr_thread_mutex_create(&mutex, APR_THREAD_MUTEX_DEFAULT, pchild);
+            apr_allocator_mutex_set(allocator, mutex);
+        }
+    }
+
     /* Set up our connection processing */
-    apr_status_t status = h2_conn_child_init(pool, s);
+    status = h2_conn_child_init(pchild, s);
     if (status != APR_SUCCESS) {
         ap_log_error(APLOG_MARK, APLOG_ERR, status, s,
                      APLOGNO(02949) "initializing connection handling");
     }
-    
 }
 
 /* Install this module into the apache2 infrastructure.
@@ -220,9 +218,6 @@ static void h2_hooks(apr_pool_t *pool)
     
     APR_REGISTER_OPTIONAL_FN(http2_is_h2);
     APR_REGISTER_OPTIONAL_FN(http2_var_lookup);
-    APR_REGISTER_OPTIONAL_FN(http2_req_engine_push);
-    APR_REGISTER_OPTIONAL_FN(http2_req_engine_pull);
-    APR_REGISTER_OPTIONAL_FN(http2_req_engine_done);
     APR_REGISTER_OPTIONAL_FN(http2_get_num_workers);
 
     ap_log_perror(APLOG_MARK, APLOG_TRACE1, 0, pool, "installing hooks");
@@ -234,7 +229,9 @@ static void h2_hooks(apr_pool_t *pool)
     /* Run once after a child process has been created.
      */
     ap_hook_child_init(h2_child_init, NULL, NULL, APR_HOOK_MIDDLE);
-
+#if AP_MODULE_MAGIC_AT_LEAST(20120211, 110)
+    ap_hook_child_stopping(h2_conn_child_stopping, NULL, NULL, APR_HOOK_MIDDLE);
+#endif
     h2_h2_register_hooks();
     h2_switch_register_hooks();
     h2_task_register_hooks();
@@ -260,9 +257,8 @@ static const char *val_H2_PUSH(apr_pool_t *p, server_rec *s,
 {
     if (ctx) {
         if (r) {
-            h2_task *task = h2_ctx_get_task(ctx);
-            if (task) {
-                h2_stream *stream = h2_mplx_stream_get(task->mplx, task->stream_id);
+            if (ctx->task) {
+                h2_stream *stream = h2_mplx_t_stream_get(ctx->task->mplx, ctx->task);
                 if (stream && stream->push_policy != H2_PUSH_NONE) {
                     return "on";
                 }
@@ -273,8 +269,7 @@ static const char *val_H2_PUSH(apr_pool_t *p, server_rec *s,
         }
     }
     else if (s) {
-        const h2_config *cfg = h2_config_sget(s);
-        if (cfg && h2_config_geti(cfg, H2_CONF_PUSH)) {
+        if (h2_config_geti(r, s, H2_CONF_PUSH)) {
             return "on";
         }
     }
@@ -285,8 +280,7 @@ static const char *val_H2_PUSHED(apr_pool_t *p, server_rec *s,
                                  conn_rec *c, request_rec *r, h2_ctx *ctx)
 {
     if (ctx) {
-        h2_task *task = h2_ctx_get_task(ctx);
-        if (task && !H2_STREAM_CLIENT_INITIATED(task->stream_id)) {
+        if (ctx->task && !H2_STREAM_CLIENT_INITIATED(ctx->task->stream_id)) {
             return "PUSHED";
         }
     }
@@ -297,9 +291,8 @@ static const char *val_H2_PUSHED_ON(apr_pool_t *p, server_rec *s,
                                     conn_rec *c, request_rec *r, h2_ctx *ctx)
 {
     if (ctx) {
-        h2_task *task = h2_ctx_get_task(ctx);
-        if (task && !H2_STREAM_CLIENT_INITIATED(task->stream_id)) {
-            h2_stream *stream = h2_mplx_stream_get(task->mplx, task->stream_id);
+        if (ctx->task && !H2_STREAM_CLIENT_INITIATED(ctx->task->stream_id)) {
+            h2_stream *stream = h2_mplx_t_stream_get(ctx->task->mplx, ctx->task);
             if (stream) {
                 return apr_itoa(p, stream->initiated_on);
             }
@@ -312,9 +305,8 @@ static const char *val_H2_STREAM_TAG(apr_pool_t *p, server_rec *s,
                                      conn_rec *c, request_rec *r, h2_ctx *ctx)
 {
     if (ctx) {
-        h2_task *task = h2_ctx_get_task(ctx);
-        if (task) {
-            return task->id;
+        if (ctx->task) {
+            return ctx->task->id;
         }
     }
     return "";
@@ -366,7 +358,7 @@ static char *http2_var_lookup(apr_pool_t *p, server_rec *s,
     for (i = 0; i < H2_ALEN(H2_VARS); ++i) {
         h2_var_def *vdef = &H2_VARS[i];
         if (!strcmp(vdef->name, name)) {
-            h2_ctx *ctx = (r? h2_ctx_rget(r) : 
+            h2_ctx *ctx = (r? h2_ctx_get(c, 0) : 
                            h2_ctx_get(c->master? c->master : c, 0));
             return (char *)vdef->lookup(p, s, c, r, ctx);
         }
@@ -377,7 +369,7 @@ static char *http2_var_lookup(apr_pool_t *p, server_rec *s,
 static int h2_h2_fixups(request_rec *r)
 {
     if (r->connection->master) {
-        h2_ctx *ctx = h2_ctx_rget(r);
+        h2_ctx *ctx = h2_ctx_get(r->connection, 0);
         int i;
         
         for (i = 0; ctx && i < H2_ALEN(H2_VARS); ++i) {

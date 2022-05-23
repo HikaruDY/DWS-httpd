@@ -92,7 +92,8 @@ struct h2_stream {
     unsigned int input_eof : 1; /* no more request data coming */
     unsigned int out_checked : 1; /* output eof was double checked */
     unsigned int push_policy;   /* which push policy to use for this request */
-    
+    unsigned int input_buffering : 1; /* buffer request bodies for efficiency */
+
     struct h2_task *task;       /* assigned task to fullfill request */
     
     const h2_priority *pref_priority; /* preferred priority for this stream */
@@ -198,6 +199,10 @@ apr_status_t h2_stream_set_request_rec(h2_stream *stream,
 apr_status_t h2_stream_add_header(h2_stream *stream,
                                   const char *name, size_t nlen,
                                   const char *value, size_t vlen);
+                                  
+/* End the construction of request headers */
+apr_status_t h2_stream_end_headers(h2_stream *stream, int eos, size_t raw_bytes);
+
 
 apr_status_t h2_stream_send_frame(h2_stream *stream, int frame_type, int flags, size_t frame_len);
 apr_status_t h2_stream_recv_frame(h2_stream *stream, int frame_type, int flags, size_t frame_len);

@@ -94,6 +94,17 @@ positionner avant d'effectuer un vidage mémoire</td></tr>
     fichiers de vidage mémoire dans le répertoire de travail des
     processus qui se sont crashés.</p>
 
+    <div class="warning">
+      <h3>Note de sécurité pour les systèmes de type Linux</h3>
+
+      <p>Utiliser cette directive sous Linux peut permettre aux autres processus
+      du système s'exécutant avec les même privilèges (comme les scripts CGI) de
+      se rattacher aux processus httpd enfants via l'appel système
+      <code>ptrace</code>. La protection contre certaines attaques engageant la
+      sécurité peut s'en trouver affectée. Il est par conséquent déconseillé
+      d'utiliser cette directive sur les systèmes en production.</p>
+    </div>
+
     <div class="note"><h3>Vidages mémoire sous Linux</h3>
       <p>Si Apache httpd est démarré sous l'utilisateur root puis bascule vers
       un autre utilisateur, le noyau Linux <em>désactive</em> les
@@ -261,8 +272,8 @@ use</code>, citant d'autres causes possibles.</a></li>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Longueur maximale de la liste d'attente des
 connexions</td></tr>
-<tr><th><a href="directive-dict.html#Syntax">Syntaxe:</a></th><td><code>ListenBacklog <var>backlog</var></code></td></tr>
-<tr><th><a href="directive-dict.html#Default">Défaut:</a></th><td><code>ListenBacklog 511</code></td></tr>
+<tr><th><a href="directive-dict.html#Syntax">Syntaxe:</a></th><td><code>ListenBackLog <var>backlog</var></code></td></tr>
+<tr><th><a href="directive-dict.html#Default">Défaut:</a></th><td><code>ListenBackLog 511</code></td></tr>
 <tr><th><a href="directive-dict.html#Context">Contexte:</a></th><td>configuration globale</td></tr>
 <tr><th><a href="directive-dict.html#Status">Statut:</a></th><td>MPM</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td><code class="module"><a href="../mod/event.html">event</a></code>, <code class="module"><a href="../mod/worker.html">worker</a></code>, <code class="module"><a href="../mod/prefork.html">prefork</a></code>, <code class="module"><a href="../mod/mpm_winnt.html">mpm_winnt</a></code>, <code class="module"><a href="../mod/mpm_netware.html">mpm_netware</a></code>, <code class="module"><a href="../mod/mpmt_os2.html">mpmt_os2</a></code></td></tr>
@@ -301,14 +312,13 @@ plateformes de type BSD.</td></tr>
 </table>
     <p>Vous pouvez utiliser la directive
     <code class="directive">ListenCoresBucketsRatio</code> pour spécifier un
-    <var>ratio</var> entre le nombre de coeurs de CPU activés et le
-    nombre de segments d'écoute (listeners' buckets) souhaités ; le
-    serveur HTTP Apache va alors créer<code>num_cpu_cores / ratio</code>
-    segments d'écoute, chacun contenant son propre socket d'écoute
-    <code class="directive">Listen</code> sur le ou les mêmes ports ; chaque
+    <var>ratio</var> entre le nombre de coeurs de CPU activés et le nombre de
+    segments d'écoute (listeners' buckets) souhaités ; le serveur HTTP Apache va
+    alors créer<code>num_cpu_cores / ratio</code> segments d'écoute, chacun
+    contenant son propre socket d'écoute <code class="directive"><a href="#listen">Listen</a></code> sur le ou les mêmes ports ; chaque
     processus enfant sera associé à un seul segment d'écoute (avec une
-    distribution de type round-robin des segments à la création des
-    processus enfants).</p>
+    distribution de type round-robin des segments à la création des processus
+    enfants).</p>
 
     <div class="note"><h3>Définition du terme coeur de CPU activé ("online")</h3>
     <p>Sous Linux et BSD, un coeur de CPU peut être activé ou désactivé si <a href="https://www.kernel.org/doc/Documentation/cpu-hotplug.txt">Hotplug</a>
@@ -533,7 +543,7 @@ pour pouvoir traiter les pics de requêtes</td></tr>
 
     <p>Avec <code class="module"><a href="../mod/mpm_netware.html">mpm_netware</a></code>, la définition par défaut est
     <code>MinSpareThreads 10</code> et, comme ce MPM n'exécute qu'un
-    seul processus, le nombre de threads est surveillé au niveau du
+    seul processus, le nombre de threads est surveillé au niveau général du
     serveur.</p>
 
     <p><code class="module"><a href="../mod/mpmt_os2.html">mpmt_os2</a></code> fonctionne de manière similaire à
@@ -856,6 +866,12 @@ enfant</td></tr>
     <code class="module"><a href="../mod/mpm_winnt.html">mpm_winnt</a></code>, et <code>25</code> avec les autres
     MPMs.</p>
 
+    <p>La valeur de la directive <code class="directive">ThreadsPerChild</code> ne peut
+    pas dépasser la valeur de la directive <code class="directive"><a href="#threadlimit">ThreadLimit</a></code>. Si on spécifie une valeur
+    supérieure, elle sera automatiquement réduite au démarrage du serveur et un
+    avertissement sera enregistré dans le journal. La relation entre ces deux
+    directives est expliquée dans la <code class="directive"><a href="#documentation de la directive threadlimit">documentation de la directive ThreadLimit</a></code>.</p>
+
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="directive-section"><h2><a name="threadstacksize" id="threadstacksize">Directive</a> <a name="ThreadStackSize" id="ThreadStackSize">ThreadStackSize</a></h2>
@@ -932,7 +948,7 @@ du serveur HTTP Apache</td></tr>
 <a href="../fr/mod/mpm_common.html" title="Français">&nbsp;fr&nbsp;</a> |
 <a href="../ja/mod/mpm_common.html" hreflang="ja" rel="alternate" title="Japanese">&nbsp;ja&nbsp;</a> |
 <a href="../tr/mod/mpm_common.html" hreflang="tr" rel="alternate" title="Türkçe">&nbsp;tr&nbsp;</a></p>
-</div><div class="top"><a href="#page-header"><img src="../images/up.gif" alt="top" /></a></div><div class="section"><h2><a id="comments_section" name="comments_section">Commentaires</a></h2><div class="warning"><strong>Notice:</strong><br />This is not a Q&amp;A section. Comments placed here should be pointed towards suggestions on improving the documentation or server, and may be removed again by our moderators if they are either implemented or considered invalid/off-topic. Questions on how to manage the Apache HTTP Server should be directed at either our IRC channel, #httpd, on Freenode, or sent to our <a href="http://httpd.apache.org/lists.html">mailing lists</a>.</div>
+</div><div class="top"><a href="#page-header"><img src="../images/up.gif" alt="top" /></a></div><div class="section"><h2><a id="comments_section" name="comments_section">Commentaires</a></h2><div class="warning"><strong>Notice:</strong><br />This is not a Q&amp;A section. Comments placed here should be pointed towards suggestions on improving the documentation or server, and may be removed by our moderators if they are either implemented or considered invalid/off-topic. Questions on how to manage the Apache HTTP Server should be directed at either our IRC channel, #httpd, on Libera.chat, or sent to our <a href="https://httpd.apache.org/lists.html">mailing lists</a>.</div>
 <script type="text/javascript"><!--//--><![CDATA[//><!--
 var comments_shortname = 'httpd';
 var comments_identifier = 'http://httpd.apache.org/docs/2.4/mod/mpm_common.html';
@@ -950,7 +966,7 @@ var comments_identifier = 'http://httpd.apache.org/docs/2.4/mod/mpm_common.html'
     }
 })(window, document);
 //--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2018 The Apache Software Foundation.<br />Autorisé sous <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
+<p class="apache">Copyright 2022 The Apache Software Foundation.<br />Autorisé sous <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
 <p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/directives.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossaire</a> | <a href="../sitemap.html">Plan du site</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();

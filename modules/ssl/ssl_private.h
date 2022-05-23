@@ -27,6 +27,7 @@
  */
 
 /** Apache headers */
+#include "ap_config.h"
 #include "httpd.h"
 #include "http_config.h"
 #include "http_core.h"
@@ -35,6 +36,7 @@
 #include "http_connection.h"
 #include "http_request.h"
 #include "http_protocol.h"
+#include "http_ssl.h"
 #include "http_vhost.h"
 #include "util_script.h"
 #include "util_filter.h"
@@ -87,6 +89,9 @@
 /* must be defined before including ssl.h */
 #define OPENSSL_NO_SSL_INTERN
 #endif
+#if OPENSSL_VERSION_NUMBER >= 0x30000000
+#include <openssl/core_names.h>
+#endif
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/x509.h>
@@ -132,13 +137,12 @@
         SSL_CTX_ctrl(ctx, SSL_CTRL_SET_MIN_PROTO_VERSION, version, NULL)
 #define SSL_CTX_set_max_proto_version(ctx, version) \
         SSL_CTX_ctrl(ctx, SSL_CTRL_SET_MAX_PROTO_VERSION, version, NULL)
-#elif LIBRESSL_VERSION_NUMBER < 0x2070000f
+#endif /* LIBRESSL_VERSION_NUMBER < 0x2060000f */
 /* LibreSSL before 2.7 declares OPENSSL_VERSION_NUMBER == 2.0 but does not
  * include most changes from OpenSSL >= 1.1 (new functions, macros, 
  * deprecations, ...), so we have to work around this...
  */
-#define MODSSL_USE_OPENSSL_PRE_1_1_API (1)
-#endif /* LIBRESSL_VERSION_NUMBER < 0x2060000f */
+#define MODSSL_USE_OPENSSL_PRE_1_1_API (LIBRESSL_VERSION_NUMBER < 0x2070000f)
 #else /* defined(LIBRESSL_VERSION_NUMBER) */
 #define MODSSL_USE_OPENSSL_PRE_1_1_API (OPENSSL_VERSION_NUMBER < 0x10100000L)
 #endif
@@ -250,6 +254,10 @@ void free_bio_methods(void);
 #endif
 #endif
 
+#if OPENSSL_VERSION_NUMBER >= 0x10101000L && !defined(LIBRESSL_VERSION_NUMBER)
+#define HAVE_OPENSSL_KEYLOG
+#endif
+
 /* mod_ssl headers */
 #include "ssl_util_ssl.h"
 
@@ -305,8 +313,8 @@ APLOG_USE_MODULE(ssl);
     ((SSLSrvConfigRec *)ap_get_module_config(srv->module_config,  &ssl_module))
 #define myDirConfig(req) \
     ((SSLDirConfigRec *)ap_get_module_config(req->per_dir_config, &ssl_module))
-#define myCtxConfig(sslconn, sc) \
-    (sslconn->is_proxy ? sslconn->dc->proxy : sc->server)
+#define myConnCtxConfig(c, sc) \
+    (c->outgoing ? myConnConfig(c)->dc->proxy : sc->server)
 #define myModConfig(srv) mySrvConfig((srv))->mc
 #define mySrvFromConn(c) myConnConfig(c)->server
 #define myDirConfigFromConn(c) myConnConfig(c)->dc
@@ -527,7 +535,6 @@ typedef struct {
     const char *verify_info;
     const char *verify_error;
     int verify_depth;
-    int is_proxy;
     int disabled;
     enum {
         NON_SSL_OK = 0,        /* is SSL request, or error handling completed */
@@ -554,6 +561,7 @@ typedef struct {
     
     const char *cipher_suite; /* cipher suite used in last reneg */
     int service_unavailable;  /* thouugh we negotiate SSL, no requests will be served */
+    int vhost_found;          /* whether we found vhost from SNI already */
 } SSLConnRec;
 
 /* BIG FAT WARNING: SSLModConfigRec has unusual memory lifetime: it is
@@ -617,6 +625,10 @@ typedef struct {
     apr_global_mutex_t   *stapling_cache_mutex;
     apr_global_mutex_t   *stapling_refresh_mutex;
 #endif
+#ifdef HAVE_OPENSSL_KEYLOG
+    /* Used for logging if SSLKEYLOGFILE is set at startup. */
+    apr_file_t      *keylog_file;
+#endif
 } SSLModConfigRec;
 
 /** Structure representing configured filenames for certs and keys for
@@ -640,10 +652,13 @@ typedef struct {
     const char  *cert_file;
     const char  *cert_path;
     const char  *ca_cert_file;
-    STACK_OF(X509_INFO) *certs; /* Contains End Entity certs */
-    STACK_OF(X509) **ca_certs; /* Contains ONLY chain certs for
-                                * each item in certs.
-                                * (ptr to array of ptrs) */
+    /* certs is a stack of configured cert, key pairs. */
+    STACK_OF(X509_INFO) *certs;
+    /* ca_certs contains ONLY chain certs for each item in certs.
+     * ca_certs[n] is a pointer to the (STACK_OF(X509) *) stack which
+     * holds the cert chain for the 'n'th cert in the certs stack, or
+     * NULL if no chain is configured. */
+    STACK_OF(X509) **ca_certs;
 } modssl_pk_proxy_t;
 
 /** stuff related to authentication that can also be per-dir */
@@ -668,7 +683,11 @@ typedef struct {
 typedef struct {
     const char *file_path;
     unsigned char key_name[16];
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
     unsigned char hmac_secret[16];
+#else
+    OSSL_PARAM mac_params[3];
+#endif
     unsigned char aes_key[16];
 } modssl_ticket_key_t;
 #endif
@@ -928,9 +947,20 @@ void         ssl_callback_Info(const SSL *, int, int);
 #ifdef HAVE_TLSEXT
 int          ssl_callback_ServerNameIndication(SSL *, int *, modssl_ctx_t *);
 #endif
+#if OPENSSL_VERSION_NUMBER >= 0x10101000L && !defined(LIBRESSL_VERSION_NUMBER)
+int          ssl_callback_ClientHello(SSL *, int *, void *);
+#endif
 #ifdef HAVE_TLS_SESSION_TICKETS
-int         ssl_callback_SessionTicket(SSL *, unsigned char *, unsigned char *,
-                                       EVP_CIPHER_CTX *, HMAC_CTX *, int);
+int ssl_callback_SessionTicket(SSL *ssl,
+                               unsigned char *keyname,
+                               unsigned char *iv,
+                               EVP_CIPHER_CTX *cipher_ctx,
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
+                               HMAC_CTX *hmac_ctx,
+#else
+                               EVP_MAC_CTX *mac_ctx,
+#endif
+                               int mode);
 #endif
 
 #ifdef HAVE_TLS_ALPN
@@ -970,6 +1000,11 @@ int          ssl_stapling_init_cert(server_rec *, apr_pool_t *, apr_pool_t *,
 int          ssl_callback_SRPServerParams(SSL *, int *, void *);
 #endif
 
+#ifdef HAVE_OPENSSL_KEYLOG
+/* Callback used with SSL_CTX_set_keylog_callback. */
+void         modssl_callback_keylog(const SSL *ssl, const char *line);
+#endif
+
 /**  I/O  */
 void         ssl_io_filter_init(conn_rec *, request_rec *r, SSL *);
 void         ssl_io_filter_register(apr_pool_t *);
@@ -1002,21 +1037,28 @@ BOOL         ssl_util_vhost_matches(const char *servername, server_rec *s);
 apr_status_t ssl_load_encrypted_pkey(server_rec *, apr_pool_t *, int,
                                      const char *, apr_array_header_t **);
 
+/* Load public and/or private key from the configured ENGINE. Private
+ * key returned as *pkey.  certid can be NULL, in which case *pubkey
+ * is not altered.  Errors logged on failure. */
+apr_status_t modssl_load_engine_keypair(server_rec *s, apr_pool_t *p,
+                                        const char *vhostid,
+                                        const char *certid, const char *keyid,
+                                        X509 **pubkey, EVP_PKEY **privkey);
+
 /**  Diffie-Hellman Parameter Support  */
 DH           *ssl_dh_GetParamFromFile(const char *);
 #ifdef HAVE_ECC
 EC_GROUP     *ssl_ec_GetParamFromFile(const char *);
 #endif
 
-unsigned char *ssl_asn1_table_set(apr_hash_t *table,
-                                  const char *key,
-                                  long int length);
-
-ssl_asn1_t *ssl_asn1_table_get(apr_hash_t *table,
-                               const char *key);
-
-void ssl_asn1_table_unset(apr_hash_t *table,
-                          const char *key);
+/* Store the EVP_PKEY key (serialized into DER) in the hash table with
+ * key, returning the ssl_asn1_t structure pointer. */
+ssl_asn1_t *ssl_asn1_table_set(apr_hash_t *table, const char *key,
+                               EVP_PKEY *pkey);
+/* Retrieve the ssl_asn1_t structure with given key from the hash. */
+ssl_asn1_t *ssl_asn1_table_get(apr_hash_t *table, const char *key);
+/* Remove and free the ssl_asn1_t structure with given key. */
+void ssl_asn1_table_unset(apr_hash_t *table, const char *key);
 
 /**  Mutex Support  */
 int          ssl_mutex_init(server_rec *, apr_pool_t *);
@@ -1096,13 +1138,25 @@ void ssl_init_ocsp_certificates(server_rec *s, modssl_ctx_t *mctx);
 
 #endif
 
+#if MODSSL_USE_OPENSSL_PRE_1_1_API
 /* Retrieve DH parameters for given key length.  Return value should
  * be treated as unmutable, since it is stored in process-global
  * memory. */
 DH *modssl_get_dh_params(unsigned keylen);
+#endif
+
+/* Returns non-zero if the request was made over SSL/TLS.  If sslconn
+ * is non-NULL and the request is using SSL/TLS, sets *sslconn to the
+ * corresponding SSLConnRec structure for the connection. */
+int modssl_request_is_tls(const request_rec *r, SSLConnRec **sslconn);
 
 int ssl_is_challenge(conn_rec *c, const char *servername, 
-                     X509 **pcert, EVP_PKEY **pkey);
+                     X509 **pcert, EVP_PKEY **pkey,
+                    const char **pcert_file, const char **pkey_file);
+
+/* Returns non-zero if the cert/key filename should be handled through
+ * the configured ENGINE. */
+int modssl_is_engine_id(const char *name);
 
 #endif /* SSL_PRIVATE_H */
 /** @} */

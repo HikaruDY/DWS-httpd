@@ -24,6 +24,8 @@
 #include "http_core.h"
 #include "util_mutex.h"
 
+#include "apr_atomic.h"
+
 #define AP_WATCHDOG_PGROUP    "watchdog"
 #define AP_WATCHDOG_PVERSION  "parent"
 #define AP_WATCHDOG_CVERSION  "child"
@@ -43,7 +45,7 @@ struct watchdog_list_t
 
 struct ap_watchdog_t
 {
-    apr_thread_mutex_t   *startup;
+    apr_uint32_t          thread_started; /* set to 1 once thread running */
     apr_proc_mutex_t     *mutex;
     const char           *name;
     watchdog_list_t      *callbacks;
@@ -73,6 +75,10 @@ static apr_status_t wd_worker_cleanup(void *data)
 {
     apr_status_t rv;
     ap_watchdog_t *w = (ap_watchdog_t *)data;
+
+    /* Do nothing if the thread wasn't started. */
+    if (apr_atomic_read32(&w->thread_started) != 1)
+        return APR_SUCCESS;
 
     if (w->is_running) {
         watchdog_list_t *wl = w->callbacks;
@@ -106,11 +112,13 @@ static void* APR_THREAD_FUNC wd_worker(apr_thread_t *thread, void *data)
     int probed = 0;
     int inited = 0;
     int mpmq_s = 0;
+    apr_pool_t *temp_pool = NULL;
 
     w->pool = apr_thread_pool_get(thread);
     w->is_running = 1;
 
-    apr_thread_mutex_unlock(w->startup);
+    apr_atomic_set32(&w->thread_started, 1); /* thread started */
+
     if (w->mutex) {
         while (w->is_running) {
             if (ap_mpm_query(AP_MPMQ_MPM_STATE, &mpmq_s) != APR_SUCCESS) {
@@ -151,6 +159,10 @@ static void* APR_THREAD_FUNC wd_worker(apr_thread_t *thread, void *data)
             apr_sleep(AP_WD_TM_SLICE);
         }
     }
+
+    apr_pool_create(&temp_pool, w->pool);
+    apr_pool_tag(temp_pool, "wd_running");
+
     if (w->is_running) {
         watchdog_list_t *wl = w->callbacks;
         ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, wd_server_conf->s,
@@ -158,15 +170,13 @@ static void* APR_THREAD_FUNC wd_worker(apr_thread_t *thread, void *data)
                      w->singleton ? "Singleton " : "", w->name);
         apr_time_clock_hires(w->pool);
         if (wl) {
-            apr_pool_t *ctx = NULL;
-            apr_pool_create(&ctx, w->pool);
             while (wl && w->is_running) {
                 /* Execute watchdog callback */
                 wl->status = (*wl->callback_fn)(AP_WATCHDOG_STATE_STARTING,
-                                                (void *)wl->data, ctx);
+                                                (void *)wl->data, temp_pool);
                 wl = wl->next;
             }
-            apr_pool_destroy(ctx);
+            apr_pool_clear(temp_pool);
         }
         else {
             ap_run_watchdog_init(wd_server_conf->s, w->name, w->pool);
@@ -176,7 +186,6 @@ static void* APR_THREAD_FUNC wd_worker(apr_thread_t *thread, void *data)
 
     /* Main execution loop */
     while (w->is_running) {
-        apr_pool_t *ctx = NULL;
         apr_time_t curr;
         watchdog_list_t *wl = w->callbacks;
 
@@ -195,12 +204,10 @@ static void* APR_THREAD_FUNC wd_worker(apr_thread_t *thread, void *data)
             if (wl->status == APR_SUCCESS) {
                 wl->step += (apr_time_now() - curr);
                 if (wl->step >= wl->interval) {
-                    if (!ctx)
-                        apr_pool_create(&ctx, w->pool);
                     wl->step = 0;
                     /* Execute watchdog callback */
                     wl->status = (*wl->callback_fn)(AP_WATCHDOG_STATE_RUNNING,
-                                                    (void *)wl->data, ctx);
+                                                    (void *)wl->data, temp_pool);
                     if (ap_mpm_query(AP_MPMQ_MPM_STATE, &mpmq_s) != APR_SUCCESS) {
                         w->is_running = 0;
                     }
@@ -217,19 +224,17 @@ static void* APR_THREAD_FUNC wd_worker(apr_thread_t *thread, void *data)
              */
             w->step += (apr_time_now() - curr);
             if (w->step >= wd_interval) {
-                if (!ctx)
-                    apr_pool_create(&ctx, w->pool);
                 w->step = 0;
                 /* Run watchdog step hook */
-                ap_run_watchdog_step(wd_server_conf->s, w->name, ctx);
+                ap_run_watchdog_step(wd_server_conf->s, w->name, temp_pool);
             }
         }
-        if (ctx)
-            apr_pool_destroy(ctx);
-        if (!w->is_running) {
-            break;
-        }
+
+        apr_pool_clear(temp_pool);
     }
+
+    apr_pool_destroy(temp_pool);
+
     if (inited) {
         /* Run the watchdog exit hooks.
          * If this was singleton watchdog the init hook
@@ -264,10 +269,7 @@ static apr_status_t wd_startup(ap_watchdog_t *w, apr_pool_t *p)
 {
     apr_status_t rc;
 
-    /* Create thread startup mutex */
-    rc = apr_thread_mutex_create(&w->startup, APR_THREAD_MUTEX_UNNESTED, p);
-    if (rc != APR_SUCCESS)
-        return rc;
+    apr_atomic_set32(&w->thread_started, 0);
 
     if (w->singleton) {
         /* Initialize singleton mutex in child */
@@ -277,21 +279,11 @@ static apr_status_t wd_startup(ap_watchdog_t *w, apr_pool_t *p)
             return rc;
     }
 
-    /* This mutex fixes problems with a fast start/fast end, where the pool
-     * cleanup was being invoked before the thread completely spawned.
-     */
-    apr_thread_mutex_lock(w->startup);
-    apr_pool_pre_cleanup_register(p, w, wd_worker_cleanup);
-
     /* Start the newly created watchdog */
-    rc = apr_thread_create(&w->thread, NULL, wd_worker, w, p);
-    if (rc) {
-        apr_pool_cleanup_kill(p, w, wd_worker_cleanup);
+    rc = ap_thread_create(&w->thread, NULL, wd_worker, w, p);
+    if (rc == APR_SUCCESS) {
+        apr_pool_pre_cleanup_register(p, w, wd_worker_cleanup);
     }
-
-    apr_thread_mutex_lock(w->startup);
-    apr_thread_mutex_unlock(w->startup);
-    apr_thread_mutex_destroy(w->startup);
 
     return rc;
 }
@@ -447,6 +439,7 @@ static int wd_post_config_hook(apr_pool_t *pconf, apr_pool_t *plog,
         if (!(wd_server_conf = apr_pcalloc(ppconf, sizeof(wd_server_conf_t))))
             return APR_ENOMEM;
         apr_pool_create(&wd_server_conf->pool, ppconf);
+        apr_pool_tag(wd_server_conf->pool, "wd_server_conf");
         apr_pool_userdata_set(wd_server_conf, pk, apr_pool_cleanup_null, ppconf);
     }
     ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, s, APLOGNO(010033)
@@ -473,7 +466,7 @@ static int wd_post_config_hook(apr_pool_t *pconf, apr_pool_t *plog,
                     int status = ap_run_watchdog_need(s, w->name, 1,
                                                       w->singleton);
                     if (status == OK) {
-                        /* One of the modules returned OK to this watchog.
+                        /* One of the modules returned OK to this watchdog.
                          * Mark it as active
                          */
                         w->active = 1;
@@ -519,7 +512,7 @@ static int wd_post_config_hook(apr_pool_t *pconf, apr_pool_t *plog,
                     int status = ap_run_watchdog_need(s, w->name, 0,
                                                       w->singleton);
                     if (status == OK) {
-                        /* One of the modules returned OK to this watchog.
+                        /* One of the modules returned OK to this watchdog.
                          * Mark it as active
                          */
                         w->active = 1;

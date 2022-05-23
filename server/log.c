@@ -276,7 +276,7 @@ AP_DECLARE(apr_status_t) ap_replace_stderr_log(apr_pool_t *p,
             /*
              * You might ponder why stderr_pool should survive?
              * The trouble is, stderr_pool may have s_main->error_log,
-             * so we aren't in a position to destory stderr_pool until
+             * so we aren't in a position to destroy stderr_pool until
              * the next recycle.  There's also an apparent bug which
              * is not; if some folk decided to call this function before
              * the core open error logs hook, this pool won't survive.
@@ -303,7 +303,7 @@ static void log_child_errfn(apr_pool_t *pool, apr_status_t err,
 }
 
 /* Create a child process running PROGNAME with a pipe connected to
- * the childs stdin.  The write-end of the pipe will be placed in
+ * the child's stdin.  The write-end of the pipe will be placed in
  * *FPIN on successful return.  If dummy_stderr is non-zero, the
  * stderr for the child will be the same as the stdout of the parent.
  * Otherwise the child will inherit the stderr from the parent. */
@@ -341,8 +341,10 @@ static int log_child(apr_pool_t *p, const char *progname,
                 rc = apr_procattr_child_err_set(procattr, errfile, NULL);
         }
 
-        rc = apr_proc_create(procnew, args[0], (const char * const *)args,
-                             NULL, procattr, p);
+        if (rc == APR_SUCCESS) {
+            rc = apr_proc_create(procnew, args[0], (const char * const *)args,
+                                 NULL, procattr, p);
+        }
 
         if (rc == APR_SUCCESS) {
             apr_pool_note_subprocess(p, procnew, APR_KILL_AFTER_TIMEOUT);
@@ -1598,6 +1600,9 @@ AP_DECLARE(void) ap_log_pid(apr_pool_t *p, const char *filename)
     pid_t mypid;
     apr_status_t rv;
     const char *fname;
+    char *temp_fname;
+    apr_fileperms_t perms;
+    char pidstr[64];
 
     if (!filename) {
         return;
@@ -1626,19 +1631,31 @@ AP_DECLARE(void) ap_log_pid(apr_pool_t *p, const char *filename)
                       fname);
     }
 
-    if ((rv = apr_file_open(&pid_file, fname,
-                            APR_WRITE | APR_CREATE | APR_TRUNCATE,
-                            APR_UREAD | APR_UWRITE | APR_GREAD | APR_WREAD, p))
-        != APR_SUCCESS) {
+    temp_fname = apr_pstrcat(p, fname, ".XXXXXX", NULL);
+    rv = apr_file_mktemp(&pid_file, temp_fname,
+                         APR_FOPEN_WRITE | APR_FOPEN_CREATE | APR_FOPEN_TRUNCATE, p);
+    if (rv != APR_SUCCESS) {
         ap_log_error(APLOG_MARK, APLOG_ERR, rv, NULL, APLOGNO(00099)
-                     "could not create %s", fname);
+                     "could not create %s", temp_fname);
         ap_log_error(APLOG_MARK, APLOG_ERR, 0, NULL, APLOGNO(00100)
                      "%s: could not log pid to file %s",
                      ap_server_argv0, fname);
         exit(1);
     }
-    apr_file_printf(pid_file, "%" APR_PID_T_FMT APR_EOL_STR, mypid);
-    apr_file_close(pid_file);
+
+    apr_snprintf(pidstr, sizeof pidstr, "%" APR_PID_T_FMT APR_EOL_STR, mypid);
+
+    perms = APR_UREAD | APR_UWRITE | APR_GREAD | APR_WREAD;
+    if (((rv = apr_file_perms_set(temp_fname, perms)) != APR_SUCCESS && rv != APR_ENOTIMPL)
+        || (rv = apr_file_write_full(pid_file, pidstr, strlen(pidstr), NULL)) != APR_SUCCESS
+        || (rv = apr_file_close(pid_file)) != APR_SUCCESS
+        || (rv = apr_file_rename(temp_fname, fname, p)) != APR_SUCCESS) {
+        ap_log_error(APLOG_MARK, APLOG_ERR, rv, NULL, APLOGNO(10231)
+                     "%s: Failed creating pid file %s",
+                     ap_server_argv0, temp_fname);
+        exit(1);
+    }
+
     saved_pid = mypid;
 }
 
@@ -1930,8 +1947,8 @@ AP_DECLARE(void) ap_close_piped_log(piped_log *pl)
 
 AP_DECLARE(const char *) ap_parse_log_level(const char *str, int *val)
 {
-    char *err = "Log level keyword must be one of emerg/alert/crit/error/warn/"
-                "notice/info/debug/trace1/.../trace8";
+    const char *err = "Log level keyword must be one of emerg/alert/crit/error/"
+                      "warn/notice/info/debug/trace1/.../trace8";
     int i = 0;
 
     if (str == NULL)

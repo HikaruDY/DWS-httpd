@@ -48,12 +48,12 @@ extern const char *H2_MAGIC_TOKEN;
 #define H2_HEADER_PATH_LEN   5
 #define H2_CRLF             "\r\n"
 
-/* Max data size to write so it fits inside a TLS record */
-#define H2_DATA_CHUNK_SIZE          ((16*1024) - 100 - 9) 
-
 /* Size of the frame header itself in HTTP/2 */
 #define H2_FRAME_HDR_LEN            9
  
+/* Max data size to write so it fits inside a TLS record */
+#define H2_DATA_CHUNK_SIZE          ((16*1024) - 100 - H2_FRAME_HDR_LEN) 
+
 /* Maximum number of padding bytes in a frame, rfc7540 */
 #define H2_MAX_PADLEN               256
 /* Initial default window size, RFC 7540 ch. 6.5.2 */
@@ -138,10 +138,21 @@ struct h2_request {
     apr_table_t *headers;
 
     apr_time_t request_time;
-    unsigned int chunked : 1;   /* iff requst body needs to be forwarded as chunked */
+    unsigned int chunked : 1;   /* iff request body needs to be forwarded as chunked */
     unsigned int serialize : 1; /* iff this request is written in HTTP/1.1 serialization */
     apr_off_t raw_bytes;        /* RAW network bytes that generated this request - if known. */
+    int http_status;            /* Store a possible HTTP status code that gets
+                                 * defined before creating the dummy HTTP/1.1
+                                 * request e.g. due to an error already
+                                 * detected.
+                                 */
 };
+
+/*
+ * A possible HTTP status code is not defined yet. See the http_status field
+ * in struct h2_request above for further explanation.
+ */
+#define H2_HTTP_STATUS_UNSET (0)
 
 typedef struct h2_headers h2_headers;
 
@@ -162,5 +173,6 @@ typedef int h2_stream_pri_cmp(int stream_id1, int stream_id2, void *ctx);
 #define H2_FILTER_DEBUG_NOTE    "http2-debug"
 #define H2_HDR_CONFORMANCE      "http2-hdr-conformance"
 #define H2_HDR_CONFORMANCE_UNSAFE      "unsafe"
+#define H2_PUSH_MODE_NOTE       "http2-push-mode"
 
 #endif /* defined(__mod_h2__h2__) */

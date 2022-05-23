@@ -1,7 +1,7 @@
-<?xml version="1.0" encoding="ISO-8859-1"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
-<meta content="text/html; charset=ISO-8859-1" http-equiv="Content-Type" />
+<meta content="text/html; charset=UTF-8" http-equiv="Content-Type" />
 <!--
         XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
               This file is generated from xml source: DO NOT EDIT
@@ -28,10 +28,10 @@
 <div class="toplang">
 <p><span>Available Languages: </span><a href="../de/mod/core.html" hreflang="de" rel="alternate" title="Deutsch">&nbsp;de&nbsp;</a> |
 <a href="../en/mod/core.html" title="English">&nbsp;en&nbsp;</a> |
-<a href="../es/mod/core.html" hreflang="es" rel="alternate" title="Español">&nbsp;es&nbsp;</a> |
-<a href="../fr/mod/core.html" hreflang="fr" rel="alternate" title="Français">&nbsp;fr&nbsp;</a> |
+<a href="../es/mod/core.html" hreflang="es" rel="alternate" title="EspaÃ±ol">&nbsp;es&nbsp;</a> |
+<a href="../fr/mod/core.html" hreflang="fr" rel="alternate" title="FranÃ§ais">&nbsp;fr&nbsp;</a> |
 <a href="../ja/mod/core.html" hreflang="ja" rel="alternate" title="Japanese">&nbsp;ja&nbsp;</a> |
-<a href="../tr/mod/core.html" hreflang="tr" rel="alternate" title="Türkçe">&nbsp;tr&nbsp;</a></p>
+<a href="../tr/mod/core.html" hreflang="tr" rel="alternate" title="TÃ¼rkÃ§e">&nbsp;tr&nbsp;</a></p>
 </div>
 <table class="module"><tr><th><a href="module-dict.html#Description">Description:</a></th><td>Core Apache HTTP Server features that are always
 available</td></tr>
@@ -68,6 +68,8 @@ available</td></tr>
 <li><img alt="" src="../images/down.gif" /> <a href="#fileetag">FileETag</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#files">&lt;Files&gt;</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#filesmatch">&lt;FilesMatch&gt;</a></li>
+<li><img alt="" src="../images/down.gif" /> <a href="#flushmaxpipelined">FlushMaxPipelined</a></li>
+<li><img alt="" src="../images/down.gif" /> <a href="#flushmaxthreshold">FlushMaxThreshold</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#forcetype">ForceType</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#gprofdir">GprofDir</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#hostnamelookups">HostnameLookups</a></li>
@@ -97,6 +99,7 @@ available</td></tr>
 <li><img alt="" src="../images/down.gif" /> <a href="#maxrangeoverlaps">MaxRangeOverlaps</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#maxrangereversals">MaxRangeReversals</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#maxranges">MaxRanges</a></li>
+<li><img alt="" src="../images/down.gif" /> <a href="#mergeslashes">MergeSlashes</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#mergetrailers">MergeTrailers</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#mutex">Mutex</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#namevirtualhost">NameVirtualHost</a></li>
@@ -105,6 +108,7 @@ available</td></tr>
 <li><img alt="" src="../images/down.gif" /> <a href="#protocols">Protocols</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#protocolshonororder">ProtocolsHonorOrder</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#qualifyredirecturl">QualifyRedirectURL</a></li>
+<li><img alt="" src="../images/down.gif" /> <a href="#readbuffersize">ReadBufferSize</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#regexdefaultoptions">RegexDefaultOptions</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#registerhttpmethod">RegisterHttpMethod</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#rlimitcpu">RLimitCPU</a></li>
@@ -122,6 +126,7 @@ available</td></tr>
 <li><img alt="" src="../images/down.gif" /> <a href="#sethandler">SetHandler</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#setinputfilter">SetInputFilter</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#setoutputfilter">SetOutputFilter</a></li>
+<li><img alt="" src="../images/down.gif" /> <a href="#stricthostcheck">StrictHostCheck</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#timeout">TimeOut</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#traceenable">TraceEnable</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#undefine">UnDefine</a></li>
@@ -615,8 +620,8 @@ AllowOverrideList Redirect RedirectMatch</pre>
 AllowOverrideList CookieTracking CookieName</pre>
 
 
-    <p>In the example above, <code class="directive"><a href="#allowoverride">AllowOverride
-    </a></code> grants permission to the <code>AuthConfig</code>
+    <p>In the example above, <code class="directive"><a href="#allowoverride">AllowOverride</a></code>
+    grants permission to the <code>AuthConfig</code>
     directive grouping and <code class="directive">AllowOverrideList</code> grants
     permission to only two directives from the <code>FileInfo</code> directive
     grouping. All others will cause an internal server error.</p>
@@ -1485,9 +1490,6 @@ ErrorLog syslog:user:httpd.srv1
 ErrorLog syslog::httpd.srv2</pre>
 
 
-    <p>Additional modules can provide their own ErrorLog providers. The syntax
-    is similar to the <code>syslog</code> example above.</p>
-
     <p>SECURITY: See the <a href="../misc/security_tips.html#serverroot">security tips</a>
     document for details on why your security could be compromised
     if the directory where log files are stored is writable by
@@ -1649,7 +1651,7 @@ ErrorLogFormat "[%t] [%l] [pid %P] %F: %E: [client %a] %M"</pre>
     unique id will be used as log ID for requests.</p>
 
     <pre class="prettyprint lang-config">#Example (default format for threaded MPMs)
-ErrorLogFormat "[%{u}t] [%-m:%l] [pid %P:tid %T] %7F: %E: [client\ %a] %M% ,\ referer\ %{Referer}i"</pre>
+ErrorLogFormat "[%{u}t] [%-m:%l] [pid %P:tid %T] %7F: %E: [client\ %a] %M%Â ,\Â referer\Â %{Referer}i"</pre>
 
 
     <p>This would result in error messages such as:</p>
@@ -1662,7 +1664,7 @@ ErrorLogFormat "[%{u}t] [%-m:%l] [pid %P:tid %T] %7F: %E: [client\ %a] %M% ,\ re
     entirely because they are not defined.</p>
 
     <pre class="prettyprint lang-config">#Example (similar to the 2.2.x format)
-ErrorLogFormat "[%t] [%l] %7F: %E: [client\ %a] %M% ,\ referer\ %{Referer}i"</pre>
+ErrorLogFormat "[%t] [%l] %7F: %E: [client\ %a] %M%Â ,\Â referer\Â %{Referer}i"</pre>
 
 
     <pre class="prettyprint lang-config">#Advanced example with request/connection log IDs
@@ -1750,15 +1752,18 @@ earlier.</td></tr>
      <dd>All available fields will be used. This is equivalent to:
          <pre class="prettyprint lang-config">FileETag INode MTime Size</pre>
 </dd>
+     <dt><strong>Digest</strong></dt>
+     <dd>If a document is file-based, the <code>ETag</code> field will be
+       calculated by taking the digest over the file.</dd>
      <dt><strong>None</strong></dt>
      <dd>If a document is file-based, no <code>ETag</code> field will be
        included in the response</dd>
     </dl>
 
-    <p>The <code>INode</code>, <code>MTime</code>, and <code>Size</code>
-    keywords may be prefixed with either <code>+</code> or <code>-</code>,
-    which allow changes to be made to the default setting inherited
-    from a broader scope. Any keyword appearing without such a prefix
+    <p>The <code>INode</code>, <code>MTime</code>, <code>Size</code> and
+    <code>Digest</code> keywords may be prefixed with either <code>+</code>
+    or <code>-</code>, which allow changes to be made to the default setting
+    inherited from a broader scope. Any keyword appearing without such a prefix
     immediately and completely cancels the inherited setting.</p>
 
     <p>If a directory's configuration includes
@@ -1767,18 +1772,10 @@ earlier.</td></tr>
     the setting for that subdirectory (which will be inherited by
     any sub-subdirectories that don't override it) will be equivalent to
     <code>FileETag&nbsp;MTime&nbsp;Size</code>.</p>
-    <div class="warning"><h3>Warning</h3>
-    Do not change the default for directories or locations that have WebDAV
-    enabled and use <code class="module"><a href="../mod/mod_dav_fs.html">mod_dav_fs</a></code> as a storage provider.
-    <code class="module"><a href="../mod/mod_dav_fs.html">mod_dav_fs</a></code> uses <code>MTime&nbsp;Size</code>
-    as a fixed format for <code>ETag</code> comparisons on conditional requests.
-    These conditional requests will break if the <code>ETag</code> format is
-    changed via <code class="directive">FileETag</code>.
-    </div>
     <div class="note"><h3>Server Side Includes</h3>
     An ETag is not generated for responses parsed by <code class="module"><a href="../mod/mod_include.html">mod_include</a></code>
-    since the response entity can change without a change of the INode, MTime, or Size
-    of the static file with embedded SSI directives.
+    since the response entity can change without a change of the INode, MTime,
+    Size or Digest of the static file with embedded SSI directives.
     </div>
 
 
@@ -1890,6 +1887,52 @@ filenames</td></tr>
     and &lt;Files&gt; sections work</a> for an explanation of how these
     different sections are combined when a request is received</li>
 </ul>
+</div>
+<div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
+<div class="directive-section"><h2><a name="FlushMaxPipelined" id="FlushMaxPipelined">FlushMaxPipelined</a> <a name="flushmaxpipelined" id="flushmaxpipelined">Directive</a></h2>
+<table class="directive">
+<tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Maximum number of pipelined responses above which they are flushed
+to the network</td></tr>
+<tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>FlushMaxPipelined <var>number</var></code></td></tr>
+<tr><th><a href="directive-dict.html#Default">Default:</a></th><td><code>FlushMaxPipelined 5</code></td></tr>
+<tr><th><a href="directive-dict.html#Context">Context:</a></th><td>server config, virtual host</td></tr>
+<tr><th><a href="directive-dict.html#Status">Status:</a></th><td>Core</td></tr>
+<tr><th><a href="directive-dict.html#Module">Module:</a></th><td>core</td></tr>
+<tr><th><a href="directive-dict.html#Compatibility">Compatibility:</a></th><td>2.4.47 and later</td></tr>
+</table>
+    <p>This directive allows to configure the maximum number of pipelined
+    responses, which remain pending so long as pipelined request are received.
+    When the limit is reached, responses are forcibly flushed to the network in
+    blocking mode, until passing under the limit again.</p>
+
+    <p><code class="directive">FlushMaxPipelined</code> helps constraining memory
+    usage. When set to <code>0</code> pipelining is disabled, when set to
+    <code>-1</code> there is no limit (<code class="directive"><a href="#flushmaxthreshold">FlushMaxThreshold</a></code>
+    still applies).</p>
+
+</div>
+<div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
+<div class="directive-section"><h2><a name="FlushMaxThreshold" id="FlushMaxThreshold">FlushMaxThreshold</a> <a name="flushmaxthreshold" id="flushmaxthreshold">Directive</a></h2>
+<table class="directive">
+<tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Threshold above which pending data are flushed to the
+network</td></tr>
+<tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>FlushMaxThreshold <var>number-of-bytes</var></code></td></tr>
+<tr><th><a href="directive-dict.html#Default">Default:</a></th><td><code>FlushMaxThreshold 65536</code></td></tr>
+<tr><th><a href="directive-dict.html#Context">Context:</a></th><td>server config, virtual host</td></tr>
+<tr><th><a href="directive-dict.html#Status">Status:</a></th><td>Core</td></tr>
+<tr><th><a href="directive-dict.html#Module">Module:</a></th><td>core</td></tr>
+<tr><th><a href="directive-dict.html#Compatibility">Compatibility:</a></th><td>2.4.47 and later</td></tr>
+</table>
+    <p>This directive allows to configure the threshold for pending output
+    data (in bytes). When the limit is reached, data are forcibly flushed to
+    the network in blocking mode, until passing under the limit again.</p>
+
+    <p><code class="directive">FlushMaxThreshold</code> helps constraining memory
+    usage. When set to <code>0</code> or a too small value there are actually
+    no pending data, but for threaded MPMs there can be more threads busy
+    waiting for the network thus less ones available to handle the other
+    simultaneous connections.</p>
+
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="directive-section"><h2><a name="ForceType" id="ForceType">ForceType</a> <a name="forcetype" id="forcetype">Directive</a></h2>
@@ -2016,7 +2059,7 @@ media type in the HTTP Content-Type header field</td></tr>
 
     <p>Finally, if you have <a href="mod_authz_host.html#reqhost">hostname-based Require
     directives</a>, a hostname lookup will be performed regardless of
-    the setting of <code>HostnameLookups</code>.</p>
+    the setting of <code class="directive">HostnameLookups</code>.</p>
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
@@ -2032,8 +2075,8 @@ media type in the HTTP Content-Type header field</td></tr>
 <tr><th><a href="directive-dict.html#Compatibility">Compatibility:</a></th><td>2.2.32 or 2.4.24 and later</td></tr>
 </table>
     <p>This directive changes the rules applied to the HTTP Request Line
-    (<a href="https://tools.ietf.org/html/rfc7230#section-3.1.1">RFC 7230 §3.1.1</a>) and the HTTP Request Header Fields
-    (<a href="https://tools.ietf.org/html/rfc7230#section-3.2">RFC 7230 §3.2</a>), which are now applied by default or using
+    (<a href="https://tools.ietf.org/html/rfc7230#section-3.1.1">RFC 7230 Â§3.1.1</a>) and the HTTP Request Header Fields
+    (<a href="https://tools.ietf.org/html/rfc7230#section-3.2">RFC 7230 Â§3.2</a>), which are now applied by default or using
     the <code>Strict</code> option. Due to legacy modules, applications or
     custom user-agents which must be deprecated the <code>Unsafe</code>
     option has been added to revert to the legacy behaviors.</p>
@@ -2052,10 +2095,10 @@ media type in the HTTP Content-Type header field</td></tr>
       <p>Prior to the introduction of this directive, the Apache HTTP Server
       request message parsers were tolerant of a number of forms of input
       which did not conform to the protocol.
-      <a href="https://tools.ietf.org/html/rfc7230#section-9.4">RFC 7230 §9.4 Request Splitting</a> and
-      <a href="https://tools.ietf.org/html/rfc7230#section-9.5">§9.5 Response Smuggling</a> call out only two of the potential
+      <a href="https://tools.ietf.org/html/rfc7230#section-9.4">RFC 7230 Â§9.4 Request Splitting</a> and
+      <a href="https://tools.ietf.org/html/rfc7230#section-9.5">Â§9.5 Response Smuggling</a> call out only two of the potential
       risks of accepting non-conformant request messages, while
-      <a href="https://tools.ietf.org/html/rfc7230#section-3.5">RFC 7230 §3.5</a> "Message Parsing Robustness" identify the
+      <a href="https://tools.ietf.org/html/rfc7230#section-3.5">RFC 7230 Â§3.5</a> "Message Parsing Robustness" identify the
       risks of accepting obscure whitespace and request message formatting. 
       As of the introduction of this directive, all grammar rules of the
       specification are enforced in the default <code>Strict</code> operating
@@ -2088,7 +2131,7 @@ media type in the HTTP Content-Type header field</td></tr>
     </dd>
     <dt>RegisteredMethods|LenientMethods</dt>
     <dd>
-      <p><a href="https://tools.ietf.org/html/rfc7231#section-4.1">RFC 7231 §4.1</a> "Request Methods" "Overview" requires that
+      <p><a href="https://tools.ietf.org/html/rfc7231#section-4.1">RFC 7231 Â§4.1</a> "Request Methods" "Overview" requires that
       origin servers shall respond with a HTTP 501 status code when an
       unsupported method is encountered in the request line.
       This already happens when the <code>LenientMethods</code> option is used,
@@ -2114,7 +2157,7 @@ media type in the HTTP Content-Type header field</td></tr>
       </dd>
       <dt>Allow0.9|Require1.0</dt>
       <dd>
-      <p><a href="https://tools.ietf.org/html/rfc2616#section-19.6">RFC 2616 §19.6</a> "Compatibility With Previous Versions" had
+      <p><a href="https://tools.ietf.org/html/rfc2616#section-19.6">RFC 2616 Â§19.6</a> "Compatibility With Previous Versions" had
       encouraged HTTP servers to support legacy HTTP/0.9 requests. RFC 7230
       supersedes this with "The expectation to support HTTP/0.9 requests has
       been removed" and offers additional comments in 
@@ -2333,7 +2376,13 @@ if file exists at startup</td></tr>
     the path will be checked relative to the compiled-in server root or
     the server root passed in on the command line via the <code>-d</code>
     parameter.</p>
-    
+
+    <div class="warning"><h3>Warning</h3>
+    In 2.4.34, it is not possible to specify a <var>filename</var>
+    with surrounding quotes. This would generate a parsing error at start-up.
+    The main impact is that filenames with spaces can't be used.
+    This behavior is fixed in 2.4.35.</div>
+
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
@@ -2800,8 +2849,8 @@ will be accepted from the client</td></tr>
 <tr><th><a href="directive-dict.html#Status">Status:</a></th><td>Core</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>core</td></tr>
 </table>
-    <p><var>Number</var> is an integer from 0 (meaning unlimited) to
-    32767. The default value is defined by the compile-time
+    <p>Setting <var>number</var> at 0 means unlimited.
+    The default value is defined by the compile-time
     constant <code>DEFAULT_LIMIT_REQUEST_FIELDS</code> (100 as
     distributed).</p>
 
@@ -2934,12 +2983,18 @@ from the client</td></tr>
 <tr><th><a href="directive-dict.html#Status">Status:</a></th><td>Core</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>core</td></tr>
 </table>
-    <p>Limit (in bytes) on maximum size of an XML-based request
-    body. A value of <code>0</code> will disable any checking.</p>
-
+    <p>Limit (in bytes) on the maximum size of an XML-based request
+    body. A value of <code>0</code> will apply a hard limit (depending on
+    32bit vs 64bit system) allowing for XML escaping within the bounds of
+    the system addressable memory, but it exists for compatibility only
+    and is not recommended since it does not account for memory consumed
+    elsewhere or concurrent requests, which might result in an overall
+    system out-of-memory.
+    </p>
     <p>Example:</p>
 
-    <pre class="prettyprint lang-config">LimitXMLRequestBody 0</pre>
+    <pre class="prettyprint lang-config"># Limit of 1 MiB
+LimitXMLRequestBody 1073741824</pre>
 
 
 
@@ -3054,10 +3109,12 @@ URLs</td></tr>
       URL it appears. People may be used to its behavior in the filesystem
       where multiple adjacent slashes are frequently collapsed to a single
       slash (<em>i.e.</em>, <code>/home///foo</code> is the same as
-      <code>/home/foo</code>). In URL-space this is not necessarily true.
+      <code>/home/foo</code>). In URL-space this is not necessarily true if
+      directive <code class="directive"><a href="#mergeslashes">MergeSlashes</a></code>  has been set
+      to "OFF".
       The <code class="directive"><a href="#locationmatch">&lt;LocationMatch&gt;</a></code>
       directive and the regex version of <code class="directive">&lt;Location&gt;</code> require you to explicitly specify multiple
-      slashes if that is your intention.</p>
+      slashes if the slashes are not being merged.</p>
 
       <p>For example, <code>&lt;LocationMatch "^/abc"&gt;</code> would match
       the request URL <code>/abc</code> but not the request URL <code>
@@ -3121,6 +3178,27 @@ matching URLs</td></tr>
     Require ldap-group cn=%{env:MATCH_SITENAME},ou=combined,o=Example
 &lt;/LocationMatch&gt;</pre>
 
+
+     <div class="note"><h3>Note about / (slash)</h3>
+      <p>The slash character has special meaning depending on where in a
+      URL it appears. People may be used to its behavior in the filesystem
+      where multiple adjacent slashes are frequently collapsed to a single
+      slash (<em>i.e.</em>, <code>/home///foo</code> is the same as
+      <code>/home/foo</code>). In URL-space this is not necessarily true if
+      directive <code class="directive"><a href="#mergeslashes">MergeSlashes</a></code>  has been set
+      to "OFF".
+      The <code class="directive"><a href="#locationmatch">&lt;LocationMatch&gt;</a></code>
+      directive and the regex version of <code class="directive">&lt;Location&gt;</code> require you to explicitly specify multiple
+      slashes if the slashes are not being merged.</p>
+
+      <p>For example, <code>&lt;LocationMatch "^/abc"&gt;</code> would match
+      the request URL <code>/abc</code> but not the request URL <code>
+      //abc</code>. The (non-regex) <code class="directive">&lt;Location&gt;</code> directive behaves similarly when used for
+      proxy requests. But when (non-regex) <code class="directive">&lt;Location&gt;</code> is used for non-proxy requests it will
+      implicitly match multiple slashes with a single slash. For example,
+      if you specify <code>&lt;Location "/abc/def"&gt;</code> and the
+      request is to <code>/abc//def</code> then it will match.</p>
+    </div>
 
 <h3>See also</h3>
 <ul>
@@ -3462,6 +3540,34 @@ resource </td></tr>
       <dd>A positive number representing the maximum number of ranges the
       server is willing to satisfy.</dd>
     </dl>
+
+</div>
+<div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
+<div class="directive-section"><h2><a name="MergeSlashes" id="MergeSlashes">MergeSlashes</a> <a name="mergeslashes" id="mergeslashes">Directive</a></h2>
+<table class="directive">
+<tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Controls whether the server merges consecutive slashes in URLs.
+</td></tr>
+<tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>MergeSlashes ON|OFF</code></td></tr>
+<tr><th><a href="directive-dict.html#Default">Default:</a></th><td><code>MergeSlashes ON</code></td></tr>
+<tr><th><a href="directive-dict.html#Context">Context:</a></th><td>server config, virtual host</td></tr>
+<tr><th><a href="directive-dict.html#Status">Status:</a></th><td>Core</td></tr>
+<tr><th><a href="directive-dict.html#Module">Module:</a></th><td>core</td></tr>
+<tr><th><a href="directive-dict.html#Compatibility">Compatibility:</a></th><td>Added in 2.4.39</td></tr>
+</table>
+    <p>By default, the server merges (or collapses) multiple consecutive slash
+    ('/') characters in the path component of the request URL.</p>
+
+    <p>When mapping URL's to the filesystem, these multiple slashes are not 
+    significant.  However, URL's handled other ways, such as by CGI or proxy,
+    might prefer to retain the significance of multiple consecutive slashes. 
+    In these cases <code class="directive">MergeSlashes</code> can be set to 
+    <em>OFF</em> to retain the multiple consecutive slashes, which is the legacy behavior.</p>
+    <p>
+    When set to "OFF", regular expressions used in the configuration file that match
+    the path component of the URL (<code class="directive">LocationMatch</code>,
+    <code class="directive">RewriteRule</code>, ...) need to take into account multiple 
+    consecutive slashes. Non regular expression based <code class="directive">Location</code> always
+    operate against a URL with merged slashes and cannot differentiate between multiple slashes.</p>
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
@@ -3902,10 +4008,13 @@ On Windows, from Apache 2.3.3 and later.</td></tr>
        The protocol is used to determine which module should handle a request and
        to apply protocol specific optimizations with the <code class="directive">AcceptFilter</code>
        directive.</p>
-
-    <p>You only need to set the protocol if you are running on non-standard ports;
-       otherwise, <code>http</code> is assumed for port 80 and <code>https</code>
-       for port 443.</p>
+ 
+    <p>This directive not required for most
+       configurations. If not specified, <code>https</code> is the default for
+       port 443 and <code>http</code> the default for all other ports.  The
+       protocol is used to determine which module should handle a request, and
+       to apply protocol specific optimizations with the
+       <code class="directive"><a href="#acceptfilter">AcceptFilter</a></code> directive.</p>
 
     <p>For example, if you are running <code>https</code> on a non-standard port,
        specify the protocol explicitly:</p>
@@ -3999,19 +4108,19 @@ On Windows, from Apache 2.3.3 and later.</td></tr>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Controls whether the REDIRECT_URL environment variable is
              fully qualified</td></tr>
-<tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>QualifyRedirectURL ON|OFF</code></td></tr>
-<tr><th><a href="directive-dict.html#Default">Default:</a></th><td><code>QualifyRedirectURL OFF</code></td></tr>
+<tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>QualifyRedirectURL On|Off</code></td></tr>
+<tr><th><a href="directive-dict.html#Default">Default:</a></th><td><code>QualifyRedirectURL Off</code></td></tr>
 <tr><th><a href="directive-dict.html#Context">Context:</a></th><td>server config, virtual host, directory</td></tr>
 <tr><th><a href="directive-dict.html#Override">Override:</a></th><td>FileInfo</td></tr>
 <tr><th><a href="directive-dict.html#Status">Status:</a></th><td>Core</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>core</td></tr>
 <tr><th><a href="directive-dict.html#Compatibility">Compatibility:</a></th><td>Directive supported in 2.4.18 and later. 2.4.17 acted
-as if 'QualifyRedirectURL ON' was configured.</td></tr>
+as if 'QualifyRedirectURL On' was configured.</td></tr>
 </table>
     <p>This directive controls whether the server will ensure that the 
     REDIRECT_URL environment variable is fully qualified.  By default, 
     the variable contains the verbatim URL requested by the client, 
-    such as "/index.html".  With <code class="directive"><a href="#qualifyredirecturl on">QualifyRedirectURL ON</a></code>, the same request would result in a
+    such as "/index.html".  With <code class="directive">QualifyRedirectURL On</code>, the same request would result in a
     value such as "http://www.example.com/index.html".</p>
     <p>Even without this directive set, when a request is issued against a 
     fully qualified URL, REDIRECT_URL will remain fully qualified.
@@ -4019,11 +4128,30 @@ as if 'QualifyRedirectURL ON' was configured.</td></tr>
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
+<div class="directive-section"><h2><a name="ReadBufferSize" id="ReadBufferSize">ReadBufferSize</a> <a name="readbuffersize" id="readbuffersize">Directive</a></h2>
+<table class="directive">
+<tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Size of the buffers used to read data</td></tr>
+<tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>ReadBufferSize <var>bytes</var></code></td></tr>
+<tr><th><a href="directive-dict.html#Default">Default:</a></th><td><code>ReadBufferSize 8192</code></td></tr>
+<tr><th><a href="directive-dict.html#Context">Context:</a></th><td>server config, virtual host, directory</td></tr>
+<tr><th><a href="directive-dict.html#Status">Status:</a></th><td>Core</td></tr>
+<tr><th><a href="directive-dict.html#Module">Module:</a></th><td>core</td></tr>
+<tr><th><a href="directive-dict.html#Compatibility">Compatibility:</a></th><td>2.4.27 and later</td></tr>
+</table>
+    <p>This directive allows to configure the size (in bytes) of the memory
+    buffer used to read data from the network or files.</p>
+
+    <p>A larger buffer can increase peformances with larger data, but consumes
+    more memory per connection. The minimum configurable size is
+    <var>1024</var>.</p>
+
+</div>
+<div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="directive-section"><h2><a name="RegexDefaultOptions" id="RegexDefaultOptions">RegexDefaultOptions</a> <a name="regexdefaultoptions" id="regexdefaultoptions">Directive</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Allow to configure global/default options for regexes</td></tr>
 <tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>RegexDefaultOptions [none] [+|-]<var>option</var> [[+|-]<var>option</var>] ...</code></td></tr>
-<tr><th><a href="directive-dict.html#Default">Default:</a></th><td><code>RegexDefaultOptions DOLLAR_ENDONLY</code></td></tr>
+<tr><th><a href="directive-dict.html#Default">Default:</a></th><td><code>RegexDefaultOptions DOTALL DOLLAR_ENDONLY</code></td></tr>
 <tr><th><a href="directive-dict.html#Context">Context:</a></th><td>server config</td></tr>
 <tr><th><a href="directive-dict.html#Status">Status:</a></th><td>Core</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>core</td></tr>
@@ -4043,23 +4171,25 @@ as if 'QualifyRedirectURL ON' was configured.</td></tr>
             <dt><code>ICASE</code></dt>
             <dd>Use a case-insensitive match.</dd>
 
+            <dt><code>EXTENDED</code></dt>
+            <dd>Perl's /x flag, ignore (unescaped-)spaces and comments in the pattern.</dd>
+
             <dt><code>DOTALL</code></dt>
-            <dd>Perl's /s flag.</dd>
+            <dd>Perl's /s flag, '.' matches newline characters.</dd>
 
             <dt><code>DOLLAR_ENDONLY</code></dt>
             <dd>'$' matches at end of subject string only.</dd>
-            <dd>.</dd>
         </dl>
-        <pre class="prettyprint lang-config"># 
-RegexDefaultOptions +ICASE +DOLLAR_ENDONLY
+        <pre class="prettyprint lang-config"># Add the ICASE option for all regexes by default
+RegexDefaultOptions +ICASE
 ...
-# Remove the ICASE option, but keep all the other already set options
-RegexDefaultOptions -ICASE
+# Remove the default DOLLAR_ENDONLY option, but keep any other one
+RegexDefaultOptions -DOLLAR_ENDONLY
 ...
-# Set the default option to DOTALL, resetting any other option
+# Set the DOTALL option only, resetting any other one
 RegexDefaultOptions DOTALL
 ...
-# Reset all defined option
+# Reset all defined options
 RegexDefaultOptions none
 ...</pre>
 
@@ -4253,8 +4383,8 @@ scripts</td></tr>
     so.</p>
     </div>
 
-    <p>The option <code>Registry-Strict</code> which is new in Apache HTTP Server
-    2.0 does the same thing as <code>Registry</code> but uses only the
+    <p>The option <code>Registry-Strict</code>
+    does the same thing as <code>Registry</code> but uses only the
     subkey <code>Shell\ExecCGI\Command</code>. The
     <code>ExecCGI</code> key is not a common one. It must be
     configured manually in the windows registry and hence prevents
@@ -4274,16 +4404,16 @@ of a request or the last 63, assuming the request itself is greater than
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>core</td></tr>
 <tr><th><a href="directive-dict.html#Compatibility">Compatibility:</a></th><td>Available in Apache httpd 2.2.7 and later.</td></tr>
 </table>
-    <p>mod_status with <code>ExtendedStatus On</code>
+    <p><code class="module"><a href="../mod/mod_status.html">mod_status</a></code> with <code>ExtendedStatus On</code>
     displays the actual request being handled.
     For historical purposes, only 63 characters of the request
     are actually stored for display purposes. This directive
-    controls whether the 1st 63 characters are stored (the previous
+    controls whether the first 63 characters are stored (the previous
     behavior and the default) or if the last 63 characters are. This
     is only applicable, of course, if the length of the request is
     64 characters or greater.</p>
 
-    <p>If Apache httpd is handling <code>GET&nbsp;/disk1/storage/apache/htdocs/images/imagestore1/food/apples.jpg&nbsp;HTTP/1.1</code> mod_status displays as follows:
+    <p>If Apache httpd is handling <code>GET&nbsp;/disk1/storage/apache/htdocs/images/imagestore1/food/apples.jpg&nbsp;HTTP/1.1</code> <code class="module"><a href="../mod/mod_status.html">mod_status</a></code> displays as follows:
     </p>
 
     <table class="bordered">
@@ -4533,15 +4663,14 @@ is accessed by an incompatible browser</td></tr>
     actually produced a returned error message.</p>
 
     <p>The <code>Off</code>
-    setting, which is the default, suppresses the footer line (and is
-    therefore compatible with the behavior of Apache-1.2 and
-    below). The <code>On</code> setting simply adds a line with the
+    setting, which is the default, suppresses the footer line.
+    The <code>On</code> setting simply adds a line with the
     server version number and <code class="directive"><a href="#servername">ServerName</a></code> of the serving virtual host,
     and the <code>EMail</code> setting additionally creates a
     "mailto:" reference to the <code class="directive"><a href="#serveradmin">ServerAdmin</a></code> of the referenced
     document.</p>
 
-    <p>After version 2.0.44, the details of the server version number
+    <p>The details of the server version number
     presented are controlled by the <code class="directive"><a href="#servertokens">ServerTokens</a></code> directive.</p>
 
 <h3>See also</h3>
@@ -4601,7 +4730,7 @@ header</td></tr>
     <p>This setting applies to the entire server, and cannot be
     enabled or disabled on a virtualhost-by-virtualhost basis.</p>
 
-    <p>After version 2.0.44, this directive also controls the
+    <p>This directive also controls the
     information presented by the <code class="directive"><a href="#serversignature">ServerSignature</a></code> directive.</p>
 
     <div class="note">Setting <code class="directive">ServerTokens</code> to less than
@@ -4610,7 +4739,6 @@ header</td></tr>
     disabling the Server: header does nothing at all to make your
     server more secure. The idea of "security through obscurity"
     is a myth and leads to a false sense of safety.</div>
-
 
 <h3>See also</h3>
 <ul>
@@ -4745,6 +4873,40 @@ server</td></tr>
 </ul>
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
+<div class="directive-section"><h2><a name="StrictHostCheck" id="StrictHostCheck">StrictHostCheck</a> <a name="stricthostcheck" id="stricthostcheck">Directive</a></h2>
+<table class="directive">
+<tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Controls whether the server requires the requested hostname be
+             listed enumerated in the virtual host handling the request
+             </td></tr>
+<tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>StrictHostCheck ON|OFF</code></td></tr>
+<tr><th><a href="directive-dict.html#Default">Default:</a></th><td><code>StrictHostCheck OFF</code></td></tr>
+<tr><th><a href="directive-dict.html#Context">Context:</a></th><td>server config, virtual host</td></tr>
+<tr><th><a href="directive-dict.html#Status">Status:</a></th><td>Core</td></tr>
+<tr><th><a href="directive-dict.html#Module">Module:</a></th><td>core</td></tr>
+<tr><th><a href="directive-dict.html#Compatibility">Compatibility:</a></th><td>Added in 2.4.49</td></tr>
+</table>
+    <p>By default, the server will respond to requests for any hostname,
+    including requests addressed to unexpected or unconfigured hostnames. 
+    While this is convenient, it is sometimes desirable to limit what hostnames
+    a backend application handles since it will often generate self-referential
+    responses.</p>
+
+    <p>By setting <code class="directive">StrictHostCheck</code> to <em>ON</em>,
+    the server will return an HTTP 400 error if the requested hostname
+    hasn't been explicitly listed by either <code class="directive"><a href="#servername">ServerName</a></code> or <code class="directive"><a href="#serveralias">ServerAlias</a></code> in the virtual host that best matches the
+    details of the incoming connection.</p>
+
+   <p>This directive also allows matching of the requested hostname to hostnames
+   specified within the opening <code class="directive"><a href="#virtualhost">VirtualHost</a></code>
+   tag, which is a relatively obscure configuration mechanism that acts like
+   additional <code class="directive"><a href="#serveralias">ServerAlias</a></code> entries.</p>
+
+   <p>This directive has no affect in non-default virtual hosts. The value
+   inherited from the global server configuration, or the default virtualhost 
+   for the ip:port the underlying connection, determine the effective value.</p>
+
+</div>
+<div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="directive-section"><h2><a name="TimeOut" id="TimeOut">TimeOut</a> <a name="timeout" id="timeout">Directive</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Amount of time the server will wait for
@@ -4834,9 +4996,15 @@ certain events before failing a request</td></tr>
     of passing a <code>-D</code> argument to <code class="program"><a href="../programs/httpd.html">httpd</a></code>.</p>
     <p>This directive can be used to toggle the use of <code class="directive"><a href="#ifdefine">&lt;IfDefine&gt;</a></code> sections without needing to alter
     <code>-D</code> arguments in any startup scripts.</p>
-    <p>While this directive is supported in virtual host context,
-       the changes it makes are visible to any later configuration
-       directives, beyond any enclosing virtual host.</p>
+
+    <p>Variable names may not contain colon ":" characters, to avoid clashes
+    with <code class="directive"><a href="../mod/mod_rewrite.html#rewritemap">RewriteMap</a></code>'s syntax.</p>
+
+    <div class="note"><h3>Virtual Host scope and pitfalls</h3>
+      <p>While this directive is supported in virtual host context,
+         the changes it makes are visible to any later configuration
+         directives, beyond any enclosing virtual host.</p>
+    </div>
 
 <h3>See also</h3>
 <ul>
@@ -5078,11 +5246,11 @@ hostname or IP address</td></tr>
 <div class="bottomlang">
 <p><span>Available Languages: </span><a href="../de/mod/core.html" hreflang="de" rel="alternate" title="Deutsch">&nbsp;de&nbsp;</a> |
 <a href="../en/mod/core.html" title="English">&nbsp;en&nbsp;</a> |
-<a href="../es/mod/core.html" hreflang="es" rel="alternate" title="Español">&nbsp;es&nbsp;</a> |
-<a href="../fr/mod/core.html" hreflang="fr" rel="alternate" title="Français">&nbsp;fr&nbsp;</a> |
+<a href="../es/mod/core.html" hreflang="es" rel="alternate" title="EspaÃ±ol">&nbsp;es&nbsp;</a> |
+<a href="../fr/mod/core.html" hreflang="fr" rel="alternate" title="FranÃ§ais">&nbsp;fr&nbsp;</a> |
 <a href="../ja/mod/core.html" hreflang="ja" rel="alternate" title="Japanese">&nbsp;ja&nbsp;</a> |
-<a href="../tr/mod/core.html" hreflang="tr" rel="alternate" title="Türkçe">&nbsp;tr&nbsp;</a></p>
-</div><div class="top"><a href="#page-header"><img src="../images/up.gif" alt="top" /></a></div><div class="section"><h2><a id="comments_section" name="comments_section">Comments</a></h2><div class="warning"><strong>Notice:</strong><br />This is not a Q&amp;A section. Comments placed here should be pointed towards suggestions on improving the documentation or server, and may be removed again by our moderators if they are either implemented or considered invalid/off-topic. Questions on how to manage the Apache HTTP Server should be directed at either our IRC channel, #httpd, on Freenode, or sent to our <a href="http://httpd.apache.org/lists.html">mailing lists</a>.</div>
+<a href="../tr/mod/core.html" hreflang="tr" rel="alternate" title="TÃ¼rkÃ§e">&nbsp;tr&nbsp;</a></p>
+</div><div class="top"><a href="#page-header"><img src="../images/up.gif" alt="top" /></a></div><div class="section"><h2><a id="comments_section" name="comments_section">Comments</a></h2><div class="warning"><strong>Notice:</strong><br />This is not a Q&amp;A section. Comments placed here should be pointed towards suggestions on improving the documentation or server, and may be removed by our moderators if they are either implemented or considered invalid/off-topic. Questions on how to manage the Apache HTTP Server should be directed at either our IRC channel, #httpd, on Libera.chat, or sent to our <a href="https://httpd.apache.org/lists.html">mailing lists</a>.</div>
 <script type="text/javascript"><!--//--><![CDATA[//><!--
 var comments_shortname = 'httpd';
 var comments_identifier = 'http://httpd.apache.org/docs/2.4/mod/core.html';
@@ -5100,7 +5268,7 @@ var comments_identifier = 'http://httpd.apache.org/docs/2.4/mod/core.html';
     }
 })(window, document);
 //--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2018 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
+<p class="apache">Copyright 2022 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
 <p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/directives.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossary</a> | <a href="../sitemap.html">Sitemap</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();

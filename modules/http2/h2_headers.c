@@ -28,6 +28,7 @@
 
 #include "h2_private.h"
 #include "h2_h2.h"
+#include "h2_config.h"
 #include "h2_util.h"
 #include "h2_request.h"
 #include "h2_headers.h"
@@ -63,6 +64,7 @@ apr_bucket * h2_bucket_headers_make(apr_bucket *b, h2_headers *r)
 
     b = apr_bucket_shared_make(b, br, 0, 0);
     b->type = &h2_bucket_type_headers;
+    b->length = h2_headers_length(r);
     
     return b;
 } 
@@ -101,8 +103,9 @@ apr_bucket *h2_bucket_headers_beam(struct h2_bucket_beam *beam,
                                     const apr_bucket *src)
 {
     if (H2_BUCKET_IS_HEADERS(src)) {
-        h2_headers *r = ((h2_bucket_headers *)src->data)->headers;
-        apr_bucket *b = h2_bucket_headers_create(dest->bucket_alloc, r);
+        h2_headers *src_headers = ((h2_bucket_headers *)src->data)->headers;
+        apr_bucket *b = h2_bucket_headers_create(dest->bucket_alloc, 
+                                                 h2_headers_clone(dest->p, src_headers));
         APR_BRIGADE_INSERT_TAIL(dest, b);
         return b;
     }
@@ -110,9 +113,9 @@ apr_bucket *h2_bucket_headers_beam(struct h2_bucket_beam *beam,
 }
 
 
-h2_headers *h2_headers_create(int status, apr_table_t *headers_in, 
-                                apr_table_t *notes, apr_off_t raw_bytes,
-                                apr_pool_t *pool)
+h2_headers *h2_headers_create(int status, const apr_table_t *headers_in, 
+                              const apr_table_t *notes, apr_off_t raw_bytes,
+                              apr_pool_t *pool)
 {
     h2_headers *headers = apr_pcalloc(pool, sizeof(h2_headers));
     headers->status    = status;
@@ -123,31 +126,56 @@ h2_headers *h2_headers_create(int status, apr_table_t *headers_in,
     return headers;
 }
 
+static int add_header_lengths(void *ctx, const char *name, const char *value) 
+{
+    apr_size_t *plen = ctx;
+    *plen += strlen(name) + strlen(value); 
+    return 1;
+}
+
+apr_size_t h2_headers_length(h2_headers *headers)
+{
+    apr_size_t len = 0;
+    apr_table_do(add_header_lengths, &len, headers->headers, NULL);
+    return len;
+}
+
 h2_headers *h2_headers_rcreate(request_rec *r, int status,
-                                 apr_table_t *header, apr_pool_t *pool)
+                               const apr_table_t *header, apr_pool_t *pool)
 {
     h2_headers *headers = h2_headers_create(status, header, r->notes, 0, pool);
     if (headers->status == HTTP_FORBIDDEN) {
-        const char *cause = apr_table_get(r->notes, "ssl-renegotiate-forbidden");
-        if (cause) {
-            /* This request triggered a TLS renegotiation that is now allowed 
-             * in HTTP/2. Tell the client that it should use HTTP/1.1 for this.
-             */
-            ap_log_rerror(APLOG_MARK, APLOG_DEBUG, headers->status, r,
-                          APLOGNO(03061) 
-                          "h2_headers(%ld): renegotiate forbidden, cause: %s",
-                          (long)r->connection->id, cause);
-            headers->status = H2_ERR_HTTP_1_1_REQUIRED;
+        request_rec *r_prev;
+        for (r_prev = r; r_prev != NULL; r_prev = r_prev->prev) {
+            const char *cause = apr_table_get(r_prev->notes, "ssl-renegotiate-forbidden");
+            if (cause) {
+                /* This request triggered a TLS renegotiation that is not allowed
+                 * in HTTP/2. Tell the client that it should use HTTP/1.1 for this.
+                 */
+                ap_log_rerror(APLOG_MARK, APLOG_DEBUG, headers->status, r,
+                              APLOGNO(03061)
+                              "h2_headers(%ld): renegotiate forbidden, cause: %s",
+                              (long)r->connection->id, cause);
+                headers->status = H2_ERR_HTTP_1_1_REQUIRED;
+                break;
+            }
         }
     }
     if (is_unsafe(r->server)) {
-        apr_table_setn(headers->notes, H2_HDR_CONFORMANCE, 
-                       H2_HDR_CONFORMANCE_UNSAFE);
+        apr_table_setn(headers->notes, H2_HDR_CONFORMANCE, H2_HDR_CONFORMANCE_UNSAFE);
+    }
+    if (h2_config_rgeti(r, H2_CONF_PUSH) == 0 && h2_config_sgeti(r->server, H2_CONF_PUSH) != 0) {
+        apr_table_setn(headers->notes, H2_PUSH_MODE_NOTE, "0");
     }
     return headers;
 }
 
 h2_headers *h2_headers_copy(apr_pool_t *pool, h2_headers *h)
+{
+    return h2_headers_create(h->status, h->headers, h->notes, h->raw_bytes, pool);
+}
+
+h2_headers *h2_headers_clone(apr_pool_t *pool, h2_headers *h)
 {
     return h2_headers_create(h->status, h->headers, h->notes, h->raw_bytes, pool);
 }
