@@ -18,6 +18,12 @@
 #include "apr_file_io.h"
 #include "apr_strings.h"
 #include "apr_buckets.h"
+
+#include "apr_version.h"
+#if !APR_VERSION_AT_LEAST(2,0,0)
+#include "apu_version.h"
+#endif
+
 #include "httpd.h"
 #include "http_config.h"
 #include "http_log.h"
@@ -217,8 +223,8 @@ static apr_status_t read_table(cache_handle_t *handle, request_rec *r,
             while (apr_isspace(buffer[colon]) && (colon < *slider)) {
                 colon++;
             }
-            apr_table_addn(table, apr_pstrndup(r->pool, (const char *) buffer
-                    + key, len - key), apr_pstrndup(r->pool,
+            apr_table_addn(table, apr_pstrmemdup(r->pool, (const char *) buffer
+                    + key, len - key), apr_pstrmemdup(r->pool,
                     (const char *) buffer + colon, *slider - colon));
             (*slider)++;
             if (buffer[*slider] == '\n') {
@@ -298,11 +304,11 @@ static const char* regen_key(apr_pool_t *p, apr_table_t *headers,
      *  HTTP URI's (3.2.3) [host and scheme are insensitive]
      *  HTTP method (5.1.1)
      *  HTTP-date values (3.3.1)
-     *  3.7 Media Types [exerpt]
+     *  3.7 Media Types [excerpt]
      *     The type, subtype, and parameter attribute names are case-
      *     insensitive. Parameter values might or might not be case-sensitive,
      *     depending on the semantics of the parameter name.
-     *  4.20 Except [exerpt]
+     *  4.20 Except [excerpt]
      *     Comparison of expectation values is case-insensitive for unquoted
      *     tokens (including the 100-continue token), and is case-sensitive for
      *     quoted-string expectation-extensions.
@@ -429,6 +435,14 @@ static int create_entity(cache_handle_t *h, request_rec *r, const char *key,
     return OK;
 }
 
+static apr_status_t sobj_body_pre_cleanup(void *baton)
+{
+    cache_socache_object_t *sobj = baton;
+    apr_brigade_cleanup(sobj->body);
+    sobj->body = NULL;
+    return APR_SUCCESS;
+}
+
 static int open_entity(cache_handle_t *h, request_rec *r, const char *key)
 {
     cache_socache_dir_conf *dconf =
@@ -463,6 +477,7 @@ static int open_entity(cache_handle_t *h, request_rec *r, const char *key)
      * about for the lifetime of the response.
      */
     apr_pool_create(&sobj->pool, r->pool);
+    apr_pool_tag(sobj->pool, "mod_cache_socache (open_entity)");
 
     sobj->buffer = apr_palloc(sobj->pool, dconf->max);
     sobj->buffer_len = dconf->max;
@@ -648,35 +663,24 @@ static int open_entity(cache_handle_t *h, request_rec *r, const char *key)
     }
 
     /* Retrieve the body if we have one */
-    sobj->body = apr_brigade_create(r->pool, r->connection->bucket_alloc);
     len = buffer_len - slider;
-
-    /*
-     *  Optimisation: if the body is small, we want to make a
-     *  copy of the body and free the temporary pool, as we
-     *  don't want large blocks of unused memory hanging around
-     *  to the end of the response. In contrast, if the body is
-     *  large, we would rather leave the body where it is in the
-     *  temporary pool, and save ourselves the copy.
-     */
-    if (len * 2 > dconf->max) {
+    if (len > 0) {
         apr_bucket *e;
-
-        /* large - use the brigade as is, we're done */
-        e = apr_bucket_immortal_create((const char *) sobj->buffer + slider,
-                len, r->connection->bucket_alloc);
-
+        /* Create the body brigade later concatenated to the output filters'
+         * brigade by recall_body(). Since sobj->buffer (the data) point to
+         * sobj->pool (a subpool of r->pool), be safe by using a pool bucket
+         * which can morph to heap if sobj->pool is destroyed while the bucket
+         * is still alive. But if sobj->pool gets destroyed while the bucket is
+         * still in sobj->body (i.e. recall_body() was never called), we don't
+         * need to morph to something just about to be freed, so a pre_cleanup
+         * will take care of cleaning up sobj->body before this happens (and is
+         * a noop otherwise).
+         */
+        sobj->body = apr_brigade_create(sobj->pool, r->connection->bucket_alloc);
+        apr_pool_pre_cleanup_register(sobj->pool, sobj, sobj_body_pre_cleanup);
+        e = apr_bucket_pool_create((const char *) sobj->buffer + slider, len,
+                                   sobj->pool, r->connection->bucket_alloc);
         APR_BRIGADE_INSERT_TAIL(sobj->body, e);
-    }
-    else {
-
-        /* small - make a copy of the data... */
-        apr_brigade_write(sobj->body, NULL, NULL, (const char *) sobj->buffer
-                + slider, len);
-
-        /* ...and get rid of the large memory buffer */
-        apr_pool_destroy(sobj->pool);
-        sobj->pool = NULL;
     }
 
     /* make the configuration stick */
@@ -766,13 +770,9 @@ static apr_status_t recall_body(cache_handle_t *h, apr_pool_t *p,
         apr_bucket_brigade *bb)
 {
     cache_socache_object_t *sobj = (cache_socache_object_t*) h->cache_obj->vobj;
-    apr_bucket *e;
 
-    e = APR_BRIGADE_FIRST(sobj->body);
-
-    if (e != APR_BRIGADE_SENTINEL(sobj->body)) {
-        APR_BUCKET_REMOVE(e);
-        APR_BRIGADE_INSERT_TAIL(bb, e);
+    if (sobj->body) {
+        APR_BRIGADE_CONCAT(bb, sobj->body);
     }
 
     return APR_SUCCESS;
@@ -807,6 +807,7 @@ static apr_status_t store_headers(cache_handle_t *h, request_rec *r,
                     : obj->info.expire + dconf->mintime;
 
     apr_pool_create(&sobj->pool, r->pool);
+    apr_pool_tag(sobj->pool, "mod_cache_socache (store_headers)");
 
     sobj->buffer = apr_palloc(sobj->pool, dconf->max);
     sobj->buffer_len = dconf->max;
@@ -1051,7 +1052,8 @@ static apr_status_t store_body(cache_handle_t *h, request_rec *r,
     /* Was this the final bucket? If yes, perform sanity checks.
      */
     if (seen_eos) {
-        const char *cl_header = apr_table_get(r->headers_out, "Content-Length");
+        const char *cl_header;
+        apr_off_t cl;
 
         if (r->connection->aborted || r->no_cache) {
             ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, APLOGNO(02380)
@@ -1062,18 +1064,16 @@ static apr_status_t store_body(cache_handle_t *h, request_rec *r,
             sobj->pool = NULL;
             return APR_EGENERAL;
         }
-        if (cl_header) {
-            apr_off_t cl;
-            char *cl_endp;
-            if (apr_strtoff(&cl, cl_header, &cl_endp, 10) != APR_SUCCESS
-                    || *cl_endp != '\0' || cl != sobj->body_length) {
-                ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(02381)
-                        "URL %s didn't receive complete response, not caching",
-                        h->cache_obj->key);
-                apr_pool_destroy(sobj->pool);
-                sobj->pool = NULL;
-                return APR_EGENERAL;
-            }
+
+        cl_header = apr_table_get(r->headers_out, "Content-Length");
+        if (cl_header && (!ap_parse_strict_length(&cl, cl_header)
+                          || cl != sobj->body_length)) {
+            ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(02381)
+                    "URL %s didn't receive complete response, not caching",
+                    h->cache_obj->key);
+            apr_pool_destroy(sobj->pool);
+            sobj->pool = NULL;
+            return APR_EGENERAL;
         }
 
         /* All checks were fine, we're good to go when the commit comes */

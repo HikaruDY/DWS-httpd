@@ -281,6 +281,7 @@ static proxy_worker *find_best_hb(proxy_balancer *balancer,
     }
 
     apr_pool_create(&tpool, r->pool);
+    apr_pool_tag(tpool, "lb_heartbeat_tpool");
 
     servers = apr_hash_make(tpool);
 
@@ -302,7 +303,7 @@ static proxy_worker *find_best_hb(proxy_balancer *balancer,
 
         if (!server) {
             ap_log_rerror(APLOG_MARK, APLOG_DEBUG, rv, r, APLOGNO(01214)
-                      "lb_heartbeat: No server for worker %s", (*worker)->s->name);
+                      "lb_heartbeat: No server for worker %s", (*worker)->s->name_ex);
             continue;
         }
 

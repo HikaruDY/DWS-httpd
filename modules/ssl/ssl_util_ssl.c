@@ -74,7 +74,7 @@ void modssl_set_app_data2(SSL *ssl, void *arg)
 **  _________________________________________________________________
 */
 
-EVP_PKEY *modssl_read_privatekey(const char* filename, EVP_PKEY **key, pem_password_cb *cb, void *s)
+EVP_PKEY *modssl_read_privatekey(const char *filename, pem_password_cb *cb, void *s)
 {
     EVP_PKEY *rc;
     BIO *bioS;
@@ -83,7 +83,7 @@ EVP_PKEY *modssl_read_privatekey(const char* filename, EVP_PKEY **key, pem_passw
     /* 1. try PEM (= DER+Base64+headers) */
     if ((bioS=BIO_new_file(filename, "r")) == NULL)
         return NULL;
-    rc = PEM_read_bio_PrivateKey(bioS, key, cb, s);
+    rc = PEM_read_bio_PrivateKey(bioS, NULL, cb, s);
     BIO_free(bioS);
 
     if (rc == NULL) {
@@ -107,39 +107,7 @@ EVP_PKEY *modssl_read_privatekey(const char* filename, EVP_PKEY **key, pem_passw
             BIO_free(bioS);
         }
     }
-    if (rc != NULL && key != NULL) {
-        if (*key != NULL)
-            EVP_PKEY_free(*key);
-        *key = rc;
-    }
     return rc;
-}
-
-typedef struct {
-    const char *pass;
-    int pass_len;
-} pass_ctx;
-
-static int provide_pass(char *buf, int size, int rwflag, void *baton)
-{
-    pass_ctx *ctx = baton;
-    if (ctx->pass_len > 0) {
-        if (ctx->pass_len < size) {
-            size = (int)ctx->pass_len;
-        }
-        memcpy(buf, ctx->pass, size);
-    }
-    return ctx->pass_len;
-}
-
-EVP_PKEY   *modssl_read_encrypted_pkey(const char *filename, EVP_PKEY **key, 
-                                       const char *pass, apr_size_t pass_len)
-{
-    pass_ctx ctx;
-    
-    ctx.pass = pass;
-    ctx.pass_len = pass_len;
-    return modssl_read_privatekey(filename, key, provide_pass, &ctx);
 }
 
 /*  _________________________________________________________________
@@ -156,7 +124,7 @@ int modssl_smart_shutdown(SSL *ssl)
 
     /*
      * Repeat the calls, because SSL_shutdown internally dispatches through a
-     * little state machine. Usually only one or two interation should be
+     * little state machine. Usually only one or two iterations should be
      * needed, so we restrict the total number of restrictions in order to
      * avoid process hangs in case the client played bad with the socket
      * connection and OpenSSL cannot recognize it.
@@ -166,7 +134,7 @@ int modssl_smart_shutdown(SSL *ssl)
     for (i = 0; i < 4 /* max 2x pending + 2x data = 4 */; i++) {
         rc = SSL_shutdown(ssl);
         if (rc >= 0 && flush && (SSL_get_shutdown(ssl) & SSL_SENT_SHUTDOWN)) {
-            /* Once the close notity is sent through the output filters,
+            /* Once the close notify is sent through the output filters,
              * ensure it is flushed through the socket.
              */
             if (BIO_flush(SSL_get_wbio(ssl)) <= 0) {
@@ -217,22 +185,11 @@ BOOL modssl_X509_getBC(X509 *cert, int *ca, int *pathlen)
     return TRUE;
 }
 
-/* Convert ASN.1 string to a pool-allocated char * string, escaping
- * control characters.  If raw is zero, convert to UTF-8, otherwise
- * unchanged from the character set. */
-static char *asn1_string_convert(apr_pool_t *p, ASN1_STRING *asn1str, int raw)
+char *modssl_bio_free_read(apr_pool_t *p, BIO *bio)
 {
+    int len = BIO_pending(bio);
     char *result = NULL;
-    BIO *bio;
-    int len, flags = ASN1_STRFLGS_ESC_CTRL;
 
-    if ((bio = BIO_new(BIO_s_mem())) == NULL)
-        return NULL;
-
-    if (!raw) flags |= ASN1_STRFLGS_UTF8_CONVERT;
-    
-    ASN1_STRING_print_ex(bio, asn1str, flags);
-    len = BIO_pending(bio);
     if (len > 0) {
         result = apr_palloc(p, len+1);
         len = BIO_read(bio, result, len);
@@ -240,6 +197,24 @@ static char *asn1_string_convert(apr_pool_t *p, ASN1_STRING *asn1str, int raw)
     }
     BIO_free(bio);
     return result;
+}
+
+/* Convert ASN.1 string to a pool-allocated char * string, escaping
+ * control characters.  If raw is zero, convert to UTF-8, otherwise
+ * unchanged from the character set. */
+static char *asn1_string_convert(apr_pool_t *p, ASN1_STRING *asn1str, int raw)
+{
+    BIO *bio;
+    int flags = ASN1_STRFLGS_ESC_CTRL;
+
+    if ((bio = BIO_new(BIO_s_mem())) == NULL)
+        return NULL;
+
+    if (!raw) flags |= ASN1_STRFLGS_UTF8_CONVERT;
+    
+    ASN1_STRING_print_ex(bio, asn1str, flags);
+
+    return modssl_bio_free_read(p, bio);
 }
 
 #define asn1_string_to_utf8(p, a) asn1_string_convert(p, a, 0)
@@ -535,4 +510,82 @@ char *modssl_SSL_SESSION_id2sz(IDCONST unsigned char *id, int idlen,
     ap_bin2hex(id, idlen, str);
 
     return str;
+}
+
+/*  _________________________________________________________________
+**
+**  Certificate/Key Stuff
+**  _________________________________________________________________
+*/
+
+apr_status_t modssl_read_cert(apr_pool_t *p, 
+                              const char *cert_pem, const char *key_pem,
+                              pem_password_cb *cb, void *ud,
+                              X509 **pcert, EVP_PKEY **pkey)
+{
+    BIO *in;
+    X509 *x = NULL;
+    EVP_PKEY *key = NULL;
+    apr_status_t rv = APR_SUCCESS;
+
+    in = BIO_new_mem_buf(cert_pem, -1);
+    if (in == NULL) {
+        rv = APR_ENOMEM;
+        goto cleanup;
+    }
+    
+    x = PEM_read_bio_X509(in, NULL, cb, ud);
+    if (x == NULL) {
+        rv = APR_ENOENT;
+        goto cleanup;
+    }
+    
+    BIO_free(in);
+    in = BIO_new_mem_buf(key_pem? key_pem : cert_pem, -1);
+    if (in == NULL) {
+        rv = APR_ENOMEM;
+        goto cleanup;
+    }
+    key = PEM_read_bio_PrivateKey(in, NULL, cb, ud);
+    if (key == NULL) {
+        rv = APR_ENOENT;
+        goto cleanup;
+    }
+    
+cleanup:
+    if (rv == APR_SUCCESS) {
+        *pcert = x;
+        *pkey = key;
+    }
+    else {
+        *pcert = NULL;
+        *pkey = NULL;
+        if (x) X509_free(x);
+        if (key) EVP_PKEY_free(key);
+    }
+    if (in != NULL) BIO_free(in);
+    return rv;
+}
+
+apr_status_t modssl_cert_get_pem(apr_pool_t *p,
+                                 X509 *cert1, X509 *cert2,
+                                 const char **ppem)
+{
+    apr_status_t rv = APR_ENOMEM;
+    BIO *bio;
+
+    if ((bio = BIO_new(BIO_s_mem())) == NULL) goto cleanup;
+    if (PEM_write_bio_X509(bio, cert1) != 1) goto cleanup;
+    if (cert2 && PEM_write_bio_X509(bio, cert2) != 1) goto cleanup;
+    rv = APR_SUCCESS;
+
+cleanup:
+    if (rv != APR_SUCCESS) {
+        *ppem = NULL;
+        if (bio) BIO_free(bio);
+    }
+    else {
+        *ppem = modssl_bio_free_read(p, bio);
+    }
+    return rv;
 }

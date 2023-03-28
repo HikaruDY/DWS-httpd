@@ -29,8 +29,27 @@
 #define VERBOSEB(x) if (verbose) {x}
 #endif
 
+/* libxml2 includes unicode/[...].h files which uses C++ comments */
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic warning "-Wcomment"
+#elif defined(__GNUC__)
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic warning "-Wcomment"
+#endif
+#endif
+
 /* libxml2 */
 #include <libxml/HTMLparser.h>
+
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#elif defined(__GNUC__)
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
+#pragma GCC diagnostic pop
+#endif
+#endif
 
 #include "http_protocol.h"
 #include "http_config.h"
@@ -88,7 +107,7 @@ typedef struct {
     const char *doctype;
     const char *etag;
     unsigned int flags;
-    size_t bufsz;
+    int bufsz;
     apr_hash_t *links;
     apr_array_header_t *events;
     const char *charset_out;
@@ -660,7 +679,7 @@ static meta *metafix(request_rec *r, const char *buf, apr_size_t len)
         while (!apr_isalpha(*++p));
         for (q = p; apr_isalnum(*q) || (*q == '-'); ++q);
         header = apr_pstrmemdup(r->pool, p, q-p);
-        if (strncasecmp(header, "Content-", 8)) {
+        if (ap_cstr_casecmpn(header, "Content-", 8)) {
             /* find content=... string */
             p = apr_strmatch(seek_content, buf+offs+pmatch[0].rm_so,
                               pmatch[0].rm_eo - pmatch[0].rm_so);
@@ -677,7 +696,7 @@ static meta *metafix(request_rec *r, const char *buf, apr_size_t len)
                     if ((*p == '\'') || (*p == '"')) {
                         delim = *p++;
                         for (q = p; *q && *q != delim; ++q);
-                        /* No terminating delimiter found? Skip the boggus directive */
+                        /* No terminating delimiter found? Skip the bogus directive */
                         if (*q != delim)
                            break;
                     } else {
@@ -688,7 +707,7 @@ static meta *metafix(request_rec *r, const char *buf, apr_size_t len)
                 }
             }
         }
-        else if (!strncasecmp(header, "Content-Type", 12)) {
+        else if (!ap_cstr_casecmpn(header, "Content-Type", 12)) {
             ret = apr_palloc(r->pool, sizeof(meta));
             ret->start = offs+pmatch[0].rm_so;
             ret->end = offs+pmatch[0].rm_eo;
@@ -817,8 +836,8 @@ static saxctxt *check_filter_init (ap_filter_t *f)
             else if (!f->r->content_type) {
                 errmsg = "No content-type; bailing out of proxy-html filter";
             }
-            else if (strncasecmp(f->r->content_type, "text/html", 9) &&
-                     strncasecmp(f->r->content_type,
+            else if (ap_cstr_casecmpn(f->r->content_type, "text/html", 9) &&
+                     ap_cstr_casecmpn(f->r->content_type,
                                  "application/xhtml+xml", 21)) {
                 errmsg = "Non-HTML content; not inserting proxy-html filter";
             }

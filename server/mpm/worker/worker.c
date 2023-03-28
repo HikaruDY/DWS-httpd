@@ -324,6 +324,8 @@ static void signal_threads(int mode)
         ap_queue_interrupt_all(worker_queue);
         close_worker_sockets(); /* forcefully kill all current connections */
     }
+
+    ap_run_child_stopping(pchild, mode == ST_GRACEFUL);
 }
 
 static int worker_query(int query_code, int *result, apr_status_t *rv)
@@ -432,6 +434,10 @@ static void clean_child_exit(int code) __attribute__ ((noreturn));
 static void clean_child_exit(int code)
 {
     retained->mpm->mpm_state = AP_MPMQ_STOPPING;
+    if (terminate_mode == ST_INIT) {
+        ap_run_child_stopping(pchild, 0);
+    }
+
     if (pchild) {
         apr_pool_destroy(pchild);
     }
@@ -553,8 +559,8 @@ static void * APR_THREAD_FUNC listener_thread(apr_thread_t *thd, void * dummy)
     /* Unblock the signal used to wake this thread up, and set a handler for
      * it.
      */
-    unblock_signal(LISTENER_SIGNAL);
     apr_signal(LISTENER_SIGNAL, dummy_signal_handler);
+    unblock_signal(LISTENER_SIGNAL);
 
     /* TODO: Switch to a system where threads reuse the results from earlier
        poll calls - manoj */
@@ -748,8 +754,8 @@ static void * APR_THREAD_FUNC worker_thread(apr_thread_t *thd, void * dummy)
                                         SERVER_STARTING, NULL);
 
 #ifdef HAVE_PTHREAD_KILL
-    unblock_signal(WORKER_SIGNAL);
     apr_signal(WORKER_SIGNAL, dummy_signal_handler);
+    unblock_signal(WORKER_SIGNAL);
 #endif
 
     while (!workers_may_exit) {
@@ -841,11 +847,11 @@ static void create_listener_thread(thread_starter *ts)
     my_info->pid = my_child_num;
     my_info->tid = -1; /* listener thread doesn't have a thread slot */
     my_info->sd = 0;
-    rv = apr_thread_create(&ts->listener, thread_attr, listener_thread,
-                           my_info, pruntime);
+    rv = ap_thread_create(&ts->listener, thread_attr, listener_thread,
+                          my_info, pruntime);
     if (rv != APR_SUCCESS) {
         ap_log_error(APLOG_MARK, APLOG_ALERT, rv, ap_server_conf, APLOGNO(00275)
-                     "apr_thread_create: unable to create listener thread");
+                     "ap_thread_create: unable to create listener thread");
         /* let the parent decide how bad this really is */
         clean_child_exit(APEXIT_CHILDSICK);
     }
@@ -862,7 +868,7 @@ static void setup_threads_runtime(void)
      * the connections they handle (i.e. ptrans). We can't use this thread's
      * self pool because all these objects survive it, nor use pchild or pconf
      * directly because this starter thread races with other modules' runtime,
-     * nor finally pchild (or subpool thereof) because it is killed explicitely
+     * nor finally pchild (or subpool thereof) because it is killed explicitly
      * before pconf (thus connections/ptrans can live longer, which matters in
      * ONE_PROCESS mode). So this leaves us with a subpool of pconf, created
      * before any ptrans hence destroyed after.
@@ -961,11 +967,11 @@ static void * APR_THREAD_FUNC start_threads(apr_thread_t *thd, void *dummy)
             /* We let each thread update its own scoreboard entry.  This is
              * done because it lets us deal with tid better.
              */
-            rv = apr_thread_create(&threads[i], thread_attr,
-                                   worker_thread, my_info, pruntime);
+            rv = ap_thread_create(&threads[i], thread_attr,
+                                  worker_thread, my_info, pruntime);
             if (rv != APR_SUCCESS) {
                 ap_log_error(APLOG_MARK, APLOG_ALERT, rv, ap_server_conf, APLOGNO(03142)
-                             "apr_thread_create: unable to create worker thread");
+                             "ap_thread_create: unable to create worker thread");
                 /* let the parent decide how bad this really is */
                 clean_child_exit(APEXIT_CHILDSICK);
             }
@@ -1109,6 +1115,17 @@ static void child_main(int child_num_arg, int child_bucket)
     apr_pool_create(&pchild, pconf);
     apr_pool_tag(pchild, "pchild");
 
+#if AP_HAS_THREAD_LOCAL
+    if (!one_process) {
+        apr_thread_t *thd = NULL;
+        if ((rv = ap_thread_main_create(&thd, pchild))) {
+            ap_log_error(APLOG_MARK, APLOG_EMERG, rv, ap_server_conf, APLOGNO(10375)
+                         "Couldn't initialize child main thread");
+            clean_child_exit(APEXIT_CHILDFATAL);
+        }
+    }
+#endif
+
     /* close unused listeners and pods */
     for (i = 0; i < retained->mpm->num_buckets; i++) {
         if (i != child_bucket) {
@@ -1138,7 +1155,7 @@ static void child_main(int child_num_arg, int child_bucket)
      * from being received.  The child processes no longer use signals for
      * any communication with the parent process. Let's also do this before
      * child_init() hooks are called and possibly create threads that
-     * otherwise could "steal" (implicitely) MPM's signals.
+     * otherwise could "steal" (implicitly) MPM's signals.
      */
     rv = apr_setup_signal_thread();
     if (rv != APR_SUCCESS) {
@@ -1188,11 +1205,11 @@ static void child_main(int child_num_arg, int child_bucket)
     ts->child_num_arg = child_num_arg;
     ts->threadattr = thread_attr;
 
-    rv = apr_thread_create(&start_thread_id, thread_attr, start_threads,
-                           ts, pchild);
+    rv = ap_thread_create(&start_thread_id, thread_attr, start_threads,
+                          ts, pchild);
     if (rv != APR_SUCCESS) {
         ap_log_error(APLOG_MARK, APLOG_ALERT, rv, ap_server_conf, APLOGNO(00282)
-                     "apr_thread_create: unable to create worker thread");
+                     "ap_thread_create: unable to create worker thread");
         /* let the parent decide how bad this really is */
         clean_child_exit(APEXIT_CHILDSICK);
     }
@@ -1230,8 +1247,8 @@ static void child_main(int child_num_arg, int child_bucket)
          * the other threads in the process needs to take us down
          * (e.g., for MaxConnectionsPerChild) it will send us SIGTERM
          */
-        unblock_signal(SIGTERM);
         apr_signal(SIGTERM, dummy_signal_handler);
+        unblock_signal(SIGTERM);
         /* Watch for any messages from the parent over the POD */
         while (1) {
             rv = ap_mpm_podx_check(my_bucket->pod);
@@ -1309,6 +1326,10 @@ static int make_child(server_rec *s, int slot, int bucket)
     }
 
     if (!pid) {
+#if AP_HAS_THREAD_LOCAL
+        ap_thread_current_after_fork();
+#endif
+
         my_bucket = &all_buckets[bucket];
 
 #ifdef HAVE_BINDPROCESSOR
@@ -1339,7 +1360,6 @@ static int make_child(server_rec *s, int slot, int bucket)
         worker_note_child_lost_slot(slot, pid);
     }
     ap_scoreboard_image->parent[slot].quiescing = 0;
-    ap_scoreboard_image->parent[slot].bucket = bucket;
     worker_note_child_started(slot, pid);
     return 0;
 }
@@ -1360,11 +1380,10 @@ static void startup_children(int number_to_start)
     }
 }
 
-static void perform_idle_server_maintenance(int child_bucket, int num_buckets)
+static void perform_idle_server_maintenance(int child_bucket)
 {
-    int i, j;
+    int num_buckets = retained->mpm->num_buckets;
     int idle_thread_count;
-    worker_score *ws;
     process_score *ps;
     int free_length;
     int totally_free_length = 0;
@@ -1372,6 +1391,7 @@ static void perform_idle_server_maintenance(int child_bucket, int num_buckets)
     int last_non_dead;
     int total_non_dead;
     int active_thread_count = 0;
+    int i, j;
 
     /* initialize the free_list */
     free_length = 0;
@@ -1383,12 +1403,15 @@ static void perform_idle_server_maintenance(int child_bucket, int num_buckets)
     for (i = 0; i < ap_daemons_limit; ++i) {
         /* Initialization to satisfy the compiler. It doesn't know
          * that threads_per_child is always > 0 */
-        int status = SERVER_DEAD;
         int any_dying_threads = 0;
         int any_dead_threads = 0;
         int all_dead_threads = 1;
         int child_threads_active = 0;
 
+        if (num_buckets > 1 && (i % num_buckets) != child_bucket) {
+            /* We only care about child_bucket in this call */
+            continue;
+        }
         if (i >= retained->max_daemons_limit &&
             totally_free_length == retained->idle_spawn_rate[child_bucket]) {
             /* short cut if all active processes have been examined and
@@ -1398,8 +1421,7 @@ static void perform_idle_server_maintenance(int child_bucket, int num_buckets)
         }
         ps = &ap_scoreboard_image->parent[i];
         for (j = 0; j < threads_per_child; j++) {
-            ws = &ap_scoreboard_image->servers[i][j];
-            status = ws->status;
+            int status = ap_scoreboard_image->servers[i][j].status;
 
             /* XXX any_dying_threads is probably no longer needed    GLA */
             any_dying_threads = any_dying_threads ||
@@ -1419,8 +1441,7 @@ static void perform_idle_server_maintenance(int child_bucket, int num_buckets)
                                    loop if no pid?  not much else matters */
                 if (status <= SERVER_READY &&
                         !ps->quiescing &&
-                        ps->generation == retained->mpm->my_generation &&
-                        ps->bucket == child_bucket) {
+                        ps->generation == retained->mpm->my_generation) {
                     ++idle_thread_count;
                 }
                 if (status >= SERVER_READY && status < SERVER_GRACEFUL) {
@@ -1457,10 +1478,14 @@ static void perform_idle_server_maintenance(int child_bucket, int num_buckets)
         }
         /* XXX if (!ps->quiescing)     is probably more reliable  GLA */
         if (!any_dying_threads) {
-            last_non_dead = i;
             ++total_non_dead;
         }
+        if (ps->pid != 0) {
+            last_non_dead = i;
+        }
     }
+
+    retained->max_daemons_limit = last_non_dead + 1;
 
     if (retained->sick_child_detected) {
         if (had_healthy_child) {
@@ -1469,6 +1494,10 @@ static void perform_idle_server_maintenance(int child_bucket, int num_buckets)
              * problem will be resolved.
              */
             retained->sick_child_detected = 0;
+        }
+        else if (child_bucket < num_buckets - 1) {
+            /* check for had_healthy_child up to the last child bucket */
+            return;
         }
         else {
             /* looks like a basket case, as no child ever fully initialized; give up.
@@ -1485,8 +1514,6 @@ static void perform_idle_server_maintenance(int child_bucket, int num_buckets)
         }
     }
 
-    retained->max_daemons_limit = last_non_dead + 1;
-
     if (idle_thread_count > max_spare_threads / num_buckets) {
         /* Kill off one child */
         ap_mpm_podx_signal(all_buckets[child_bucket].pod,
@@ -1497,7 +1524,7 @@ static void perform_idle_server_maintenance(int child_bucket, int num_buckets)
         /* terminate the free list */
         if (free_length == 0) { /* scoreboard is full, can't fork */
 
-            if (active_thread_count >= ap_daemons_limit * threads_per_child) {
+            if (active_thread_count >= max_workers / num_buckets) {
                 /* no threads are "inactive" - starting, stopping, etc. */
                 /* have we reached MaxRequestWorkers, or just getting close? */
                 if (0 == idle_thread_count) {
@@ -1560,8 +1587,9 @@ static void perform_idle_server_maintenance(int child_bucket, int num_buckets)
     }
 }
 
-static void server_main_loop(int remaining_children_to_start, int num_buckets)
+static void server_main_loop(int remaining_children_to_start)
 {
+    int num_buckets = retained->mpm->num_buckets;
     ap_generation_t old_gen;
     int child_slot;
     apr_exit_why_e exitwhy;
@@ -1615,14 +1643,15 @@ static void server_main_loop(int remaining_children_to_start, int num_buckets)
                 ps->quiescing = 0;
                 if (processed_status == APEXIT_CHILDSICK) {
                     /* resource shortage, minimize the fork rate */
-                    retained->idle_spawn_rate[ps->bucket] = 1;
+                    retained->idle_spawn_rate[child_slot % num_buckets] = 1;
                 }
                 else if (remaining_children_to_start
                     && child_slot < ap_daemons_limit) {
                     /* we're still doing a 1-for-1 replacement of dead
                      * children with new children
                      */
-                    make_child(ap_server_conf, child_slot, ps->bucket);
+                    make_child(ap_server_conf, child_slot,
+                               child_slot % num_buckets);
                     --remaining_children_to_start;
                 }
             }
@@ -1674,7 +1703,7 @@ static void server_main_loop(int remaining_children_to_start, int num_buckets)
         }
 
         for (i = 0; i < num_buckets; i++) {
-            perform_idle_server_maintenance(i, num_buckets);
+            perform_idle_server_maintenance(i);
         }
     }
 }
@@ -1756,7 +1785,7 @@ static int worker_run(apr_pool_t *_pconf, apr_pool_t *plog, server_rec *s)
                 apr_proc_mutex_defname());
     retained->mpm->mpm_state = AP_MPMQ_RUNNING;
 
-    server_main_loop(remaining_children_to_start, num_buckets);
+    server_main_loop(remaining_children_to_start);
     retained->mpm->mpm_state = AP_MPMQ_STOPPING;
 
     if (retained->mpm->shutdown_pending && retained->mpm->is_ungraceful) {
@@ -1960,8 +1989,9 @@ static int worker_open_logs(apr_pool_t *p, apr_pool_t *plog, apr_pool_t *ptemp, 
             new_max = num_buckets;
         }
         new_ptr = (int *)apr_palloc(ap_pglobal, new_max * sizeof(int));
-        memcpy(new_ptr, retained->idle_spawn_rate,
-               retained->mpm->num_buckets * sizeof(int));
+        if (retained->idle_spawn_rate) /* NULL at startup */
+            memcpy(new_ptr, retained->idle_spawn_rate,
+                   retained->mpm->num_buckets * sizeof(int));
         retained->idle_spawn_rate = new_ptr;
         retained->mpm->max_buckets = new_max;
     }
@@ -2010,7 +2040,6 @@ static int worker_pre_config(apr_pool_t *pconf, apr_pool_t *plog,
     if (!retained) {
         retained = ap_retained_data_create(userdata_key, sizeof(*retained));
         retained->mpm = ap_unixd_mpm_get_retained_data();
-        retained->max_daemons_limit = -1;
     }
     retained->mpm->mpm_state = AP_MPMQ_STARTING;
     if (retained->mpm->baton != retained) {

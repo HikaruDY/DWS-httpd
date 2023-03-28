@@ -59,6 +59,7 @@ static int sc_for_req_header(const char *header_name)
     if (len < 4 || len > 15)
         return UNKNOWN_METHOD;
 
+    memset(header, 0, sizeof header);
     while (*p)
         header[i++] = apr_toupper(*p++);
     header[i] = '\0';
@@ -213,7 +214,8 @@ AJPV13_REQUEST/AJPV14_REQUEST=
 
 static apr_status_t ajp_marshal_into_msgb(ajp_msg_t *msg,
                                           request_rec *r,
-                                          apr_uri_t *uri)
+                                          apr_uri_t *uri,
+                                          const char *secret)
 {
     int method;
     apr_uint32_t i, num_headers = 0;
@@ -293,17 +295,15 @@ static apr_status_t ajp_marshal_into_msgb(ajp_msg_t *msg,
                    i, elts[i].key, elts[i].val);
     }
 
-/* XXXX need to figure out how to do this
-    if (s->secret) {
+    if (secret) {
         if (ajp_msg_append_uint8(msg, SC_A_SECRET) ||
-            ajp_msg_append_string(msg, s->secret)) {
+            ajp_msg_append_string(msg, secret)) {
             ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(03228)
-                   "Error ajp_marshal_into_msgb - "
+                   "ajp_marshal_into_msgb: "
                    "Error appending secret");
             return APR_EGENERAL;
         }
     }
- */
 
     if (r->user) {
         if (ajp_msg_append_uint8(msg, SC_A_REMOTE_USER) ||
@@ -633,15 +633,15 @@ static apr_status_t ajp_unmarshal_response(ajp_msg_t *msg,
         }
 
         /* Set-Cookie need additional processing */
-        if (!strcasecmp(stringname, "Set-Cookie")) {
+        if (!ap_cstr_casecmp(stringname, "Set-Cookie")) {
             value = ap_proxy_cookie_reverse_map(r, dconf, value);
         }
         /* Location, Content-Location, URI and Destination need additional
          * processing */
-        else if (!strcasecmp(stringname, "Location")
-                 || !strcasecmp(stringname, "Content-Location")
-                 || !strcasecmp(stringname, "URI")
-                 || !strcasecmp(stringname, "Destination"))
+        else if (!ap_cstr_casecmp(stringname, "Location")
+                 || !ap_cstr_casecmp(stringname, "Content-Location")
+                 || !ap_cstr_casecmp(stringname, "URI")
+                 || !ap_cstr_casecmp(stringname, "Destination"))
         {
           value = ap_proxy_location_reverse_map(r, dconf, value);
         }
@@ -654,7 +654,7 @@ static apr_status_t ajp_unmarshal_response(ajp_msg_t *msg,
         apr_table_add(r->headers_out, stringname, value);
 
         /* Content-type needs an additional handling */
-        if (strcasecmp(stringname, "Content-Type") == 0) {
+        if (ap_cstr_casecmp(stringname, "Content-Type") == 0) {
              /* add corresponding filter */
             ap_set_content_type(r, apr_pstrdup(r->pool, value));
             ap_log_rerror(APLOG_MARK, APLOG_TRACE5, 0, r,
@@ -671,7 +671,8 @@ static apr_status_t ajp_unmarshal_response(ajp_msg_t *msg,
 apr_status_t ajp_send_header(apr_socket_t *sock,
                              request_rec *r,
                              apr_size_t buffsize,
-                             apr_uri_t *uri)
+                             apr_uri_t *uri,
+                             const char *secret)
 {
     ajp_msg_t *msg;
     apr_status_t rc;
@@ -683,7 +684,7 @@ apr_status_t ajp_send_header(apr_socket_t *sock,
         return rc;
     }
 
-    rc = ajp_marshal_into_msgb(msg, r, uri);
+    rc = ajp_marshal_into_msgb(msg, r, uri, secret);
     if (rc != APR_SUCCESS) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(00988)
                "ajp_send_header: ajp_marshal_into_msgb failed");

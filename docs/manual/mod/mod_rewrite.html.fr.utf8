@@ -572,6 +572,15 @@ la réécriture soit effectuée
 	    égale à <em>expression_de_comparaison</em> (les deux chaînes
 	    sont identiques, caractère pour caractère).</dd>
         </dl>
+	<div class="note"><h3>Note</h3>
+        L'opérateur de comparaison de chaînes fait partie des arguments de la
+	<em>CondPattern</em> et doit par conséquent se trouver entre les
+	guillemets s'ils sont présents. Exemple :
+	        
+        <pre class="prettyprint lang-config">RewriteCond %{HTTP_USER_AGENT} "=This Robot/1.0"</pre>
+
+        </div>
+
 	</li>
 
         <li>
@@ -1211,7 +1220,33 @@ d'expression rationnelle), elles n'y sont pas prises en compte, et
 n'y sont à priori d'aucune utilité. Les substitutions
 relatives sont une fonctionnalité qui n'est, elle non-plus pas supportée
 dans ce genre de contexte.</li>
+
+<li>Les blocs <code class="directive"><a href="../mod/core.html#if">If</a></code> suivent les règles
+du contexte de <em>répertoire</em>.</li>
+
+<li>Par défaut, mod_rewrite écrase les règles précédentes au sein de <a href="../sections.html#merging">sections combinées</a> appartenant au même
+contexte. Pour modifier ce comportement, on peut utiliser la directive
+<code class="directive"><a href="../mod/rewrite.html#rewriteoptions">RewriteOptions</a></code> pour définir par exemple
+l'option <em>Inherit</em>.</li>
+
+<li>La directive <code class="directive"><a href="../mod/rewrite.html#rewriteoptions">RewriteOptions</a></code> permet
+aussi de contrôler le comportement des sections définies au même niveau
+d'imbrication dans la configuration. Dans l'exemple suivant, par défaut seule la
+règle RewriteRules définie dans le second bloc <code class="directive"><a href="../mod/core.html#if">If</a></code> est prise en compte car celle définie dans le
+premier bloc est écrasée. Définir <code class="directive"><a href="../mod/rewrite.html#rewriteoptions">RewriteOptions</a></code> Inherit force mod_rewrite à combiner
+les deux sections en prenant en compte les deux règles et pas seulement la
+dernière.</li>
 </ul>
+<div class="example"><pre class="prettyprint lang-config">&lt;If "true"&gt;
+  # Sans RewriteOptions Inherit, cette règle est écrasée par celle de la section
+  # suivante et aucune redirection ne sera effectuée pour les URIs contenant
+  # 'foo'
+  RewriteRule foo http://example.com/foo [R]
+&lt;/If&gt;
+&lt;If "true"&gt;
+  RewriteRule bar http://example.com/bar [R]
+&lt;/If&gt;</pre>
+</div>
 </div>
 
 	<p>Pour quelques conseils à propos des <a class="glossarylink" href="../glossary.html#regex" title="voir glossaire">expressions rationnelles</a>, voir le
@@ -1387,7 +1422,7 @@ substitution !
         <td>cookie|CO=<em>NAME</em>:<em>VAL</em></td>
         <td>Définit un cookie au niveau du navigateur client. La syntaxe
 	complète est :
-	CO=<em>NAME</em>:<em>VAL</em>:<em>domain</em>[:<em>lifetime</em>[:<em>path</em>[:<em>secure</em>[:<em>httponly</em>]]]] <em><a href="../rewrite/flags.html#flag_co">details ...</a></em>
+	CO=<em>NAME</em>:<em>VAL</em>:<em>domain</em>[:<em>lifetime</em>[:<em>path</em>[:<em>secure</em>[:<em>httponly</em>[<em>samesite</em>]]]]] <em><a href="../rewrite/flags.html#flag_co">details ...</a></em>
 	<em><a href="../rewrite/flags.html#flag_co">détails ...</a></em>
         </td>
     </tr>
@@ -1646,7 +1681,7 @@ externe</td>
 <div class="bottomlang">
 <p><span>Langues Disponibles: </span><a href="../en/mod/mod_rewrite.html" hreflang="en" rel="alternate" title="English">&nbsp;en&nbsp;</a> |
 <a href="../fr/mod/mod_rewrite.html" title="Français">&nbsp;fr&nbsp;</a></p>
-</div><div class="top"><a href="#page-header"><img src="../images/up.gif" alt="top" /></a></div><div class="section"><h2><a id="comments_section" name="comments_section">Commentaires</a></h2><div class="warning"><strong>Notice:</strong><br />This is not a Q&amp;A section. Comments placed here should be pointed towards suggestions on improving the documentation or server, and may be removed again by our moderators if they are either implemented or considered invalid/off-topic. Questions on how to manage the Apache HTTP Server should be directed at either our IRC channel, #httpd, on Freenode, or sent to our <a href="http://httpd.apache.org/lists.html">mailing lists</a>.</div>
+</div><div class="top"><a href="#page-header"><img src="../images/up.gif" alt="top" /></a></div><div class="section"><h2><a id="comments_section" name="comments_section">Commentaires</a></h2><div class="warning"><strong>Notice:</strong><br />This is not a Q&amp;A section. Comments placed here should be pointed towards suggestions on improving the documentation or server, and may be removed by our moderators if they are either implemented or considered invalid/off-topic. Questions on how to manage the Apache HTTP Server should be directed at either our IRC channel, #httpd, on Libera.chat, or sent to our <a href="https://httpd.apache.org/lists.html">mailing lists</a>.</div>
 <script type="text/javascript"><!--//--><![CDATA[//><!--
 var comments_shortname = 'httpd';
 var comments_identifier = 'http://httpd.apache.org/docs/2.4/mod/mod_rewrite.html';
@@ -1664,7 +1699,7 @@ var comments_identifier = 'http://httpd.apache.org/docs/2.4/mod/mod_rewrite.html
     }
 })(window, document);
 //--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2018 The Apache Software Foundation.<br />Autorisé sous <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
+<p class="apache">Copyright 2022 The Apache Software Foundation.<br />Autorisé sous <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
 <p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/directives.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossaire</a> | <a href="../sitemap.html">Plan du site</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();

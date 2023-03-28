@@ -55,20 +55,16 @@ static const char *GROUP_NAME[] = {
     "staging",
     "archive",
     "tmp",
+    "ocsp",
     NULL
 };
 
-const char *md_store_group_name(int group)
+const char *md_store_group_name(unsigned int group)
 {
-    if ((size_t)group < sizeof(GROUP_NAME)/sizeof(GROUP_NAME[0])) {
+    if (group < sizeof(GROUP_NAME)/sizeof(GROUP_NAME[0])) {
         return GROUP_NAME[group];
     }
     return "UNKNOWN";
-}
-
-void md_store_destroy(md_store_t *store)
-{
-    if (store->destroy) store->destroy(store);
 }
 
 apr_status_t md_store_load(md_store_t *store, md_store_group_t group, 
@@ -143,6 +139,33 @@ int md_store_is_newer(md_store_t *store, md_store_group_t group1, md_store_group
                       const char *name, const char *aspect, apr_pool_t *p)
 {
     return store->is_newer(store, group1, group2, name, aspect, p);
+}
+
+apr_time_t md_store_get_modified(md_store_t *store, md_store_group_t group,  
+                                 const char *name, const char *aspect, apr_pool_t *p)
+{
+    return store->get_modified(store, group, name, aspect, p);
+}
+
+apr_status_t md_store_iter_names(md_store_inspect *inspect, void *baton, md_store_t *store, 
+                                 apr_pool_t *p, md_store_group_t group, const char *pattern)
+{
+    return store->iterate_names(inspect, baton, store, p, group, pattern);
+}
+
+apr_status_t md_store_remove_not_modified_since(md_store_t *store, apr_pool_t *p, 
+                                                apr_time_t modified,
+                                                md_store_group_t group, 
+                                                const char *name, 
+                                                const char *aspect)
+{
+    return store->remove_nms(store, p, modified, group, name, aspect);
+}
+
+apr_status_t md_store_rename(md_store_t *store, apr_pool_t *p,
+                             md_store_group_t group, const char *name, const char *to)
+{
+    return store->rename(store, p, group, name, to);
 }
 
 /**************************************************************************************************/
@@ -231,55 +254,89 @@ typedef struct {
     apr_array_header_t *mds;
 } md_load_ctx;
 
-apr_status_t md_pkey_load(md_store_t *store, md_store_group_t group, const char *name, 
-                          md_pkey_t **ppkey, apr_pool_t *p)
+static const char *pk_filename(const char *keyname, const char *base, apr_pool_t *p)
 {
-    return md_store_load(store, group, name, MD_FN_PRIVKEY, MD_SV_PKEY, (void**)ppkey, p);
+    char *s, *t;
+    /* We also run on various filesystems with difference upper/lower preserve matching
+     * rules. Normalize the names we use, since private key specifications are basically
+     * user input. */
+    s = (keyname && apr_strnatcasecmp("rsa", keyname))?
+        apr_pstrcat(p, base, ".", keyname, ".pem", NULL)
+        : apr_pstrcat(p, base, ".pem", NULL);
+    for (t = s; *t; t++ )
+        *t = (char)apr_tolower(*t);
+    return s;
+}
+
+const char *md_pkey_filename(md_pkey_spec_t *spec, apr_pool_t *p)
+{
+    return pk_filename(md_pkey_spec_name(spec), "privkey", p);
+}
+
+const char *md_chain_filename(md_pkey_spec_t *spec, apr_pool_t *p)
+{
+    return pk_filename(md_pkey_spec_name(spec), "pubcert", p);
+}
+
+apr_status_t md_pkey_load(md_store_t *store, md_store_group_t group, const char *name, 
+                          md_pkey_spec_t *spec, md_pkey_t **ppkey, apr_pool_t *p)
+{
+    const char *fname = md_pkey_filename(spec, p);
+    return md_store_load(store, group, name, fname, MD_SV_PKEY, (void**)ppkey, p);
 }
 
 apr_status_t md_pkey_save(md_store_t *store, apr_pool_t *p, md_store_group_t group, const char *name, 
-                          struct md_pkey_t *pkey, int create)
+                          md_pkey_spec_t *spec, struct md_pkey_t *pkey, int create)
 {
-    return md_store_save(store, p, group, name, MD_FN_PRIVKEY, MD_SV_PKEY, pkey, create);
-}
-
-apr_status_t md_cert_load(md_store_t *store, md_store_group_t group, const char *name, 
-                          struct md_cert_t **pcert, apr_pool_t *p)
-{
-    return md_store_load(store, group, name, MD_FN_CERT, MD_SV_CERT, (void**)pcert, p);
-}
-
-apr_status_t md_cert_save(md_store_t *store, apr_pool_t *p, 
-                          md_store_group_t group, const char *name, 
-                          struct md_cert_t *cert, int create)
-{
-    return md_store_save(store, p, group, name, MD_FN_CERT, MD_SV_CERT, cert, create);
-}
-
-apr_status_t md_chain_load(md_store_t *store, md_store_group_t group, const char *name, 
-                           struct apr_array_header_t **pchain, apr_pool_t *p)
-{
-    return md_store_load(store, group, name, MD_FN_CHAIN, MD_SV_CHAIN, (void**)pchain, p);
-}
-
-apr_status_t md_chain_save(md_store_t *store, apr_pool_t *p, 
-                           md_store_group_t group, const char *name, 
-                           struct apr_array_header_t *chain, int create)
-{
-    return md_store_save(store, p, group, name, MD_FN_CHAIN, MD_SV_CHAIN, chain, create);
+    const char *fname = md_pkey_filename(spec, p);
+    return md_store_save(store, p, group, name, fname, MD_SV_PKEY, pkey, create);
 }
 
 apr_status_t md_pubcert_load(md_store_t *store, md_store_group_t group, const char *name, 
-                             struct apr_array_header_t **ppubcert, apr_pool_t *p)
+                             md_pkey_spec_t *spec, struct apr_array_header_t **ppubcert, 
+                             apr_pool_t *p)
 {
-    return md_store_load(store, group, name, MD_FN_PUBCERT, MD_SV_CHAIN, (void**)ppubcert, p);
+    const char *fname = md_chain_filename(spec, p);
+    return md_store_load(store, group, name, fname, MD_SV_CHAIN, (void**)ppubcert, p);
 }
 
 apr_status_t md_pubcert_save(md_store_t *store, apr_pool_t *p, 
                              md_store_group_t group, const char *name, 
-                             struct apr_array_header_t *pubcert, int create)
+                             md_pkey_spec_t *spec, struct apr_array_header_t *pubcert, int create)
 {
-    return md_store_save(store, p, group, name, MD_FN_PUBCERT, MD_SV_CHAIN, pubcert, create);
+    const char *fname = md_chain_filename(spec, p);
+    return md_store_save(store, p, group, name, fname, MD_SV_CHAIN, pubcert, create);
+}
+
+apr_status_t md_creds_load(md_store_t *store, md_store_group_t group, const char *name, 
+                           md_pkey_spec_t *spec, md_credentials_t **pcreds, apr_pool_t *p)
+{
+    md_credentials_t *creds = apr_pcalloc(p, sizeof(*creds));
+    apr_status_t rv;
+    
+    creds->spec = spec;
+    if (APR_SUCCESS != (rv = md_pkey_load(store, group, name, spec, &creds->pkey, p))) {
+        goto leave;
+    }
+    /* chain is optional */
+    rv = md_pubcert_load(store, group, name, spec, &creds->chain, p);
+    if (APR_STATUS_IS_ENOENT(rv)) rv = APR_SUCCESS;
+leave:
+    *pcreds = (APR_SUCCESS == rv)? creds : NULL;
+    return rv;
+}
+
+apr_status_t md_creds_save(md_store_t *store, apr_pool_t *p, md_store_group_t group, 
+                           const char *name, md_credentials_t *creds, int create)
+{
+    apr_status_t rv;
+
+    if (APR_SUCCESS != (rv = md_pkey_save(store, p, group, name, creds->spec, creds->pkey, create))) {
+        goto leave;
+    }
+    rv = md_pubcert_save(store, p, group, name, creds->spec, creds->chain, create);
+leave:
+    return rv;
 }
 
 typedef struct {

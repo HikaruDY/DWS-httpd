@@ -1,7 +1,0 @@
-*		text=auto
-*.cmd		text eol=crlf
-*.dsw		text eol=crlf
-*.dsp		text eol=crlf
-*.sln		text eol=crlf
-*.suo		binary
-*.vcxproj	text eol=crlf

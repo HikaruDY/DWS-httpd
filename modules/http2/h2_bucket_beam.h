@@ -126,12 +126,11 @@ typedef struct {
  * buffers until the transmission is complete. Star gates use a similar trick.
  */
 
-typedef void h2_beam_mutex_leave(void *ctx,  struct apr_thread_mutex_t *lock);
+typedef void h2_beam_mutex_leave(struct apr_thread_mutex_t *lock);
 
 typedef struct {
     apr_thread_mutex_t *mutex;
     h2_beam_mutex_leave *leave;
-    void *leave_ctx;
 } h2_beam_lock;
 
 typedef struct h2_bucket_beam h2_bucket_beam;
@@ -259,11 +258,15 @@ void h2_beam_send_from(h2_bucket_beam *beam, apr_pool_t *p);
  * if no data is available.
  *
  * Call from the receiver side only.
+ * @param pclosed  on return != 0 iff the beam has been closed by the sender. It
+ *                 may still hold untransfered data. Maybe NULL if the caller is
+ *                 not interested in this.
  */
 apr_status_t h2_beam_receive(h2_bucket_beam *beam, 
                              apr_bucket_brigade *green_buckets, 
                              apr_read_type_e block,
-                             apr_off_t readbytes);
+                             apr_off_t readbytes,
+                             int *pclosed);
 
 /**
  * Determine if beam is empty. 

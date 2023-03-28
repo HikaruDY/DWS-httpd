@@ -152,6 +152,9 @@ static int bio_filter_out_flush(BIO *bio)
     bio_filter_out_ctx_t *outctx = (bio_filter_out_ctx_t *)BIO_get_data(bio);
     apr_bucket *e;
 
+    ap_log_cerror(APLOG_MARK, APLOG_TRACE6, 0, outctx->c,
+                  "bio_filter_out_write: flush");
+
     AP_DEBUG_ASSERT(APR_BRIGADE_EMPTY(outctx->bb));
 
     e = apr_bucket_flush_create(outctx->bb->bucket_alloc);
@@ -191,6 +194,10 @@ static int bio_filter_destroy(BIO *bio)
 static int bio_filter_out_read(BIO *bio, char *out, int outl)
 {
     /* this is never called */
+    bio_filter_out_ctx_t *outctx = (bio_filter_out_ctx_t *)BIO_get_data(bio);
+    ap_log_cerror(APLOG_MARK, APLOG_TRACE1, 0, outctx->c,
+                  "BUG: %s() should not be called", "bio_filter_out_read");
+    AP_DEBUG_ASSERT(0);
     return -1;
 }
 
@@ -200,17 +207,16 @@ static int bio_filter_out_write(BIO *bio, const char *in, int inl)
     apr_bucket *e;
     int need_flush;
 
+    BIO_clear_retry_flags(bio);
+
     /* Abort early if the client has initiated a renegotiation. */
     if (outctx->filter_ctx->config->reneg_state == RENEG_ABORT) {
         outctx->rc = APR_ECONNABORTED;
         return -1;
     }
 
-    /* when handshaking we'll have a small number of bytes.
-     * max size SSL will pass us here is about 16k.
-     * (16413 bytes to be exact)
-     */
-    BIO_clear_retry_flags(bio);
+    ap_log_cerror(APLOG_MARK, APLOG_TRACE6, 0, outctx->c,
+                  "bio_filter_out_write: %i bytes", inl);
 
     /* Use a transient bucket for the output data - any downstream
      * filter must setaside if necessary. */
@@ -291,12 +297,20 @@ static long bio_filter_out_ctrl(BIO *bio, int cmd, long num, void *ptr)
 static int bio_filter_out_gets(BIO *bio, char *buf, int size)
 {
     /* this is never called */
+    bio_filter_out_ctx_t *outctx = (bio_filter_out_ctx_t *)BIO_get_data(bio);
+    ap_log_cerror(APLOG_MARK, APLOG_TRACE1, 0, outctx->c,
+                  "BUG: %s() should not be called", "bio_filter_out_gets");
+    AP_DEBUG_ASSERT(0);
     return -1;
 }
 
 static int bio_filter_out_puts(BIO *bio, const char *str)
 {
     /* this is never called */
+    bio_filter_out_ctx_t *outctx = (bio_filter_out_ctx_t *)BIO_get_data(bio);
+    ap_log_cerror(APLOG_MARK, APLOG_TRACE1, 0, outctx->c,
+                  "BUG: %s() should not be called", "bio_filter_out_puts");
+    AP_DEBUG_ASSERT(0);
     return -1;
 }
 
@@ -458,13 +472,13 @@ static int bio_filter_in_read(BIO *bio, char *in, int inlen)
     if (!in)
         return 0;
 
+    BIO_clear_retry_flags(bio);
+
     /* Abort early if the client has initiated a renegotiation. */
     if (inctx->filter_ctx->config->reneg_state == RENEG_ABORT) {
         inctx->rc = APR_ECONNABORTED;
         return -1;
     }
-
-    BIO_clear_retry_flags(bio);
 
     if (!inctx->bb) {
         inctx->rc = APR_EOF;
@@ -531,22 +545,46 @@ static int bio_filter_in_read(BIO *bio, char *in, int inlen)
 
 static int bio_filter_in_write(BIO *bio, const char *in, int inl)
 {
+    bio_filter_in_ctx_t *inctx = (bio_filter_in_ctx_t *)BIO_get_data(bio);
+    ap_log_cerror(APLOG_MARK, APLOG_TRACE1, 0, inctx->f->c,
+                  "BUG: %s() should not be called", "bio_filter_in_write");
+    AP_DEBUG_ASSERT(0);
     return -1;
 }
 
 static int bio_filter_in_puts(BIO *bio, const char *str)
 {
+    bio_filter_in_ctx_t *inctx = (bio_filter_in_ctx_t *)BIO_get_data(bio);
+    ap_log_cerror(APLOG_MARK, APLOG_TRACE1, 0, inctx->f->c,
+                  "BUG: %s() should not be called", "bio_filter_in_puts");
+    AP_DEBUG_ASSERT(0);
     return -1;
 }
 
 static int bio_filter_in_gets(BIO *bio, char *buf, int size)
 {
+    bio_filter_in_ctx_t *inctx = (bio_filter_in_ctx_t *)BIO_get_data(bio);
+    ap_log_cerror(APLOG_MARK, APLOG_TRACE1, 0, inctx->f->c,
+                  "BUG: %s() should not be called", "bio_filter_in_gets");
+    AP_DEBUG_ASSERT(0);
     return -1;
 }
 
 static long bio_filter_in_ctrl(BIO *bio, int cmd, long num, void *ptr)
 {
-    return -1;
+    bio_filter_in_ctx_t *inctx = (bio_filter_in_ctx_t *)BIO_get_data(bio);
+    switch (cmd) {
+#ifdef BIO_CTRL_EOF
+    case BIO_CTRL_EOF:
+        return inctx->rc == APR_EOF;
+#endif
+    default:
+        break;
+    }
+    ap_log_cerror(APLOG_MARK, APLOG_TRACE1, 0, inctx->f->c,
+                  "BUG: bio_filter_in_ctrl() should not be called with cmd=%i",
+                  cmd);
+    return 0;
 }
 
 #if MODSSL_USE_OPENSSL_PRE_1_1_API
@@ -571,7 +609,7 @@ static BIO_METHOD bio_filter_in_method = {
     bio_filter_in_read,
     bio_filter_in_puts,         /* puts is never called */
     bio_filter_in_gets,         /* gets is never called */
-    bio_filter_in_ctrl,         /* ctrl is never called */
+    bio_filter_in_ctrl,         /* ctrl is called for EOF check */
     bio_filter_create,
     bio_filter_destroy,
     NULL
@@ -850,6 +888,9 @@ static apr_status_t ssl_filter_write(ap_filter_t *f,
         return APR_EGENERAL;
     }
 
+    ap_log_cerror(APLOG_MARK, APLOG_TRACE6, 0, f->c,
+                  "ssl_filter_write: %"APR_SIZE_T_FMT" bytes", len);
+
     /* We rely on SSL_get_error() after the write, which requires an empty error
      * queue before the write in order to work properly.
      */
@@ -938,7 +979,7 @@ static apr_status_t ssl_filter_write(ap_filter_t *f,
                                alloc)
 
 /* Custom apr_status_t error code, used when a plain HTTP request is
- * recevied on an SSL port. */
+ * received on an SSL port. */
 #define MODSSL_ERROR_HTTP_ON_HTTPS (APR_OS_START_USERERR + 0)
 
 /* Custom apr_status_t error code, used when the proxy cannot
@@ -986,12 +1027,10 @@ static apr_status_t ssl_io_filter_error(bio_filter_in_ctx_t *inctx,
             break;
 
     case MODSSL_ERROR_BAD_GATEWAY:
-        bucket = ap_bucket_error_create(HTTP_BAD_REQUEST, NULL,
-                                        f->c->pool,
-                                        f->c->bucket_alloc);
         ap_log_cerror(APLOG_MARK, APLOG_INFO, 0, f->c, APLOGNO(01997)
                       "SSL handshake failed: sending 502");
-        break;
+        f->c->aborted = 1;
+        return APR_EGENERAL;
 
     default:
         return status;
@@ -1168,11 +1207,13 @@ static apr_status_t ssl_io_filter_handshake(ssl_filter_ctx_t *filter_ctx)
     }
 
     server = sslconn->server;
-    if (sslconn->is_proxy) {
+    if (c->outgoing) {
 #ifdef HAVE_TLSEXT
         apr_ipsubnet_t *ip;
 #ifdef HAVE_TLS_ALPN
         const char *alpn_note;
+        apr_array_header_t *alpn_proposed = NULL;
+        int alpn_empty_ok = 1;
 #endif
 #endif
         const char *hostname_note = apr_table_get(c->notes,
@@ -1188,9 +1229,16 @@ static apr_status_t ssl_io_filter_handshake(ssl_filter_ctx_t *filter_ctx)
 #ifdef HAVE_TLS_ALPN
         alpn_note = apr_table_get(c->notes, "proxy-request-alpn-protos");
         if (alpn_note) {
-            char *protos, *s, *p, *last;
+            char *protos, *s, *p, *last, *proto;
             apr_size_t len;
 
+            /* Transform the note into a protocol formatted byte array:
+             * (len-byte proto-char+)*
+             * We need the remote server to agree on one of these, unless 'http/1.1'
+             * is also among our proposals. Because pre-ALPN remotes will speak this.
+             */
+            alpn_proposed = apr_array_make(c->pool, 3, sizeof(const char*));
+            alpn_empty_ok = 0;
             s = protos = apr_pcalloc(c->pool, strlen(alpn_note)+1);
             p = apr_pstrdup(c->pool, alpn_note);
             while ((p = apr_strtok(p, ", ", &last))) {
@@ -1201,6 +1249,11 @@ static apr_status_t ssl_io_filter_handshake(ssl_filter_ctx_t *filter_ctx)
                                   p);
                     ssl_log_ssl_error(SSLLOG_MARK, APLOG_ERR, server);
                     return APR_EGENERAL;
+                }
+                proto = apr_pstrndup(c->pool, p, len);
+                APR_ARRAY_PUSH(alpn_proposed, const char*) = proto;
+                if (!strcmp("http/1.1", proto)) {
+                    alpn_empty_ok = 1;
                 }
                 *s++ = (unsigned char)len;
                 while (len--) {
@@ -1217,6 +1270,8 @@ static apr_status_t ssl_io_filter_handshake(ssl_filter_ctx_t *filter_ctx)
                 ap_log_cerror(APLOG_MARK, APLOG_WARNING, 0, c, APLOGNO(03310)
                               "error setting alpn protos from '%s'", alpn_note);
                 ssl_log_ssl_error(SSLLOG_MARK, APLOG_WARNING, server);
+                /* If ALPN was requested and we cannot do it, we must fail */
+                return MODSSL_ERROR_BAD_GATEWAY;
             }
         }
 #endif /* defined HAVE_TLS_ALPN */
@@ -1244,7 +1299,7 @@ static apr_status_t ssl_io_filter_handshake(ssl_filter_ctx_t *filter_ctx)
                 ssl_log_ssl_error(SSLLOG_MARK, APLOG_WARNING, server);
             }
         }
-#endif
+#endif /* defined HAVE_TLSEXT */
 
         if ((n = SSL_connect(filter_ctx->pssl)) <= 0) {
             ap_log_cerror(APLOG_MARK, APLOG_INFO, 0, c, APLOGNO(02003)
@@ -1273,7 +1328,6 @@ static apr_status_t ssl_io_filter_handshake(ssl_filter_ctx_t *filter_ctx)
             ((dc->proxy->ssl_check_peer_cn != FALSE) ||
              (dc->proxy->ssl_check_peer_name == TRUE)) &&
             hostname_note) {
-            apr_table_unset(c->notes, "proxy-request-hostname");
             if (!cert
                 || modssl_X509_match_name(c->pool, cert, hostname_note,
                                           TRUE, server) == FALSE) {
@@ -1290,7 +1344,6 @@ static apr_status_t ssl_io_filter_handshake(ssl_filter_ctx_t *filter_ctx)
 
             hostname = ssl_var_lookup(NULL, server, c, NULL,
                                       "SSL_CLIENT_S_DN_CN");
-            apr_table_unset(c->notes, "proxy-request-hostname");
 
             /* Do string match or simplest wildcard match if that
              * fails. */
@@ -1310,6 +1363,50 @@ static apr_status_t ssl_io_filter_handshake(ssl_filter_ctx_t *filter_ctx)
             }
         }
 
+#ifdef HAVE_TLS_ALPN
+        /* If we proposed ALPN protocol(s), we need to check if the server
+         * agreed to one of them. While <https://www.rfc-editor.org/rfc/rfc7301.txt>
+         * chapter 3.2 says the server SHALL error the handshake in such a case,
+         * the reality is that some servers fall back to their default, e.g. http/1.1.
+         * (we also do this right now)
+         * We need to treat this as an error for security reasons.
+         */
+        if (alpn_proposed && alpn_proposed->nelts > 0) {
+            const char *selected;
+            unsigned int slen;
+
+            SSL_get0_alpn_selected(filter_ctx->pssl, (const unsigned char**)&selected, &slen);
+            if (!selected || !slen) {
+                /* No ALPN selection reported by the remote server. This could mean
+                 * it does not support ALPN (old server) or that it does not support
+                 * any of our proposals (Apache itself up to 2.4.48 at least did that). */
+               if (!alpn_empty_ok) {
+                    ap_log_cerror(APLOG_MARK, APLOG_INFO, 0, c, APLOGNO(10273)
+                                  "SSL Proxy: Peer did not select any of our ALPN protocols [%s].",
+                                  alpn_note);
+                    proxy_ssl_check_peer_ok = FALSE;
+               }
+            }
+            else {
+                const char *proto;
+                int i, found = 0;
+                for (i = 0; !found && i < alpn_proposed->nelts; ++i) {
+                    proto = APR_ARRAY_IDX(alpn_proposed, i, const char *);
+                    found = !strncmp(selected, proto, slen);
+                }
+                if (!found) {
+                    /* From a conforming peer, this should never happen,
+                     * but life always finds a way... */
+                    proto = apr_pstrndup(c->pool, selected, slen);
+                    ap_log_cerror(APLOG_MARK, APLOG_INFO, 0, c, APLOGNO(10274)
+                                  "SSL Proxy: Peer proposed ALPN protocol %s which is none "
+                                  "of our proposals [%s].", proto, alpn_note);
+                    proxy_ssl_check_peer_ok = FALSE;
+                }
+            }
+        }
+#endif
+
         if (proxy_ssl_check_peer_ok == TRUE) {
             /* another chance to fail */
             post_handshake_rc = ssl_run_proxy_post_handshake(c, filter_ctx->pssl);
@@ -1324,7 +1421,7 @@ static apr_status_t ssl_io_filter_handshake(ssl_filter_ctx_t *filter_ctx)
             /* ensure that the SSL structures etc are freed, etc: */
             ssl_filter_io_shutdown(filter_ctx, c, 1);
             apr_table_setn(c->notes, "SSL_connect_rv", "err");
-            return HTTP_BAD_GATEWAY;
+            return MODSSL_ERROR_BAD_GATEWAY;
         }
 
         apr_table_setn(c->notes, "SSL_connect_rv", "ok");
@@ -1593,18 +1690,32 @@ static apr_status_t ssl_io_filter_input(ap_filter_t *f,
 }
 
 
-/* ssl_io_filter_output() produces one SSL/TLS message per bucket
+/* ssl_io_filter_output() produces one SSL/TLS record per bucket
  * passed down the output filter stack.  This results in a high
- * overhead (network packets) for any output comprising many small
- * buckets.  SSI page applied through the HTTP chunk filter, for
- * example, may produce many brigades containing small buckets -
- * [chunk-size CRLF] [chunk-data] [CRLF].
+ * overhead (more network packets & TLS processing) for any output
+ * comprising many small buckets.  SSI output passed through the HTTP
+ * chunk filter, for example, may produce many brigades containing
+ * small buckets - [chunk-size CRLF] [chunk-data] [CRLF].
  *
- * The coalescing filter merges many small buckets into larger buckets
- * where possible, allowing the SSL I/O output filter to handle them
- * more efficiently. */
+ * Sending HTTP response headers as a separate TLS record to the
+ * response body also reveals information to a network observer (the
+ * size of headers) which can be significant.
+ *
+ * The coalescing filter merges data buckets with the aim of producing
+ * fewer, larger TLS records - without copying/buffering all content
+ * and introducing unnecessary overhead.
+ *
+ * ### This buffering could be probably be done more comprehensively
+ * ### in ssl_io_filter_output itself. 
+ * 
+ * ### Another possible performance optimisation in particular for the
+ * ### [HEAP] [FILE] HTTP response case is using a brigade rather than
+ * ### a char array to buffer; using apr_brigade_write() to append
+ * ### will use already-allocated memory from the HEAP, reducing # of
+ * ### copies.
+ */
 
-#define COALESCE_BYTES (2048)
+#define COALESCE_BYTES (AP_IOBUFSIZE)
 
 struct coalesce_ctx {
     char buffer[COALESCE_BYTES];
@@ -1617,11 +1728,12 @@ static apr_status_t ssl_io_filter_coalesce(ap_filter_t *f,
     apr_bucket *e, *upto;
     apr_size_t bytes = 0;
     struct coalesce_ctx *ctx = f->ctx;
+    apr_size_t buffered = ctx ? ctx->bytes : 0; /* space used on entry */
     unsigned count = 0;
 
     /* The brigade consists of zero-or-more small data buckets which
-     * can be coalesced (the prefix), followed by the remainder of the
-     * brigade.
+     * can be coalesced (referred to as the "prefix"), followed by the
+     * remainder of the brigade.
      *
      * Find the last bucket - if any - of that prefix.  count gives
      * the number of buckets in the prefix.  The "prefix" must contain
@@ -1636,24 +1748,100 @@ static apr_status_t ssl_io_filter_coalesce(ap_filter_t *f,
          e != APR_BRIGADE_SENTINEL(bb)
              && !APR_BUCKET_IS_METADATA(e)
              && e->length != (apr_size_t)-1
-             && e->length < COALESCE_BYTES
-             && (bytes + e->length) < COALESCE_BYTES
-             && (ctx == NULL
-                 || bytes + ctx->bytes + e->length < COALESCE_BYTES);
+             && e->length <= COALESCE_BYTES
+             && (buffered + bytes + e->length) <= COALESCE_BYTES;
          e = APR_BUCKET_NEXT(e)) {
-        if (e->length) count++; /* don't count zero-length buckets */
-        bytes += e->length;
+        /* don't count zero-length buckets */
+        if (e->length) {
+            bytes += e->length;
+            count++;
+        }
     }
+
+    /* If there is room remaining and the next bucket is a data
+     * bucket, try to include it in the prefix to coalesce.  For a
+     * typical [HEAP] [FILE] HTTP response brigade, this handles
+     * merging the headers and the start of the body into a single TLS
+     * record. */
+    if (bytes + buffered > 0
+        && bytes + buffered < COALESCE_BYTES
+        && e != APR_BRIGADE_SENTINEL(bb)
+        && !APR_BUCKET_IS_METADATA(e)) {
+        apr_status_t rv = APR_SUCCESS;
+
+        /* For an indeterminate length bucket (PIPE/CGI/...), try a
+         * non-blocking read to have it morph into a HEAP.  If the
+         * read fails with EAGAIN, it is harmless to try a split
+         * anyway, split is ENOTIMPL for most PIPE-like buckets. */
+        if (e->length == (apr_size_t)-1) {
+            const char *discard;
+            apr_size_t ignore;
+
+            rv = apr_bucket_read(e, &discard, &ignore, APR_NONBLOCK_READ);
+            if (rv != APR_SUCCESS && !APR_STATUS_IS_EAGAIN(rv)) {
+                ap_log_cerror(APLOG_MARK, APLOG_ERR, rv, f->c, APLOGNO(10232)
+                              "coalesce failed to read from %s bucket",
+                              e->type->name);
+                return AP_FILTER_ERROR;
+            }
+        }
+
+        if (rv == APR_SUCCESS) {
+            /* If the read above made the bucket morph, it may now fit
+             * entirely within the buffer.  Otherwise, split it so it does
+             * fit. */
+            if (e->length > COALESCE_BYTES
+                || e->length + buffered + bytes > COALESCE_BYTES) {
+                rv = apr_bucket_split(e, COALESCE_BYTES - (buffered + bytes));
+            }
+
+            if (rv == APR_SUCCESS && e->length == 0) {
+                /* As above, don't count in the prefix if the bucket is
+                 * now zero-length. */
+            }
+            else if (rv == APR_SUCCESS) {
+                ap_log_cerror(APLOG_MARK, APLOG_TRACE4, 0, f->c,
+                              "coalesce: adding %" APR_SIZE_T_FMT " bytes "
+                              "from split %s bucket, total %" APR_SIZE_T_FMT,
+                              e->length, e->type->name, bytes + buffered);
+
+                count++;
+                bytes += e->length;
+                e = APR_BUCKET_NEXT(e);
+            }
+            else if (rv != APR_ENOTIMPL) {
+                ap_log_cerror(APLOG_MARK, APLOG_ERR, rv, f->c, APLOGNO(10233)
+                              "coalesce: failed to split data bucket");
+                return AP_FILTER_ERROR;
+            }
+        }
+    }
+
+    /* The prefix is zero or more buckets.  upto now points to the
+     * bucket AFTER the end of the prefix, which may be the brigade
+     * sentinel. */
     upto = e;
 
-    /* Coalesce the prefix, if:
-     * a) more than one bucket is found to coalesce, or
-     * b) the brigade contains only a single data bucket, or
-     * c) the data bucket is not last but we have buffered data already.
+    /* Coalesce the prefix, if any of the following are true:
+     * 
+     * a) the prefix is more than one bucket
+     * OR
+     * b) the prefix is the entire brigade, which is a single bucket
+     *    AND the prefix length is smaller than the buffer size,
+     * OR
+     * c) the prefix is a single bucket
+     *    AND there is buffered data from a previous pass.
+     * 
+     * The aim with (b) is to buffer a small bucket so it can be
+     * coalesced with future invocations of this filter.  e.g.  three
+     * calls each with a single 100 byte HEAP bucket should get
+     * coalesced together.  But an invocation with a 8192 byte HEAP
+     * should pass through untouched.
      */
     if (bytes > 0
         && (count > 1
-            || (upto == APR_BRIGADE_SENTINEL(bb))
+            || (upto == APR_BRIGADE_SENTINEL(bb)
+                && bytes < COALESCE_BYTES)
             || (ctx && ctx->bytes > 0))) {
         /* If coalescing some bytes, ensure a context has been
          * created. */
@@ -1664,7 +1852,8 @@ static apr_status_t ssl_io_filter_coalesce(ap_filter_t *f,
 
         ap_log_cerror(APLOG_MARK, APLOG_TRACE4, 0, f->c,
                       "coalesce: have %" APR_SIZE_T_FMT " bytes, "
-                      "adding %" APR_SIZE_T_FMT " more", ctx->bytes, bytes);
+                      "adding %" APR_SIZE_T_FMT " more (buckets=%u)",
+                      ctx->bytes, bytes, count);
 
         /* Iterate through the prefix segment.  For non-fatal errors
          * in this loop it is safe to break out and fall back to the
@@ -1679,7 +1868,8 @@ static apr_status_t ssl_io_filter_coalesce(ap_filter_t *f,
             if (APR_BUCKET_IS_METADATA(e)
                 || e->length == (apr_size_t)-1) {
                 ap_log_cerror(APLOG_MARK, APLOG_ERR, 0, f->c, APLOGNO(02012)
-                              "unexpected bucket type during coalesce");
+                              "unexpected %s bucket during coalesce",
+                              e->type->name);
                 break; /* non-fatal error; break out */
             }
 
@@ -1951,7 +2141,7 @@ static apr_status_t ssl_io_filter_buffer(ap_filter_t *f,
     }
 
     if (APR_BRIGADE_EMPTY(ctx->bb)) {
-        /* Suprisingly (and perhaps, wrongly), the request body can be
+        /* Surprisingly (and perhaps, wrongly), the request body can be
          * pulled from the input filter stack more than once; a
          * handler may read it, and ap_discard_request_body() will
          * attempt to do so again after *every* request.  So input
@@ -2129,19 +2319,18 @@ static void ssl_io_data_dump(conn_rec *c, server_rec *s,
                              const char *b, long len)
 {
     char buf[256];
-    char tmp[64];
-    int i, j, rows, trunc;
+    int i, j, rows, trunc, pos;
     unsigned char ch;
 
     trunc = 0;
-    for(; (len > 0) && ((b[len-1] == ' ') || (b[len-1] == '\0')); len--)
+    for (; (len > 0) && ((b[len-1] == ' ') || (b[len-1] == '\0')); len--)
         trunc++;
     rows = (len / DUMP_WIDTH);
     if ((rows * DUMP_WIDTH) < len)
         rows++;
     ap_log_cserror(APLOG_MARK, APLOG_TRACE7, 0, c, s,
             "+-------------------------------------------------------------------------+");
-    for(i = 0 ; i< rows; i++) {
+    for (i = 0 ; i < rows; i++) {
 #if APR_CHARSET_EBCDIC
         char ebcdic_text[DUMP_WIDTH];
         j = DUMP_WIDTH;
@@ -2152,32 +2341,30 @@ static void ssl_io_data_dump(conn_rec *c, server_rec *s,
         memcpy(ebcdic_text,(char *)(b) + i * DUMP_WIDTH, j);
         ap_xlate_proto_from_ascii(ebcdic_text, j);
 #endif /* APR_CHARSET_EBCDIC */
-        apr_snprintf(tmp, sizeof(tmp), "| %04x: ", i * DUMP_WIDTH);
-        apr_cpystrn(buf, tmp, sizeof(buf));
+        pos = 0;
+        pos += apr_snprintf(buf, sizeof(buf)-pos, "| %04x: ", i * DUMP_WIDTH);
         for (j = 0; j < DUMP_WIDTH; j++) {
             if (((i * DUMP_WIDTH) + j) >= len)
-                apr_cpystrn(buf+strlen(buf), "   ", sizeof(buf)-strlen(buf));
+                pos += apr_snprintf(buf+pos, sizeof(buf)-pos, "   ");
             else {
                 ch = ((unsigned char)*((char *)(b) + i * DUMP_WIDTH + j)) & 0xff;
-                apr_snprintf(tmp, sizeof(tmp), "%02x%c", ch , j==7 ? '-' : ' ');
-                apr_cpystrn(buf+strlen(buf), tmp, sizeof(buf)-strlen(buf));
+                pos += apr_snprintf(buf+pos, sizeof(buf)-pos, "%02x%c", ch , j==7 ? '-' : ' ');
             }
         }
-        apr_cpystrn(buf+strlen(buf), " ", sizeof(buf)-strlen(buf));
+        pos += apr_snprintf(buf+pos, sizeof(buf)-pos, " ");
         for (j = 0; j < DUMP_WIDTH; j++) {
             if (((i * DUMP_WIDTH) + j) >= len)
-                apr_cpystrn(buf+strlen(buf), " ", sizeof(buf)-strlen(buf));
+                pos += apr_snprintf(buf+pos, sizeof(buf)-pos, " ");
             else {
                 ch = ((unsigned char)*((char *)(b) + i * DUMP_WIDTH + j)) & 0xff;
 #if APR_CHARSET_EBCDIC
-                apr_snprintf(tmp, sizeof(tmp), "%c", (ch >= 0x20 && ch <= 0x7F) ? ebcdic_text[j] : '.');
+                pos += apr_snprintf(buf+pos, sizeof(buf)-pos, "%c", (ch >= 0x20 && ch <= 0x7F) ? ebcdic_text[j] : '.');
 #else /* APR_CHARSET_EBCDIC */
-                apr_snprintf(tmp, sizeof(tmp), "%c", ((ch >= ' ') && (ch <= '~')) ? ch : '.');
+                pos += apr_snprintf(buf+pos, sizeof(buf)-pos, "%c", ((ch >= ' ') && (ch <= '~')) ? ch : '.');
 #endif /* APR_CHARSET_EBCDIC */
-                apr_cpystrn(buf+strlen(buf), tmp, sizeof(buf)-strlen(buf));
             }
         }
-        apr_cpystrn(buf+strlen(buf), " |", sizeof(buf)-strlen(buf));
+        pos += apr_snprintf(buf+pos, sizeof(buf)-pos, " |");
         ap_log_cserror(APLOG_MARK, APLOG_TRACE7, 0, c, s, "%s", buf);
     }
     if (trunc > 0)
@@ -2185,7 +2372,6 @@ static void ssl_io_data_dump(conn_rec *c, server_rec *s,
                 "| %04ld - <SPACES/NULS>", len + trunc);
     ap_log_cserror(APLOG_MARK, APLOG_TRACE7, 0, c, s,
             "+-------------------------------------------------------------------------+");
-    return;
 }
 
 long ssl_io_data_cb(BIO *bio, int cmd,

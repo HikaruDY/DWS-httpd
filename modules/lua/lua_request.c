@@ -235,14 +235,16 @@ static int lua_read_body(request_rec *r, const char **rbuf, apr_off_t *size,
 {
     int rc = OK;
 
+    *rbuf = NULL;
+    *size = 0;
+
     if ((rc = ap_setup_client_block(r, REQUEST_CHUNKED_ERROR))) {
         return (rc);
     }
     if (ap_should_client_block(r)) {
 
         /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
-        char         argsbuffer[HUGE_STRING_LEN];
-        apr_off_t    rsize, len_read, rpos = 0;
+        apr_off_t    len_read, rpos = 0;
         apr_off_t length = r->remaining;
         /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
@@ -250,18 +252,18 @@ static int lua_read_body(request_rec *r, const char **rbuf, apr_off_t *size,
             return APR_EINCOMPLETE; /* Only room for incomplete data chunk :( */
         }
         *rbuf = (const char *) apr_pcalloc(r->pool, (apr_size_t) (length + 1));
-        *size = length;
-        while ((len_read = ap_get_client_block(r, argsbuffer, sizeof(argsbuffer))) > 0) {
-            if ((rpos + len_read) > length) {
-                rsize = length - rpos;
-            }
-            else {
-                rsize = len_read;
-            }
-
-            memcpy((char *) *rbuf + rpos, argsbuffer, (size_t) rsize);
-            rpos += rsize;
+        while ((rpos < length)
+               && (len_read = ap_get_client_block(r, (char *) *rbuf + rpos,
+                                               length - rpos)) > 0) {
+            rpos += len_read;
         }
+        if (len_read < 0) {
+            return APR_EINCOMPLETE;
+        }
+        *size = rpos;
+    }
+    else {
+        rc = DONE;
     }
 
     return (rc);
@@ -277,6 +279,8 @@ static int lua_read_body(request_rec *r, const char **rbuf, apr_off_t *size,
 static apr_status_t lua_write_body(request_rec *r, apr_file_t *file, apr_off_t *size)
 {
     apr_status_t rc = OK;
+
+    *size = 0;
 
     if ((rc = ap_setup_client_block(r, REQUEST_CHUNKED_ERROR)))
         return rc;
@@ -303,10 +307,47 @@ static apr_status_t lua_write_body(request_rec *r, apr_file_t *file, apr_off_t *
             rpos += rsize;
         }
     }
+    else {
+        rc = DONE;
+    }
 
     return rc;
 }
 
+/* expose apr_table as (r/o) lua table */
+static int req_aprtable2luatable(lua_State *L, apr_table_t *t)
+{
+    lua_newtable(L);
+    lua_newtable(L);            /* [table, table] */
+    apr_table_do(req_aprtable2luatable_cb, L, t, NULL);
+    return 2;                   /* [table<string, string>, table<string, array<string>>] */
+}
+
+static int req_headers_in_table(lua_State *L)
+{
+    request_rec *r = ap_lua_check_request_rec(L, 1);
+    return req_aprtable2luatable(L, r->headers_in);
+}
+static int req_headers_out_table(lua_State *L)
+{
+    request_rec *r = ap_lua_check_request_rec(L, 1);
+    return req_aprtable2luatable(L, r->headers_out);
+}
+static int req_err_headers_out_table(lua_State *L)
+{
+    request_rec *r = ap_lua_check_request_rec(L, 1);
+    return req_aprtable2luatable(L, r->err_headers_out);
+}
+static int req_notes_table(lua_State *L)
+{
+    request_rec *r = ap_lua_check_request_rec(L, 1);
+    return req_aprtable2luatable(L, r->notes);
+}
+static int req_subprocess_env_table(lua_State *L)
+{
+    request_rec *r = ap_lua_check_request_rec(L, 1);
+    return req_aprtable2luatable(L, r->subprocess_env);
+}
 /* r:parseargs() returning a lua table */
 static int req_parseargs(lua_State *L)
 {
@@ -376,6 +417,7 @@ static int req_parsebody(lua_State *L)
             if (end == NULL) break;
             key = (char *) apr_pcalloc(r->pool, 256);
             filename = (char *) apr_pcalloc(r->pool, 256);
+            if (end - crlf <= 8) break;
             vlen = end - crlf - 8;
             buffer = (char *) apr_pcalloc(r->pool, vlen+1);
             memcpy(buffer, crlf + 4, vlen);
@@ -2814,14 +2856,24 @@ void ap_lua_load_request_lmodule(lua_State *L, apr_pool_t *p)
                  makefun(&req_proxyreq_field, APL_REQ_FUNTYPE_STRING, p));
     apr_hash_set(dispatch, "headers_in", APR_HASH_KEY_STRING,
                  makefun(&req_headers_in, APL_REQ_FUNTYPE_TABLE, p));
+    apr_hash_set(dispatch, "headers_in_table", APR_HASH_KEY_STRING,
+                 makefun(&req_headers_in_table, APL_REQ_FUNTYPE_LUACFUN, p));
     apr_hash_set(dispatch, "headers_out", APR_HASH_KEY_STRING,
                  makefun(&req_headers_out, APL_REQ_FUNTYPE_TABLE, p));
+    apr_hash_set(dispatch, "headers_out_table", APR_HASH_KEY_STRING,
+                 makefun(&req_headers_out_table, APL_REQ_FUNTYPE_LUACFUN, p));
     apr_hash_set(dispatch, "err_headers_out", APR_HASH_KEY_STRING,
                  makefun(&req_err_headers_out, APL_REQ_FUNTYPE_TABLE, p));
+    apr_hash_set(dispatch, "err_headers_out_table", APR_HASH_KEY_STRING,
+                 makefun(&req_err_headers_out_table, APL_REQ_FUNTYPE_LUACFUN, p));
     apr_hash_set(dispatch, "notes", APR_HASH_KEY_STRING,
                  makefun(&req_notes, APL_REQ_FUNTYPE_TABLE, p));
+    apr_hash_set(dispatch, "notes_table", APR_HASH_KEY_STRING,
+                 makefun(&req_notes_table, APL_REQ_FUNTYPE_LUACFUN, p));
     apr_hash_set(dispatch, "subprocess_env", APR_HASH_KEY_STRING,
                  makefun(&req_subprocess_env, APL_REQ_FUNTYPE_TABLE, p));
+    apr_hash_set(dispatch, "subprocess_env_table", APR_HASH_KEY_STRING,
+                 makefun(&req_subprocess_env_table, APL_REQ_FUNTYPE_LUACFUN, p));
     apr_hash_set(dispatch, "flush", APR_HASH_KEY_STRING,
                  makefun(&lua_ap_rflush, APL_REQ_FUNTYPE_LUACFUN, p));
     apr_hash_set(dispatch, "port", APR_HASH_KEY_STRING,

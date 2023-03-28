@@ -79,6 +79,7 @@ AC_DEFUN([APACHE_GEN_CONFIG_VARS],[
   APACHE_SUBST(LIBTOOL)
   APACHE_SUBST(SHELL)
   APACHE_SUBST(RSYNC)
+  APACHE_SUBST(SVN)
   APACHE_SUBST(MODULE_DIRS)
   APACHE_SUBST(MODULE_CLEANDIRS)
   APACHE_SUBST(PORT)
@@ -516,12 +517,18 @@ AC_DEFUN([APACHE_CHECK_OPENSSL],[
     dnl Before doing anything else, load in pkg-config variables
     if test -n "$PKGCONFIG"; then
       saved_PKG_CONFIG_PATH="$PKG_CONFIG_PATH"
-      if test "x$ap_openssl_base" != "x" -a \
-              -f "${ap_openssl_base}/lib/pkgconfig/openssl.pc"; then
-        dnl Ensure that the given path is used by pkg-config too, otherwise
-        dnl the system openssl.pc might be picked up instead.
-        PKG_CONFIG_PATH="${ap_openssl_base}/lib/pkgconfig${PKG_CONFIG_PATH+:}${PKG_CONFIG_PATH}"
-        export PKG_CONFIG_PATH
+      if test "x$ap_openssl_base" != "x"; then
+        if test -f "${ap_openssl_base}/lib/pkgconfig/openssl.pc"; then
+          dnl Ensure that the given path is used by pkg-config too, otherwise
+          dnl the system openssl.pc might be picked up instead.
+          PKG_CONFIG_PATH="${ap_openssl_base}/lib/pkgconfig${PKG_CONFIG_PATH+:}${PKG_CONFIG_PATH}"
+          export PKG_CONFIG_PATH
+        elif test -f "${ap_openssl_base}/lib64/pkgconfig/openssl.pc"; then
+          dnl Ensure that the given path is used by pkg-config too, otherwise
+          dnl the system openssl.pc might be picked up instead.
+          PKG_CONFIG_PATH="${ap_openssl_base}/lib64/pkgconfig${PKG_CONFIG_PATH+:}${PKG_CONFIG_PATH}"
+          export PKG_CONFIG_PATH
+        fi
       fi
       AC_ARG_ENABLE(ssl-staticlib-deps,APACHE_HELP_STRING(--enable-ssl-staticlib-deps,[link mod_ssl with dependencies of OpenSSL's static libraries (as indicated by "pkg-config --static"). Must be specified in addition to --enable-ssl.]), [
         if test "$enableval" = "yes"; then
@@ -582,6 +589,7 @@ AC_DEFUN([APACHE_CHECK_OPENSSL],[
       liberrors=""
       AC_CHECK_HEADERS([openssl/engine.h])
       AC_CHECK_FUNCS([SSL_CTX_new], [], [liberrors="yes"])
+      AC_CHECK_FUNCS([OPENSSL_init_ssl])
       AC_CHECK_FUNCS([ENGINE_init ENGINE_load_builtin_engines RAND_egd])
       if test "x$liberrors" != "x"; then
         AC_MSG_WARN([OpenSSL libraries are unusable])
@@ -604,6 +612,29 @@ AC_DEFUN([APACHE_CHECK_OPENSSL],[
     APR_ADDTO(MOD_LDFLAGS, [$ap_openssl_mod_ldflags])
     APR_ADDTO(MOD_CFLAGS, [$ap_openssl_mod_cflags])
   fi
+])
+
+AC_DEFUN([APACHE_CHECK_SYSTEMD], [
+dnl Check for systemd support for listen.c's socket activation.
+case $host in
+*-linux-*)
+   if test -n "$PKGCONFIG" && $PKGCONFIG --exists libsystemd; then
+      SYSTEMD_LIBS=`$PKGCONFIG --libs libsystemd`
+   elif test -n "$PKGCONFIG" && $PKGCONFIG --exists libsystemd-daemon; then
+      SYSTEMD_LIBS=`$PKGCONFIG --libs libsystemd-daemon`
+   else
+      AC_CHECK_LIB(systemd-daemon, sd_notify, SYSTEMD_LIBS="-lsystemd-daemon")
+   fi
+   if test -n "$SYSTEMD_LIBS"; then
+      AC_CHECK_HEADERS(systemd/sd-daemon.h)
+      if test "${ac_cv_header_systemd_sd_daemon_h}" = "no" || test -z "${SYSTEMD_LIBS}"; then
+        AC_MSG_WARN([Your system does not support systemd.])
+      else
+        AC_DEFINE(HAVE_SYSTEMD, 1, [Define if systemd is supported])
+      fi
+   fi
+   ;;
+esac
 ])
 
 dnl

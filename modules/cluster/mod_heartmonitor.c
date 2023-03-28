@@ -624,9 +624,7 @@ static apr_status_t hm_watchdog_callback(int state, void *data,
             /* store in the slotmem or in the file depending on configuration */
             hm_update_stats(ctx, pool);
             cur = now = apr_time_sec(apr_time_now());
-            /* TODO: Insted HN_UPDATE_SEC use
-             * the ctx->interval
-             */
+
             while ((now - cur) < apr_time_sec(ctx->interval)) {
                 int n;
                 apr_status_t rc;
@@ -635,6 +633,7 @@ static apr_status_t hm_watchdog_callback(int state, void *data,
                 apr_interval_time_t timeout;
 
                 apr_pool_create(&p, pool);
+                apr_pool_tag(p, "hm_running");
 
                 pfd.desc_type = APR_POLL_SOCKET;
                 pfd.desc.s = ctx->sock;
@@ -809,6 +808,7 @@ static void *hm_create_config(apr_pool_t *p, server_rec *s)
     ctx->interval = apr_time_from_sec(HM_UPDATE_SEC);
     ctx->s = s;
     apr_pool_create(&ctx->p, p);
+    apr_pool_tag(ctx->p, "hm_ctx");
     ctx->servers = apr_hash_make(ctx->p);
 
     return ctx;
