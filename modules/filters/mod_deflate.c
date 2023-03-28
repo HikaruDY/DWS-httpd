@@ -43,10 +43,11 @@
 #include "apr_general.h"
 #include "util_filter.h"
 #include "apr_buckets.h"
+#include "http_protocol.h"
 #include "http_request.h"
+#include "http_ssl.h"
 #define APR_WANT_STRFUNC
 #include "apr_want.h"
-#include "mod_ssl.h"
 
 #include "zlib.h"
 
@@ -94,8 +95,6 @@ static const char deflate_magic[2] = { '\037', '\213' };
 #define DEFAULT_MEMLEVEL 9
 #define DEFAULT_BUFFERSIZE 8096
 
-static APR_OPTIONAL_FN_TYPE(ssl_var_lookup) *mod_deflate_ssl_var = NULL;
-
 /* Check whether a request is gzipped, so we can un-gzip it.
  * If a request has multiple encodings, we need the gzip
  * to be the outermost non-identity encoding.
@@ -118,8 +117,8 @@ static int check_gzip(request_rec *r, apr_table_t *hdrs1, apr_table_t *hdrs2)
     if (encoding && *encoding) {
 
         /* check the usual/simple case first */
-        if (!strcasecmp(encoding, "gzip")
-            || !strcasecmp(encoding, "x-gzip")) {
+        if (!ap_cstr_casecmp(encoding, "gzip")
+            || !ap_cstr_casecmp(encoding, "x-gzip")) {
             found = 1;
             if (hdrs) {
                 apr_table_unset(hdrs, "Content-Encoding");
@@ -137,8 +136,8 @@ static int check_gzip(request_rec *r, apr_table_t *hdrs1, apr_table_t *hdrs2)
             for(;;) {
                 char *token = ap_strrchr(new_encoding, ',');
                 if (!token) {        /* gzip:identity or other:identity */
-                    if (!strcasecmp(new_encoding, "gzip")
-                        || !strcasecmp(new_encoding, "x-gzip")) {
+                    if (!ap_cstr_casecmp(new_encoding, "gzip")
+                        || !ap_cstr_casecmp(new_encoding, "x-gzip")) {
                         found = 1;
                         if (hdrs) {
                             apr_table_unset(hdrs, "Content-Encoding");
@@ -150,8 +149,8 @@ static int check_gzip(request_rec *r, apr_table_t *hdrs1, apr_table_t *hdrs2)
                     break; /* seen all tokens */
                 }
                 for (ptr=token+1; apr_isspace(*ptr); ++ptr);
-                if (!strcasecmp(ptr, "gzip")
-                    || !strcasecmp(ptr, "x-gzip")) {
+                if (!ap_cstr_casecmp(ptr, "gzip")
+                    || !ap_cstr_casecmp(ptr, "x-gzip")) {
                     *token = '\0';
                     if (hdrs) {
                         apr_table_setn(hdrs, "Content-Encoding", new_encoding);
@@ -161,7 +160,7 @@ static int check_gzip(request_rec *r, apr_table_t *hdrs1, apr_table_t *hdrs2)
                     }
                     found = 1;
                 }
-                else if (!ptr[0] || !strcasecmp(ptr, "identity")) {
+                else if (!ptr[0] || !ap_cstr_casecmp(ptr, "identity")) {
                     *token = '\0';
                     continue; /* strip the token and find the next one */
                 }
@@ -514,10 +513,8 @@ static int check_ratio(request_rec *r, deflate_ctx *ctx,
 static int have_ssl_compression(request_rec *r)
 {
     const char *comp;
-    if (mod_deflate_ssl_var == NULL)
-        return 0;
-    comp = mod_deflate_ssl_var(r->pool, r->server, r->connection, r,
-                               "SSL_COMPRESS_METHOD");
+    comp = ap_ssl_var_lookup(r->pool, r->server, r->connection, r,
+                             "SSL_COMPRESS_METHOD");
     if (comp == NULL || *comp == '\0' || strcmp(comp, "NULL") == 0)
         return 0;
     return 1;
@@ -586,9 +583,14 @@ static apr_status_t deflate_out_filter(ap_filter_t *f,
                     continue;
                 }
 
-                rc = apr_bucket_read(e, &data, &blen, APR_BLOCK_READ);
-                if (rc != APR_SUCCESS)
-                    return rc;
+                if (e->length == (apr_size_t)-1) {
+                    rc = apr_bucket_read(e, &data, &blen, APR_BLOCK_READ);
+                    if (rc != APR_SUCCESS)
+                        return rc;
+                }
+                else {
+                    blen = e->length;
+                }
                 len += blen;
                 /* 50 is for Content-Encoding and Vary headers and ETag suffix */
                 if (len > sizeof(gzip_header) + VALIDATION_SIZE + 50)
@@ -699,6 +701,8 @@ static apr_status_t deflate_out_filter(ap_filter_t *f,
          */
         if (!apr_table_get(r->subprocess_env, "force-gzip")) {
             const char *accepts;
+            const char *q = NULL;
+
             /* if they don't have the line, then they can't play */
             accepts = apr_table_get(r->headers_in, "Accept-Encoding");
             if (accepts == NULL) {
@@ -707,7 +711,7 @@ static apr_status_t deflate_out_filter(ap_filter_t *f,
             }
 
             token = ap_get_token(r->pool, &accepts, 0);
-            while (token && token[0] && strcasecmp(token, "gzip")) {
+            while (token && token[0] && ap_cstr_casecmp(token, "gzip")) {
                 /* skip parameters, XXX: ;q=foo evaluation? */
                 while (*accepts == ';') {
                     ++accepts;
@@ -721,10 +725,21 @@ static apr_status_t deflate_out_filter(ap_filter_t *f,
                 token = (*accepts) ? ap_get_token(r->pool, &accepts, 0) : NULL;
             }
 
-            /* No acceptable token found. */
-            if (token == NULL || token[0] == '\0') {
+            /* Find the qvalue, if provided */
+            if (*accepts) {
+                while (*accepts == ';') {
+                    ++accepts;
+                }
+                q = ap_get_token(r->pool, &accepts, 1);
                 ap_log_rerror(APLOG_MARK, APLOG_TRACE1, 0, r,
-                              "Not compressing (no Accept-Encoding: gzip)");
+                              "token: '%s' - q: '%s'", token ? token : "NULL", q);
+            }
+
+            /* No acceptable token found or q=0 */
+            if (!token || token[0] == '\0' ||
+                (q && strlen(q) >= 3 && strncmp("q=0.000", q, strlen(q)) == 0)) {
+                ap_log_rerror(APLOG_MARK, APLOG_TRACE1, 0, r,
+                              "Not compressing (no Accept-Encoding: gzip or q=0)");
                 ap_remove_output_filter(f);
                 return ap_pass_brigade(f->next, bb);
             }
@@ -781,7 +796,7 @@ static apr_status_t deflate_out_filter(ap_filter_t *f,
          */
 
         /* If the entire Content-Encoding is "identity", we can replace it. */
-        if (!encoding || !strcasecmp(encoding, "identity")) {
+        if (!encoding || !ap_cstr_casecmp(encoding, "identity")) {
             apr_table_setn(r->headers_out, "Content-Encoding", "gzip");
         }
         else {
@@ -852,8 +867,10 @@ static apr_status_t deflate_out_filter(ap_filter_t *f,
                                        f->c->bucket_alloc);
             APR_BRIGADE_INSERT_TAIL(ctx->bb, b);
             ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(01384)
-                          "Zlib: Compressed %ld to %ld : URL %s",
-                          ctx->stream.total_in, ctx->stream.total_out, r->uri);
+                          "Zlib: Compressed %" APR_UINT64_T_FMT
+                          " to %" APR_UINT64_T_FMT " : URL %s",
+                          (apr_uint64_t)ctx->stream.total_in,
+                          (apr_uint64_t)ctx->stream.total_out, r->uri);
 
             /* leave notes for logging */
             if (c->note_input_name) {
@@ -866,7 +883,7 @@ static apr_status_t deflate_out_filter(ap_filter_t *f,
 
             if (c->note_output_name) {
                 apr_table_setn(r->notes, c->note_output_name,
-                               (ctx->stream.total_in > 0)
+                               (ctx->stream.total_out > 0)
                                 ? apr_off_t_toa(r->pool,
                                                 ctx->stream.total_out)
                                 : "-");
@@ -1338,8 +1355,6 @@ static apr_status_t deflate_in_filter(ap_filter_t *f,
             ctx->stream.next_in = (unsigned char *)data;
             ctx->stream.avail_in = (int)len;
 
-            zRC = Z_OK;
-
             if (!ctx->validation_buffer) {
                 while (ctx->stream.avail_in != 0) {
                     if (ctx->stream.avail_out == 0) {
@@ -1419,9 +1434,10 @@ static apr_status_t deflate_in_filter(ap_filter_t *f,
                 ctx->validation_buffer_length += valid;
 
                 ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(01393)
-                              "Zlib: Inflated %ld to %ld : URL %s",
-                              ctx->stream.total_in, ctx->stream.total_out,
-                              r->uri);
+                              "Zlib: Inflated %" APR_UINT64_T_FMT
+                              " to %" APR_UINT64_T_FMT " : URL %s",
+                              (apr_uint64_t)ctx->stream.total_in,
+                              (apr_uint64_t)ctx->stream.total_out, r->uri);
 
                 len = c->bufferSize - ctx->stream.avail_out;
 
@@ -1445,9 +1461,10 @@ static apr_status_t deflate_in_filter(ap_filter_t *f,
                     if ((ctx->stream.total_out & 0xFFFFFFFF) != compLen) {
                         inflateEnd(&ctx->stream);
                         ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, APLOGNO(01395)
-                                      "Zlib: Length %ld of inflated data does "
-                                      "not match expected value %ld",
-                                      ctx->stream.total_out, compLen);
+                                      "Zlib: Length %" APR_UINT64_T_FMT
+                                      " of inflated data does not match"
+                                      " expected value %ld",
+                                      (apr_uint64_t)ctx->stream.total_out, compLen);
                         return APR_EGENERAL;
                     }
                 }
@@ -1622,8 +1639,10 @@ static apr_status_t inflate_out_filter(ap_filter_t *f,
             flush_libz_buffer(ctx, c, f->c->bucket_alloc, inflate, Z_SYNC_FLUSH,
                               UPDATE_CRC);
             ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(01398)
-                          "Zlib: Inflated %ld to %ld : URL %s",
-                          ctx->stream.total_in, ctx->stream.total_out, r->uri);
+                          "Zlib: Inflated %" APR_UINT64_T_FMT 
+                          " to %" APR_UINT64_T_FMT " : URL %s",
+                          (apr_uint64_t)ctx->stream.total_in,
+                          (apr_uint64_t)ctx->stream.total_out, r->uri);
 
             if (ctx->validation_buffer_length == VALIDATION_SIZE) {
                 unsigned long compCRC, compLen;
@@ -1868,7 +1887,6 @@ static apr_status_t inflate_out_filter(ap_filter_t *f,
 static int mod_deflate_post_config(apr_pool_t *pconf, apr_pool_t *plog,
                                    apr_pool_t *ptemp, server_rec *s)
 {
-    mod_deflate_ssl_var = APR_RETRIEVE_OPTIONAL_FN(ssl_var_lookup);
     return OK;
 }
 

@@ -23,11 +23,6 @@
 #endif
 #include "apr_version.h"
 
-#if (APR_MAJOR_VERSION < 1)
-#undef apr_socket_create
-#define apr_socket_create apr_socket_create_ex
-#endif
-
 #define AUTODETECT_PWD
 /* Automatic timestamping (Last-Modified header) based on MDTM is used if:
  * 1) the FTP server supports the MDTM command and
@@ -218,7 +213,7 @@ static int ftp_check_string(const char *x)
  * (EBCDIC) machines either.
  */
 static apr_status_t ftp_string_read(conn_rec *c, apr_bucket_brigade *bb,
-        char *buff, apr_size_t bufflen, int *eos)
+        char *buff, apr_size_t bufflen, int *eos, apr_size_t *outlen)
 {
     apr_bucket *e;
     apr_status_t rv;
@@ -230,6 +225,7 @@ static apr_status_t ftp_string_read(conn_rec *c, apr_bucket_brigade *bb,
     /* start with an empty string */
     buff[0] = 0;
     *eos = 0;
+    *outlen = 0;
 
     /* loop through each brigade */
     while (!found) {
@@ -273,6 +269,7 @@ static apr_status_t ftp_string_read(conn_rec *c, apr_bucket_brigade *bb,
                 if (len > 0) {
                     memcpy(pos, response, len);
                     pos += len;
+                    *outlen += len;
                 }
             }
             apr_bucket_delete(e);
@@ -294,7 +291,7 @@ static int proxy_ftp_canon(request_rec *r, char *url)
     apr_port_t port, def_port;
 
     /* */
-    if (strncasecmp(url, "ftp:", 4) == 0) {
+    if (ap_cstr_casecmpn(url, "ftp:", 4) == 0) {
         url += 4;
     }
     else {
@@ -385,28 +382,36 @@ static int ftp_getrc_msg(conn_rec *ftp_ctrl, apr_bucket_brigade *bb, char *msgbu
     char buff[5];
     char *mb = msgbuf, *me = &msgbuf[msglen];
     apr_status_t rv;
+    apr_size_t nread;
+    
     int eos;
 
-    if (APR_SUCCESS != (rv = ftp_string_read(ftp_ctrl, bb, response, sizeof(response), &eos))) {
+    if (APR_SUCCESS != (rv = ftp_string_read(ftp_ctrl, bb, response, sizeof(response), &eos, &nread))) {
         return -1;
     }
 /*
     ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, NULL, APLOGNO(03233)
                  "<%s", response);
 */
+    if (nread < 4) { 
+        ap_log_error(APLOG_MARK, APLOG_INFO, 0, NULL, APLOGNO(10229) "Malformed FTP response '%s'", response);
+        *mb = '\0';
+        return -1;
+    }
+
     if (!apr_isdigit(response[0]) || !apr_isdigit(response[1]) ||
-    !apr_isdigit(response[2]) || (response[3] != ' ' && response[3] != '-'))
+        !apr_isdigit(response[2]) || (response[3] != ' ' && response[3] != '-'))
         status = 0;
     else
         status = 100 * response[0] + 10 * response[1] + response[2] - 111 * '0';
 
     mb = apr_cpystrn(mb, response + 4, me - mb);
 
-    if (response[3] == '-') {
+    if (response[3] == '-') { /* multi-line reply "123-foo\nbar\n123 baz" */
         memcpy(buff, response, 3);
         buff[3] = ' ';
         do {
-            if (APR_SUCCESS != (rv = ftp_string_read(ftp_ctrl, bb, response, sizeof(response), &eos))) {
+            if (APR_SUCCESS != (rv = ftp_string_read(ftp_ctrl, bb, response, sizeof(response), &eos, &nread))) {
                 return -1;
             }
             mb = apr_cpystrn(mb, response + (' ' == response[0] ? 1 : 4), me - mb);
@@ -494,7 +499,7 @@ static apr_status_t proxy_send_dir_filter(ap_filter_t *f,
         path = apr_uri_unparse(p, &f->r->parsed_uri, APR_URI_UNP_OMITSITEPART | APR_URI_UNP_OMITQUERY);
 
         /* If path began with /%2f, change the basedir */
-        if (strncasecmp(path, "/%2f", 4) == 0) {
+        if (ap_cstr_casecmpn(path, "/%2f", 4) == 0) {
             basedir = "/%2f";
         }
 
@@ -813,17 +818,19 @@ proxy_ftp_command(const char *cmd, request_rec *r, conn_rec *ftp_ctrl,
         APR_BRIGADE_INSERT_TAIL(bb, apr_bucket_flush_create(c->bucket_alloc));
         ap_pass_brigade(ftp_ctrl->output_filters, bb);
 
-        /* strip off the CRLF for logging */
-        apr_cpystrn(message, cmd, sizeof(message));
-        if ((crlf = strchr(message, '\r')) != NULL ||
-            (crlf = strchr(message, '\n')) != NULL)
-            *crlf = '\0';
-        if (strncmp(message,"PASS ", 5) == 0)
-            strcpy(&message[5], "****");
-        ap_log_rerror(APLOG_MARK, APLOG_TRACE2, 0, r, ">%s", message);
+        if (APLOGrtrace2(r)) {
+            /* strip off the CRLF for logging */
+            apr_cpystrn(message, cmd, sizeof(message));
+            if ((crlf = strchr(message, '\r')) != NULL ||
+                (crlf = strchr(message, '\n')) != NULL)
+                *crlf = '\0';
+            if (strncmp(message,"PASS ", 5) == 0)
+                strcpy(&message[5], "****");
+            ap_log_rerror(APLOG_MARK, APLOG_TRACE2, 0, r, ">%s", message);
+        }
     }
 
-    rc = ftp_getrc_msg(ftp_ctrl, bb, message, sizeof message);
+    rc = ftp_getrc_msg(ftp_ctrl, bb, message, sizeof(message));
     if (rc == -1 || rc == 421)
         strcpy(message,"<unable to read result>");
     if ((crlf = strchr(message, '\r')) != NULL ||
@@ -909,7 +916,7 @@ static char *ftp_get_PWD(request_rec *r, conn_rec *ftp_ctrl, apr_bucket_brigade 
  * with username and password (which was presumably queried from the user)
  * supplied in the Authorization: header.
  * Note that we "invent" a realm name which consists of the
- * ftp://user@host part of the reqest (sans password -if supplied but invalid-)
+ * ftp://user@host part of the request (sans password -if supplied but invalid-)
  */
 static int ftp_unauthorized(request_rec *r, int log_it)
 {
@@ -969,8 +976,10 @@ static int proxy_ftp_handler(request_rec *r, proxy_worker *worker,
     apr_status_t rv;
     conn_rec *origin, *data = NULL;
     apr_status_t err = APR_SUCCESS;
+#if APR_HAS_THREADS
     apr_status_t uerr = APR_SUCCESS;
-    apr_bucket_brigade *bb = apr_brigade_create(p, c->bucket_alloc);
+#endif
+    apr_bucket_brigade *bb;
     char *buf, *connectname;
     apr_port_t connectport;
     char *ftpmessage = NULL;
@@ -1003,7 +1012,7 @@ static int proxy_ftp_handler(request_rec *r, proxy_worker *worker,
                       proxyhost);
         return DECLINED;        /* proxy connections are via HTTP */
     }
-    if (strncasecmp(url, "ftp:", 4)) {
+    if (ap_cstr_casecmpn(url, "ftp:", 4)) {
         ap_log_rerror(APLOG_MARK, APLOG_TRACE3, 0, r,
                       "declining URL %s - not ftp:", url);
         return DECLINED;        /* only interested in FTP */
@@ -1024,8 +1033,9 @@ static int proxy_ftp_handler(request_rec *r, proxy_worker *worker,
     /* We break the URL into host, port, path-search */
     if (r->parsed_uri.hostname == NULL) {
         if (APR_SUCCESS != apr_uri_parse(p, url, &uri)) {
-            return ap_proxyerror(r, HTTP_BAD_REQUEST,
-                apr_psprintf(p, "URI cannot be parsed: %s", url));
+            ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, APLOGNO(10189) 
+                          "URI cannot be parsed: %s", url);
+            return ap_proxyerror(r, HTTP_BAD_REQUEST, "URI cannot be parsed");
         }
         connectname = uri.hostname;
         connectport = uri.port;
@@ -1074,7 +1084,7 @@ static int proxy_ftp_handler(request_rec *r, proxy_worker *worker,
      * still smaller that the URL is logged regularly.
      */
     if ((password = apr_table_get(r->headers_in, "Authorization")) != NULL
-        && strcasecmp(ap_getword(r->pool, &password, ' '), "Basic") == 0
+        && ap_cstr_casecmp(ap_getword(r->pool, &password, ' '), "Basic") == 0
         && (password = ap_pbase64decode(r->pool, password))[0] != ':') {
         /* Check the decoded string for special characters. */
         if (!ftp_check_string(password)) {
@@ -1109,13 +1119,15 @@ static int proxy_ftp_handler(request_rec *r, proxy_worker *worker,
 
     if (worker->s->is_address_reusable) {
         if (!worker->cp->addr) {
+#if APR_HAS_THREADS
             if ((err = PROXY_THREAD_LOCK(worker->balancer)) != APR_SUCCESS) {
                 ap_log_rerror(APLOG_MARK, APLOG_ERR, err, r, APLOGNO(01037) "lock");
                 return HTTP_INTERNAL_SERVER_ERROR;
             }
+#endif
         }
-        connect_addr = worker->cp->addr;
-        address_pool = worker->cp->pool;
+        connect_addr = AP_VOLATILIZE_T(apr_sockaddr_t *, worker->cp->addr);
+        address_pool = worker->cp->dns_pool;
     }
     else
         address_pool = r->pool;
@@ -1128,9 +1140,11 @@ static int proxy_ftp_handler(request_rec *r, proxy_worker *worker,
                                     address_pool);
     if (worker->s->is_address_reusable && !worker->cp->addr) {
         worker->cp->addr = connect_addr;
+#if APR_HAS_THREADS
         if ((uerr = PROXY_THREAD_UNLOCK(worker->balancer)) != APR_SUCCESS) {
             ap_log_rerror(APLOG_MARK, APLOG_ERR, uerr, r, APLOGNO(01038) "unlock");
         }
+#endif
     }
     /*
      * get all the possible IP addresses for the destname and loop through
@@ -1180,12 +1194,10 @@ static int proxy_ftp_handler(request_rec *r, proxy_worker *worker,
         return HTTP_SERVICE_UNAVAILABLE;
     }
 
-    if (!backend->connection) {
-        status = ap_proxy_connection_create_ex("FTP", backend, r);
-        if (status != OK) {
-            proxy_ftp_cleanup(r, backend);
-            return status;
-        }
+    status = ap_proxy_connection_create_ex("FTP", backend, r);
+    if (status != OK) {
+        proxy_ftp_cleanup(r, backend);
+        return status;
     }
 
     /* Use old naming */
@@ -1203,6 +1215,7 @@ static int proxy_ftp_handler(request_rec *r, proxy_worker *worker,
      * correct directory...
      */
 
+    bb = apr_brigade_create(p, c->bucket_alloc);
 
     /* possible results: */
     /* 120 Service ready in nnn minutes. */
@@ -1306,7 +1319,7 @@ static int proxy_ftp_handler(request_rec *r, proxy_worker *worker,
     /* Special handling for leading "%2f": this enforces a "cwd /"
      * out of the $HOME directory which was the starting point after login
      */
-    if (strncasecmp(path, "%2f", 3) == 0) {
+    if (ap_cstr_casecmpn(path, "%2f", 3) == 0) {
         path += 3;
         while (*path == '/') /* skip leading '/' (after root %2f) */
             ++path;

@@ -30,6 +30,8 @@
 <a href="../fr/mod/mod_proxy.html" title="Français">&nbsp;fr&nbsp;</a> |
 <a href="../ja/mod/mod_proxy.html" hreflang="ja" rel="alternate" title="Japanese">&nbsp;ja&nbsp;</a></p>
 </div>
+<div class="outofdate">Cette traduction peut être périmée. Vérifiez la version
+            anglaise pour les changements récents.</div>
 <table class="module"><tr><th><a href="module-dict.html#Description">Description:</a></th><td>Serveur mandataire/passerelle multi-protocole</td></tr>
 <tr><th><a href="module-dict.html#Status">Statut:</a></th><td>Extension</td></tr>
 <tr><th><a href="module-dict.html#ModuleIdentifier">Identificateur de Module:</a></th><td>proxy_module</td></tr>
@@ -79,7 +81,9 @@
         <tr><td>ftp</td><td><code class="module"><a href="../mod/mod_proxy_ftp.html">mod_proxy_ftp</a></code></td></tr>
         <tr><td>HTTP/0.9, HTTP/1.0, et
           HTTP/1.1</td><td><code class="module"><a href="../mod/mod_proxy_http.html">mod_proxy_http</a></code></td></tr>
+	<tr><td>HTTP/2.0</td><td><code class="module"><a href="../mod/mod_proxy_http2.html">mod_proxy_http2</a></code></td></tr>
         <tr><td>SCGI</td><td><code class="module"><a href="../mod/mod_proxy_scgi.html">mod_proxy_scgi</a></code></td></tr>
+	<tr><td>UWSGI</td><td><code class="module"><a href="../mod/mod_proxy_uwsgi.html">mod_proxy_uwsgi</a></code></td></tr>
 	<tr><td>WS and WSS (Web-sockets)</td><td><code class="module"><a href="../mod/mod_proxy_wstunnel.html">mod_proxy_wstunnel</a></code></td></tr>
         </table>
       </li>
@@ -117,6 +121,7 @@
 <li><img alt="" src="../images/down.gif" /> <a href="#balancerpersist">BalancerPersist</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#noproxy">NoProxy</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#proxy">&lt;Proxy&gt;</a></li>
+<li><img alt="" src="../images/down.gif" /> <a href="#proxy100continue">Proxy100Continue</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#proxyaddheaders">ProxyAddHeaders</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#proxybadheader">ProxyBadHeader</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#proxyblock">ProxyBlock</a></li>
@@ -147,13 +152,14 @@
 <ul class="seealso">
 <li><code class="module"><a href="../mod/mod_cache.html">mod_cache</a></code></li>
 <li><code class="module"><a href="../mod/mod_proxy_ajp.html">mod_proxy_ajp</a></code></li>
+<li><code class="module"><a href="../mod/mod_proxy_balancer.html">mod_proxy_balancer</a></code></li>
 <li><code class="module"><a href="../mod/mod_proxy_connect.html">mod_proxy_connect</a></code></li>
 <li><code class="module"><a href="../mod/mod_proxy_fcgi.html">mod_proxy_fcgi</a></code></li>
 <li><code class="module"><a href="../mod/mod_proxy_ftp.html">mod_proxy_ftp</a></code></li>
+<li><code class="module"><a href="../mod/mod_proxy_hcheck.html">mod_proxy_hcheck</a></code></li>
 <li><code class="module"><a href="../mod/mod_proxy_http.html">mod_proxy_http</a></code></li>
 <li><code class="module"><a href="../mod/mod_proxy_scgi.html">mod_proxy_scgi</a></code></li>
 <li><code class="module"><a href="../mod/mod_proxy_wstunnel.html">mod_proxy_wstunnel</a></code></li>
-<li><code class="module"><a href="../mod/mod_proxy_balancer.html">mod_proxy_balancer</a></code></li>
 <li><code class="module"><a href="../mod/mod_ssl.html">mod_ssl</a></code></li>
 <li><a href="#comments_section">Commentaires</a></li></ul></div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
@@ -700,7 +706,7 @@ NoProxy         ".example.com" "192.168.112.0/21"</pre>
       compte de la casse, et les parties droites des <var>Domaine</var>s
       sont toujours censées correspondre à la racine de l'arborescence
       DNS, si bien que les domaines <code>.ExEmple.com</code> et
-      <code>.example.com.</code> (notez le point à la fin du nom) sont
+      <code>.exemple.com.</code> (notez le point à la fin du nom) sont
       considérés comme identiques. Comme une comparaison de domaines ne
       nécessite pas de recherche DNS, elle est beaucoup plus efficace
       qu'une comparaison de sous-réseaux.</p>
@@ -845,6 +851,29 @@ mandatées</td></tr>
 </ul>
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
+<div class="directive-section"><h2><a name="proxy100continue" id="proxy100continue">Directive</a> <a name="Proxy100Continue" id="Proxy100Continue">Proxy100Continue</a></h2>
+<table class="directive">
+<tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Transmission du message "100-continue" au serveur d'origine</td></tr>
+<tr><th><a href="directive-dict.html#Syntax">Syntaxe:</a></th><td><code>Proxy100Continue Off|On</code></td></tr>
+<tr><th><a href="directive-dict.html#Default">Défaut:</a></th><td><code>Proxy100Continue On</code></td></tr>
+<tr><th><a href="directive-dict.html#Context">Contexte:</a></th><td>configuration globale, serveur virtuel, répertoire</td></tr>
+<tr><th><a href="directive-dict.html#Status">Statut:</a></th><td>Extension</td></tr>
+<tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_proxy</td></tr>
+<tr><th><a href="directive-dict.html#Compatibility">Compatibilité:</a></th><td>Disponible à partir de la version 2.4.40 du serveur HTTP Apache</td></tr>
+</table>
+    <p>Cette directive permet de contrôler le transfert par le mandataire du
+    message "100-continue" (<em>Expect:</em>ation) vers le serveur d'origine. Si
+    elle est définie à "On", le serveur d'origine décidera lui-même si le corps
+    de la requête HTTP doit être lu. Si elle est définie à "Off", le mandataire
+    générera lui-même une réponse intermédiaire <em>100 Continue</em> avant de
+    transférer le corps de la requête.</p>
+    <div class="note"><h3>Contexte d'utilisation</h3>
+     <p>Cette option n'est utilisable qu'avec les mandataires HTTP gérés par
+     <code class="module"><a href="../mod/mod_proxy_http.html">mod_proxy_http</a></code>.</p>
+    </div>
+
+</div>
+<div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="directive-section"><h2><a name="proxyaddheaders" id="proxyaddheaders">Directive</a> <a name="ProxyAddHeaders" id="ProxyAddHeaders">ProxyAddHeaders</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Ajoute des informations à propos du mandataire aux
@@ -967,11 +996,13 @@ ProxyDomain     ".example.com"</pre>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Outrepasser les pages d'erreur pour les contenus
 mandatés</td></tr>
-<tr><th><a href="directive-dict.html#Syntax">Syntaxe:</a></th><td><code>ProxyErrorOverride On|Off</code></td></tr>
+<tr><th><a href="directive-dict.html#Syntax">Syntaxe:</a></th><td><code>ProxyErrorOverride Off|On [<var>code</var> ...]</code></td></tr>
 <tr><th><a href="directive-dict.html#Default">Défaut:</a></th><td><code>ProxyErrorOverride Off</code></td></tr>
 <tr><th><a href="directive-dict.html#Context">Contexte:</a></th><td>configuration globale, serveur virtuel, répertoire</td></tr>
 <tr><th><a href="directive-dict.html#Status">Statut:</a></th><td>Extension</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_proxy</td></tr>
+<tr><th><a href="directive-dict.html#Compatibility">Compatibilité:</a></th><td>La liste de codes d'états a été ajoutée à partir de la version
+2.5.1. du serveur HTTP Apache.</td></tr>
 </table>
     <p>Cette directive est utile pour les configurations de mandataires
     inverses, lorsque vous souhaitez que les pages d'erreur envoyées
@@ -985,6 +1016,21 @@ mandatés</td></tr>
     <p>Cette directive n'affecte pas le traitement des réponses
     informatives (1xx), de type succès normal (2xx), ou de redirection
     (3xx).</p>
+
+    <p>Par défaut, <code class="directive">ProxyErrorOverride</code> affecte toutes les
+    réponses avec un code compris entre 400 inclus et 600 exclus.</p>
+
+    <div class="example"><h3>Exemple de configuration par défaut</h3><pre class="prettyprint lang-config">ProxyErrorOverride  On</pre>
+</div>
+
+    <p>Pour n'affecter que les réponses possèdant certains codes d'état
+    particuliers, vous pouvez spécifier ces derniers sous la forme d'une liste
+    en les séparant par des espaces. Les réponses dont le code d'état ne fait
+    pas partie de la liste ne seront pas affectées. Vous ne pouvez spécifier que
+    des codes d'erreurs, donc compris entre 400 inclus et 600 exclus.</p>
+
+    <div class="example"><h3>Exemple de configuration personnalisée</h3><pre class="prettyprint lang-config">ProxyErrorOverride  On 403 405 500 501 502 503 504</pre>
+</div>
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
@@ -1112,9 +1158,7 @@ sont supportés à partir de la version 2.4.7 du serveur HTTP Apache</td></tr>
 
     <div class="note">Il est fortement recommandé de revoir le concept de <a href="#workers">Worker</a> avant d'aller plus loin.</div>
 
-    <div class="note">Cette directive n'est pas supportée au sein
-    des sections <code class="directive"><a href="../mod/core.html#directory">&lt;Directory&gt;</a></code>
-    et <code class="directive"><a href="../mod/core.html#files">&lt;Files&gt;</a></code>.</div>
+    <div class="note">Cette directive n'est pas supportée au sein des sections <code class="directive"><a href="../mod/core.html#directory">&lt;Directory&gt;</a></code>, <code class="directive"><a href="../mod/core.html#if">&lt;If&gt;</a></code> et <code class="directive"><a href="../mod/core.html#files">&lt;Files&gt;</a></code>.</div>
 
     <div class="warning">En général, la directive <code class="directive"><a href="#proxyrequests">ProxyRequests</a></code> doit être définie à
     <strong>off</strong> lorsqu'on utilise la directive
@@ -1124,7 +1168,7 @@ sont supportés à partir de la version 2.4.7 du serveur HTTP Apache</td></tr>
     2.4.7 du serveur HTTP Apache ; pour utiliser cette fonctionnalité,
     il suffit d'utiliser une URL cible préfixée par
     <code>unix:/path/lis.sock|</code>. Par exemple, pour mandater HTTP
-    et cibler l'UDS /home/www/socket, vous devez utiliser
+    et cibler l'UDS /home/www.socket, vous devez utiliser
     <code>unix:/home/www.socket|http://localhost/whatever/</code>.</p>
 
     <div class="note"><strong>Note :</strong>Le chemin associé à l'URL
@@ -1505,14 +1549,60 @@ ProxyPass "/mirror/foo" "http://backend.example.com"</pre>
     </td></tr>
     <tr><td>secret</td>
         <td>-</td>
-        <td><p>Le mot de passe utilisé par <code class="module"><a href="../mod/mod_proxy_ajp.html">mod_proxy_ajp</a></code>. Voir
-	la documentation de ce module pour plus de détails.</p>
+        <td>Le mot de passe utilisé par <code class="module"><a href="../mod/mod_proxy_ajp.html">mod_proxy_ajp</a></code>. Il doit
+	identique au mot de passe configuré sur le côté serveur de la connexion
+	AJP.<br />
+	Disponible à partir de la version 2.4.42 du serveur HTTP Apache.
     </td></tr>
     <tr><td>upgrade</td>
         <td>WebSocket</td>
         <td><p>Le protocol accepté par <code class="module"><a href="../mod/mod_proxy_wstunnel.html">mod_proxy_wstunnel</a></code> dans
 	l'en-tête Upgrade. Voir	la documentation de ce module pour plus de
 	détails.</p>
+    </td></tr>
+    <tr><td>mapping</td>
+        <td>-</td>
+        <td><p>Type de mappage entre le <var>chemin</var> et l'<var>url</var>.
+	Détermine la normalisation et/ou le (non-)décodage que
+	<code class="module"><a href="../mod/mod_proxy.html">mod_proxy</a></code> appliquera au <var>chemin de l'uri</var>
+	demandé avant de rechercher une correspondance avec le <var>chemin</var>.
+	Si un mappage correspond, il est appliqué au <var>chemin de l'uri</var>
+	de façon à ce que tous les contextes de répertoire qui utilisent un
+	chemin (comme <code>&lt;Location&gt;</code>) fassent l'objet d'une
+	recherche de correspondance en utilisant le même mappage.</p>
+        <p><code>mapping=encoded</code> empêche le décodage des caractères %
+	contenus dans le <var>chemin de l'uri</var> de façon à ce que l'on
+	puisse par exemple utiliser des configurations telles que&nbsp;:</p>
+        <pre class="prettyprint lang-config">ProxyPass "/special%3Fsegment" "https://example.com/special%3Fsegment" mapping=encoded</pre>
+
+        <pre class="prettyprint lang-config">&lt;Location "/special%3Fsegment"&gt;
+  Require ip 172.17.2.0/24
+&lt;/Location&gt;</pre>
+
+        <p><code>mapping=servlet</code> se réfère à la normalisation définie par
+	la spécification de la Servlet qui sera par exemple appliquée par Apache
+	Tomcat pour les conteneurs de servlet (en particulier, les paramètres du
+	chemin sont ignorés pour le mappage). Un <var>chemin d'uri</var> comme
+	<code>/some;foo/path</code> sera alors mappé comme
+	<code>/some/path</code> et correspondra donc à tout ce qui suit sans
+	tenir compte des paramètres du chemin demandé&nbsp;:</p>
+        <pre class="prettyprint lang-config">ProxyPass "/some/path" "https://servlet.example.com/some/path" mapping=servlet</pre>
+
+        <pre class="prettyprint lang-config">&lt;Location "/some/path"&gt;
+  Require valid-user
+&lt;/Location&gt;</pre>
+
+        <div class="note"><h3>Note</h3>
+            <p>Il est recommandé d'utiliser le même mappage côté Apache httpd
+	    que celui utilisé côté arrière-plan. Par exemple, lors de la
+	    configuration des autorisations dans les sections
+	    <code>&lt;Location&gt;</code> pour des chemins mappés par
+	    <code class="module"><a href="../mod/mod_proxy.html">mod_proxy</a></code> comme conteneurs de servlet (comme les
+	    applications s'exécutant sous Apache Tomcat), on doit utiliser la
+	    définition <code>mapping=servlet</code> pour éviter que les
+	    paramètres du chemin et similaires n'interfèrent avec les
+	    autorisations qui doivent être définies par Apache httpd.</p>
+        </div>
     </td></tr>
 
     </table>
@@ -2331,7 +2421,7 @@ mandatées</td></tr>
 <p><span>Langues Disponibles: </span><a href="../en/mod/mod_proxy.html" hreflang="en" rel="alternate" title="English">&nbsp;en&nbsp;</a> |
 <a href="../fr/mod/mod_proxy.html" title="Français">&nbsp;fr&nbsp;</a> |
 <a href="../ja/mod/mod_proxy.html" hreflang="ja" rel="alternate" title="Japanese">&nbsp;ja&nbsp;</a></p>
-</div><div class="top"><a href="#page-header"><img src="../images/up.gif" alt="top" /></a></div><div class="section"><h2><a id="comments_section" name="comments_section">Commentaires</a></h2><div class="warning"><strong>Notice:</strong><br />This is not a Q&amp;A section. Comments placed here should be pointed towards suggestions on improving the documentation or server, and may be removed again by our moderators if they are either implemented or considered invalid/off-topic. Questions on how to manage the Apache HTTP Server should be directed at either our IRC channel, #httpd, on Freenode, or sent to our <a href="http://httpd.apache.org/lists.html">mailing lists</a>.</div>
+</div><div class="top"><a href="#page-header"><img src="../images/up.gif" alt="top" /></a></div><div class="section"><h2><a id="comments_section" name="comments_section">Commentaires</a></h2><div class="warning"><strong>Notice:</strong><br />This is not a Q&amp;A section. Comments placed here should be pointed towards suggestions on improving the documentation or server, and may be removed by our moderators if they are either implemented or considered invalid/off-topic. Questions on how to manage the Apache HTTP Server should be directed at either our IRC channel, #httpd, on Libera.chat, or sent to our <a href="https://httpd.apache.org/lists.html">mailing lists</a>.</div>
 <script type="text/javascript"><!--//--><![CDATA[//><!--
 var comments_shortname = 'httpd';
 var comments_identifier = 'http://httpd.apache.org/docs/2.4/mod/mod_proxy.html';
@@ -2349,7 +2439,7 @@ var comments_identifier = 'http://httpd.apache.org/docs/2.4/mod/mod_proxy.html';
     }
 })(window, document);
 //--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2018 The Apache Software Foundation.<br />Autorisé sous <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
+<p class="apache">Copyright 2022 The Apache Software Foundation.<br />Autorisé sous <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
 <p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/directives.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossaire</a> | <a href="../sitemap.html">Plan du site</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();

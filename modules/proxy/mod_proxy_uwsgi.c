@@ -136,7 +136,7 @@ static int uwsgi_send_headers(request_rec *r, proxy_conn_rec * conn)
     int j;
 
     apr_size_t headerlen = 4;
-    apr_uint16_t pktsize, keylen, vallen;
+    apr_size_t pktsize, keylen, vallen;
     const char *script_name;
     const char *path_info;
     const char *auth;
@@ -175,7 +175,16 @@ static int uwsgi_send_headers(request_rec *r, proxy_conn_rec * conn)
     env = (apr_table_entry_t *) env_table->elts;
 
     for (j = 0; j < env_table->nelts; ++j) {
-        headerlen += 2 + strlen(env[j].key) + 2 + strlen(env[j].val);
+        headerlen += 2 + strlen(env[j].key) + 2 + (env[j].val ? strlen(env[j].val) : 0);
+    }
+
+    pktsize = headerlen - 4;
+    if (pktsize > APR_UINT16_MAX) {
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(10259)
+                      "can't send headers to %s:%u: packet size too "
+                      "large (%" APR_SIZE_T_FMT ")",
+                      conn->hostname, conn->port, pktsize);
+        return HTTP_INTERNAL_SERVER_ERROR;
     }
 
     ptr = buf = apr_palloc(r->pool, headerlen);
@@ -189,14 +198,14 @@ static int uwsgi_send_headers(request_rec *r, proxy_conn_rec * conn)
         memcpy(ptr, env[j].key, keylen);
         ptr += keylen;
 
-        vallen = strlen(env[j].val);
+        vallen = env[j].val ? strlen(env[j].val) : 0;
         *ptr++ = (apr_byte_t) (vallen & 0xff);
         *ptr++ = (apr_byte_t) ((vallen >> 8) & 0xff);
-        memcpy(ptr, env[j].val, vallen);
+        if (env[j].val) {
+            memcpy(ptr, env[j].val, vallen);
+        }
         ptr += vallen;
     }
-
-    pktsize = headerlen - 4;
 
     buf[0] = 0;
     buf[1] = (apr_byte_t) (pktsize & 0xff);
@@ -238,6 +247,7 @@ static request_rec *make_fake_req(conn_rec *c, request_rec *r)
     request_rec *rp;
 
     apr_pool_create(&pool, c->pool);
+    apr_pool_tag(pool, "proxy_uwsgi_rp");
 
     rp = apr_pcalloc(pool, sizeof(*r));
 
@@ -362,9 +372,9 @@ static int uwsgi_response(request_rec *r, proxy_conn_rec * backend,
 #if AP_MODULE_MAGIC_AT_LEAST(20101106,0)
     dconf =
         ap_get_module_config(r->per_dir_config, &proxy_module);
-    if (dconf->error_override && ap_is_HTTP_ERROR(r->status)) {
+    if (ap_proxy_should_override(dconf, r->status)) {
 #else
-    if (conf->error_override && ap_is_HTTP_ERROR(r->status)) {
+    if (ap_proxy_should_override(conf, r->status)) {
 #endif
         int status = r->status;
         r->status = HTTP_OK;
@@ -446,11 +456,8 @@ static int uwsgi_handler(request_rec *r, proxy_worker * worker,
                          const char *proxyname, apr_port_t proxyport)
 {
     int status;
-    int delta = 0;
-    int decode_status;
     proxy_conn_rec *backend = NULL;
     apr_pool_t *p = r->pool;
-    size_t w_len;
     char server_portstr[32];
     char *u_path_info;
     apr_uri_t *uri;
@@ -462,24 +469,23 @@ static int uwsgi_handler(request_rec *r, proxy_worker * worker,
 
     uri = apr_palloc(r->pool, sizeof(*uri));
 
-    /* ADD PATH_INFO */
-#if AP_MODULE_MAGIC_AT_LEAST(20111130,0)
-    w_len = strlen(worker->s->name);
-#else
-    w_len = strlen(worker->name);
-#endif
-    u_path_info = r->filename + 6 + w_len;
-    if (u_path_info[0] != '/') {
-        delta = 1;
+    /* ADD PATH_INFO (unescaped) */
+    u_path_info = ap_strchr(url + sizeof(UWSGI_SCHEME) + 2, '/');
+    if (!u_path_info) {
+        u_path_info = apr_pstrdup(r->pool, "/");
     }
-    decode_status = ap_unescape_url(url + w_len - delta);
-    if (decode_status) {
+    else if (ap_unescape_url(u_path_info) != OK) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(10100)
-                      "unable to decode uri: %s", url + w_len - delta);
+                      "unable to decode uwsgi uri: %s", url);
         return HTTP_INTERNAL_SERVER_ERROR;
     }
-    apr_table_add(r->subprocess_env, "PATH_INFO", url + w_len - delta);
-
+    else {
+        /* Remove duplicate slashes at the beginning of PATH_INFO */
+        while (u_path_info[1] == '/') {
+            u_path_info++;
+        }
+    }
+    apr_table_add(r->subprocess_env, "PATH_INFO", u_path_info);
 
     /* Create space for state information */
     status = ap_proxy_acquire_connection(UWSGI_SCHEME, &backend, worker,
@@ -509,12 +515,10 @@ static int uwsgi_handler(request_rec *r, proxy_worker * worker,
     }
 
     /* Step Three: Create conn_rec */
-    if (!backend->connection) {
-        if ((status = ap_proxy_connection_create(UWSGI_SCHEME, backend,
-                                                 r->connection,
-                                                 r->server)) != OK)
-            goto cleanup;
-    }
+    if ((status = ap_proxy_connection_create(UWSGI_SCHEME, backend,
+                                             r->connection,
+                                             r->server)) != OK)
+        goto cleanup;
 
     /* Step Four: Process the Request */
     if (((status = ap_setup_client_block(r, REQUEST_CHUNKED_ERROR)) != OK)

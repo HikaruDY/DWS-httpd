@@ -223,7 +223,6 @@ static void log_no_err(const char *fmt,...)
 
 static void clean_env(void)
 {
-    char pathbuf[512];
     char **cleanenv;
     char **ep;
     int cidx = 0;
@@ -245,8 +244,7 @@ static void clean_env(void)
         exit(123);
     }
 
-    sprintf(pathbuf, "PATH=%s", AP_SAFE_PATH);
-    cleanenv[cidx] = strdup(pathbuf);
+    cleanenv[cidx] = strdup("PATH=" AP_SAFE_PATH);
     if (cleanenv[cidx] == NULL) {
         log_err("failed to malloc memory for environment\n");
         exit(124);
@@ -504,7 +502,8 @@ int main(int argc, char *argv[])
      * and setgid() to the target group. If unsuccessful, error out.
      */
     if (((setgid(gid)) != 0) || (initgroups(actual_uname, gid) != 0)) {
-        log_err("failed to setgid (%lu: %s)\n", (unsigned long)gid, cmd);
+        log_err("failed to setgid/initgroups (%lu: %s): %s\n",
+                (unsigned long)gid, cmd, strerror(errno));
         exit(109);
     }
 
@@ -512,13 +511,14 @@ int main(int argc, char *argv[])
      * setuid() to the target user.  Error out on fail.
      */
     if ((setuid(uid)) != 0) {
-        log_err("failed to setuid (%lu: %s)\n", (unsigned long)uid, cmd);
+        log_err("failed to setuid (%lu: %s): %s\n",
+                (unsigned long)uid, cmd, strerror(errno));
         exit(110);
     }
 
     /*
      * Get the current working directory, as well as the proper
-     * document root (dependant upon whether or not it is a
+     * document root (dependent upon whether or not it is a
      * ~userdir request).  Error out if we cannot get either one,
      * or if the current working directory is not in the docroot.
      * Use chdir()s and getcwd()s to avoid problems with symlinked

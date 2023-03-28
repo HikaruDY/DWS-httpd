@@ -65,10 +65,10 @@ static SSLConnRec *ssl_get_effective_config(conn_rec *c)
     return sslconn;
 }
 
-static int ssl_is_https(conn_rec *c)
+static int ssl_conn_is_ssl(conn_rec *c)
 {
-    SSLConnRec *sslconn = ssl_get_effective_config(c);
-    return sslconn && sslconn->ssl;
+    const SSLConnRec *sslconn = ssl_get_effective_config(c);
+    return (sslconn && sslconn->ssl)? OK : DECLINED;
 }
 
 static const char var_interface[] = "mod_ssl/" AP_SERVER_BASEREVISION;
@@ -137,7 +137,7 @@ void ssl_var_register(apr_pool_t *p)
 {
     char *cp, *cp2;
 
-    APR_REGISTER_OPTIONAL_FN(ssl_is_https);
+    ap_hook_ssl_conn_is_ssl(ssl_conn_is_ssl, NULL, NULL, APR_HOOK_MIDDLE);
     APR_REGISTER_OPTIONAL_FN(ssl_var_lookup);
     APR_REGISTER_OPTIONAL_FN(ssl_ext_list);
 
@@ -460,18 +460,13 @@ static char *ssl_var_lookup_ssl_cert_dn_oneline(apr_pool_t *p, request_rec *r,
     }
     else {
         BIO* bio;
-        int n;
         unsigned long flags = XN_FLAG_RFC2253 & ~ASN1_STRFLGS_ESC_MSB;
+
         if ((bio = BIO_new(BIO_s_mem())) == NULL)
             return NULL;
         X509_NAME_print_ex(bio, xsname, 0, flags);
-        n = BIO_pending(bio);
-        if (n > 0) {
-            result = apr_palloc(p, n+1);
-            n = BIO_read(bio, result, n);
-            result[n] = NUL;
-        }
-        BIO_free(bio);
+
+        result = modssl_bio_free_read(p, bio);
     }
     return result;
 }
@@ -635,7 +630,8 @@ static char *ssl_var_lookup_ssl_cert_dn(apr_pool_t *p, X509_NAME *xsname,
 
 static char *ssl_var_lookup_ssl_cert_san(apr_pool_t *p, X509 *xs, char *var)
 {
-    int type, numlen;
+    int type;
+    apr_size_t numlen;
     const char *onf = NULL;
     apr_array_header_t *entries;
 
@@ -678,19 +674,13 @@ static char *ssl_var_lookup_ssl_cert_san(apr_pool_t *p, X509 *xs, char *var)
 
 static char *ssl_var_lookup_ssl_cert_valid(apr_pool_t *p, ASN1_TIME *tm)
 {
-    char *result;
     BIO* bio;
-    int n;
 
     if ((bio = BIO_new(BIO_s_mem())) == NULL)
         return NULL;
     ASN1_TIME_print(bio, tm);
-    n = BIO_pending(bio);
-    result = apr_pcalloc(p, n+1);
-    n = BIO_read(bio, result, n);
-    result[n] = NUL;
-    BIO_free(bio);
-    return result;
+
+    return modssl_bio_free_read(p, bio);
 }
 
 #define DIGIT2NUM(x) (((x)[0] - '0') * 10 + (x)[1] - '0')
@@ -739,19 +729,13 @@ static char *ssl_var_lookup_ssl_cert_remain(apr_pool_t *p, ASN1_TIME *tm)
 
 static char *ssl_var_lookup_ssl_cert_serial(apr_pool_t *p, X509 *xs)
 {
-    char *result;
     BIO *bio;
-    int n;
 
     if ((bio = BIO_new(BIO_s_mem())) == NULL)
         return NULL;
     i2a_ASN1_INTEGER(bio, X509_get_serialNumber(xs));
-    n = BIO_pending(bio);
-    result = apr_pcalloc(p, n+1);
-    n = BIO_read(bio, result, n);
-    result[n] = NUL;
-    BIO_free(bio);
-    return result;
+
+    return modssl_bio_free_read(p, bio);
 }
 
 static char *ssl_var_lookup_ssl_cert_chain(apr_pool_t *p, STACK_OF(X509) *sk, char *var)
@@ -806,19 +790,13 @@ static char *ssl_var_lookup_ssl_cert_rfc4523_cea(apr_pool_t *p, SSL *ssl)
 
 static char *ssl_var_lookup_ssl_cert_PEM(apr_pool_t *p, X509 *xs)
 {
-    char *result;
     BIO *bio;
-    int n;
 
     if ((bio = BIO_new(BIO_s_mem())) == NULL)
         return NULL;
     PEM_write_bio_X509(bio, xs);
-    n = BIO_pending(bio);
-    result = apr_pcalloc(p, n+1);
-    n = BIO_read(bio, result, n);
-    result[n] = NUL;
-    BIO_free(bio);
-    return result;
+
+    return modssl_bio_free_read(p, bio);
 }
 
 static char *ssl_var_lookup_ssl_cert_verify(apr_pool_t *p, SSLConnRec *sslconn)

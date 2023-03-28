@@ -36,6 +36,19 @@ données pour la réception des requêtes
 <tr><th><a href="module-dict.html#ModuleIdentifier">Identificateur de Module:</a></th><td>reqtimeout_module</td></tr>
 <tr><th><a href="module-dict.html#SourceFile">Fichier Source:</a></th><td>mod_reqtimeout.c</td></tr>
 <tr><th><a href="module-dict.html#Compatibility">Compatibilité:</a></th><td>Disponible depuis la version 2.2.15 du serveur HTTP Apache</td></tr></table>
+<h3>Sommaire</h3>
+
+    <p>Ce module permet de définir aisément le délai maximum et le taux de
+    transfert des données minimum pour la réception des requêtes. Si ce délai
+    est dépassé ou ce taux trop faible, la connexion concernée sera fermée par
+    le serveur.</p>
+
+    <p>Cet évènement sera alors enregistré dans le journal au niveau de <code class="directive"><a href="../mod/core.html#loglevel">LogLevel</a></code> <code>info</code>.</p>
+    
+    <p>Au besoin, la directive <code class="directive"><a href="../mod/core.html#loglevel">LogLevel</a></code>
+    peut être modifiée pour un enregistrement dans le journal plus explicite :</p>
+    <pre class="prettyprint lang-config">LogLevel reqtimeout:info</pre>
+
 </div>
 <div id="quickview"><a href="https://www.apache.org/foundation/contributing.html" class="badge"><img src="https://www.apache.org/images/SupportApache-small.png" alt="Support Apache!" /></a><h3>Sujets</h3>
 <ul id="topics">
@@ -53,10 +66,11 @@ données pour la réception des requêtes
 
     <ol>
       <li>
-        Accorde 10 secondes pour la réception des en-têtes de la requête
-	et 30 secondes pour la réception du corps :
+	Accorde 5 secondes pour terminer la négociation TLS, 10 secondes pour la
+	réception des en-têtes de la requête et 30 secondes pour la réception du
+	corps :
 
-        <pre class="prettyprint lang-config">RequestReadTimeout headerinit=10 body=30</pre>
+        <pre class="prettyprint lang-config">RequestReadTimeout handshake=5 header=10 body=30</pre>
 
       </li>
 
@@ -72,10 +86,10 @@ données pour la réception des requêtes
       </li>
 
       <li>
-        Accorde au moins 10 secondes pour la réception de de la
-	requête, en-têtes inclus. Si le client envoie des données, augmente ce délai
+        Accorde au moins 10 secondes pour la réception des en-têtes de la
+	requête. Si le client envoie des données, augmente ce délai
 	d'une seconde pour chaque paquet de 500 octets reçus, mais
-	n'alloue que 30 secondes pour la requête, en-têtes inclus :
+	n'alloue que 30 secondes pour les en-têtes de la requête :
 
         <pre class="prettyprint lang-config">RequestReadTimeout header=10-30,MinRate=500</pre>
 
@@ -96,85 +110,90 @@ données pour la réception des requêtes
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="directive-section"><h2><a name="requestreadtimeout" id="requestreadtimeout">Directive</a> <a name="RequestReadTimeout" id="RequestReadTimeout">RequestReadTimeout</a></h2>
 <table class="directive">
-<tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Définit des délais maximums pour la réception des en-têtes
-et corps des requêtes en provenance du client.
+<tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Définit des délais maximums pour la négociation TLS, la réception
+des en-têtes et/ou corps des requêtes en provenance du client.
 </td></tr>
 <tr><th><a href="directive-dict.html#Syntax">Syntaxe:</a></th><td><code>RequestReadTimeout
-[header=<var>délai</var>[-<var>délai-maxi</var>][,MinRate=<var>taux-mini</var>]
-[body=<var>délai</var>[-<var>délai-maxi</var>][,MinRate=<var>taux-mini</var>]
+[handshake=<var>timeout</var>[-<var>maxtimeout</var>][,MinRate=<var>rate</var>]
+[header=<var>timeout</var>[-<var>maxtimeout</var>][,MinRate=<var>MinRate</var>]
+[body=<var>timeout</var>[-<var>maxtimeout</var>][,MinRate=<var>MinRate</var>]
 </code></td></tr>
-<tr><th><a href="directive-dict.html#Default">Défaut:</a></th><td><code>header=20-40,MinRate=500 body=20,MinRate=500</code></td></tr>
+<tr><th><a href="directive-dict.html#Default">Défaut:</a></th><td><code>RequestReadTimeout handshake=0 header=20-40,MinRate=500 body=20,MinRate=500</code></td></tr>
 <tr><th><a href="directive-dict.html#Context">Contexte:</a></th><td>configuration globale, serveur virtuel</td></tr>
 <tr><th><a href="directive-dict.html#Status">Statut:</a></th><td>Extension</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_reqtimeout</td></tr>
 <tr><th><a href="directive-dict.html#Compatibility">Compatibilité:</a></th><td>Disponible depuis la version 2.2.15 du serveur HTTP
-Apache ; désactivée par défaut depuis la version 2.3.14.</td></tr>
+Apache ; désactivée par défaut depuis la version 2.3.14. La phase de
+<code>négociation</code> est prise en compte à partir de la version 2.4.39.</td></tr>
 </table>
-    <p>Cette directive permet de définir différents délais pour la
-    réception des en-têtes et corps des requêtes en provenance du
-    client. Si le client ne parvient pas à respecter ces délais, un code
+    <p>Cette directive permet de définir différents timeouts pour la négociation
+    TLS, la réception des en-têtes et/ou corps des requêtes en provenance du
+    client. Si le client ne parvient pas à respecter ces timeouts, un code
     d'erreur <code>408 REQUEST TIME OUT</code> est envoyé.</p>
 
-    <p>Pour les serveurs virtuels SSL, le délai concernant les en-têtes
-    inclut le temps nécessaire à la négociation SSL initiale. Si le
-    navigateur du client est configuré pour demander des listes de
-    révocations de certificats, et si le serveur correspondant n'est pas
-    disponible, le délai avant lequel le navigateur va abandonner son
-    attente de CRL au cours de la négociation SSL initiale peut être
-    assez important. Par conséquent, les valeurs de délais d'en-têtes ne
-    doivent pas être trop basses pour les serveurs virtuels SSL. Le délai
-    concernant le corps inclut le temps nécessaire à la renégociation
-    SSL (si elle est nécessaire).</p>
+    <p>Pour les serveurs virtuels SSL, la valeur de timeout pour la
+    <code>négociation</code> correspond au temps nécessaire pour la négociation
+    SSL initiale. Si le navigateur du client est configuré pour demander des
+    listes de révocations de certificats, et si le serveur correspondant n'est
+    pas disponible, le timeout avant lequel le navigateur va abandonner son
+    attente de CRL au cours de la négociation SSL initiale peut être assez
+    important. Par conséquent, les valeurs de timeouts pour la
+    <code>négociation</code> doivent prendre en compte un temps supplémentaire
+    pour les serveurs virtuels SSL (si nécessaire). Le timeout concernant le
+    corps inclut le temps nécessaire à la renégociation SSL (si elle est
+    nécessaire).</p>
 
-    <p>Lorsqu'une directive <code class="directive"><a href="../mod/core.html#acceptfilter">AcceptFilter</a></code> est active (ce qui est en
-    général le cas sous Linux et FreeBSD), la socket n'est envoyée au
-    processus du serveur qu'après la réception du premier octet (ou de
-    l'ensemble de la requête si <code>httpready</code> est défini). Le
-    délai configuré pour les en-têtes via la directive
-    <code class="directive">RequestReadTimeout</code> n'entre en ligne de compte qu'une fois
-    la socket reçue par le processus du serveur.</p>
+    <p>Lorsqu'une directive <code class="directive"><a href="../mod/core.html#acceptfilter">AcceptFilter</a></code>
+    est active (ce qui est en général le cas sous Linux et FreeBSD), la socket
+    n'est envoyée au processus du serveur qu'après la réception du premier octet
+    (ou de l'ensemble de la requête si <code>httpready</code> est défini). Les
+    timeouts configurés pour la négociation et les en-têtes via la directive
+    <code class="directive">RequestReadTimeout</code> n'entrent en ligne de compte
+    qu'une fois le socket reçu par le processus du serveur.</p>
 
-    <p>Il existe deux méthodes pour spécifier le délai (pour l'en-tête
-    ou le corps) :
+    <p>Il existe trois méthodes pour spécifier le timeout pour chacune des trois
+    phases (négociation, en-tête ou corps) :
     </p>
 
     <ul>
 
-    <li><strong>Valeur de délai fixe</strong>:<br />
+    <li><strong>Valeur de timeout fixe</strong>:<br />
 
-    <div class="example"><p><code><var>type</var>=<var>délai</var></code></p></div>
+    <div class="example"><p><code><var>phase</var>=<var>timeout</var></code></p></div>
 
-    <p>Le temps en secondes alloué pour la lecture des en-têtes ou du
-    corps de la requête. La valeur 0 signifie aucune limite.</p>
+    <p>Le temps en secondes alloué pour terminer l'ensemble de la phase
+    (négociation, lecture de tous les en-têtes de la requête ou du corps de
+    cette dernière). La valeur 0 signifie aucune limite.</p>
     </li>
 
     <li><strong>Désactivation du module pour un serveur virtuel</strong>:<br />
 
-    <div class="example"><p><code>header=0 body=0</code></p></div>
+    <div class="example"><p><code>handshake=0 header=0 body=0</code></p></div>
 
     <p>Avec cet exemple, le module <code class="module"><a href="../mod/mod_reqtimeout.html">mod_reqtimeout</a></code> est
-    complètement désactivé.</p>
+    complètement désactivé (notez que <code>handshake=0</code> correspond à la
+    valeur par défaut et peut donc être omis).</p>
     </li>
 
-    <li><strong>La valeur du délai qui est augmentée lorsque des données
+    <li><strong>La valeur du timeout qui est augmentée lorsque des données
     sont reçues</strong> :<br />
     <div class="example"><p><code>
-    <var>type</var>=<var>délai</var>,MinRate=<var>taux-mini</var>
+    <var>phase</var>=<var>timeout</var>,MinRate=<var>débit</var>
     </code></p></div>
 
     <p>Identique à ce qui précède, mais chaque fois que des données sont
-    reçues, la valeur du délai est augmentée en fonction du taux-mini
+    reçues, la valeur du timeout est augmentée en fonction du MinRate
     spécifié (en octets par seconde).</p>
     </li>
 
-    <li><strong>La valeur du délai augmente lorsque des données sont
+    <li><strong>La valeur du timeout augmente lorsque des données sont
     reçues, jusqu'à une limite supérieure</strong>:<br />
     <div class="example"><p><code>
-    <var>type</var>=<var>délai</var>-<var>délai-maxi</var>,MinRate=<var>taux-mini</var>
+    <var>phase</var>=<var>timeout</var>-<var>maxtimeout</var>,MinRate=<var>débit</var>
     </code></p></div>
 
-    <p>Identique à ce qui précède, mais le délai n'augmentera pas au
-    delà de la borne supérieure du délai spécifiée.</p>
+    <p>Identique à ce qui précède, mais le timeout n'augmentera pas au
+    delà de la borne supérieure du timeout spécifiée.</p>
     </li>
 
     </ul>
@@ -188,7 +207,7 @@ Apache ; désactivée par défaut depuis la version 2.3.14.</td></tr>
 <div class="bottomlang">
 <p><span>Langues Disponibles: </span><a href="../en/mod/mod_reqtimeout.html" hreflang="en" rel="alternate" title="English">&nbsp;en&nbsp;</a> |
 <a href="../fr/mod/mod_reqtimeout.html" title="Français">&nbsp;fr&nbsp;</a></p>
-</div><div class="top"><a href="#page-header"><img src="../images/up.gif" alt="top" /></a></div><div class="section"><h2><a id="comments_section" name="comments_section">Commentaires</a></h2><div class="warning"><strong>Notice:</strong><br />This is not a Q&amp;A section. Comments placed here should be pointed towards suggestions on improving the documentation or server, and may be removed again by our moderators if they are either implemented or considered invalid/off-topic. Questions on how to manage the Apache HTTP Server should be directed at either our IRC channel, #httpd, on Freenode, or sent to our <a href="http://httpd.apache.org/lists.html">mailing lists</a>.</div>
+</div><div class="top"><a href="#page-header"><img src="../images/up.gif" alt="top" /></a></div><div class="section"><h2><a id="comments_section" name="comments_section">Commentaires</a></h2><div class="warning"><strong>Notice:</strong><br />This is not a Q&amp;A section. Comments placed here should be pointed towards suggestions on improving the documentation or server, and may be removed by our moderators if they are either implemented or considered invalid/off-topic. Questions on how to manage the Apache HTTP Server should be directed at either our IRC channel, #httpd, on Libera.chat, or sent to our <a href="https://httpd.apache.org/lists.html">mailing lists</a>.</div>
 <script type="text/javascript"><!--//--><![CDATA[//><!--
 var comments_shortname = 'httpd';
 var comments_identifier = 'http://httpd.apache.org/docs/2.4/mod/mod_reqtimeout.html';
@@ -206,7 +225,7 @@ var comments_identifier = 'http://httpd.apache.org/docs/2.4/mod/mod_reqtimeout.h
     }
 })(window, document);
 //--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2018 The Apache Software Foundation.<br />Autorisé sous <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
+<p class="apache">Copyright 2022 The Apache Software Foundation.<br />Autorisé sous <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
 <p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/directives.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossaire</a> | <a href="../sitemap.html">Plan du site</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();

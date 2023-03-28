@@ -45,7 +45,7 @@
 /*
  * Various utility functions which are common to a whole lot of
  * script-type extensions mechanisms, and might as well be gathered
- * in one place (if only to avoid creating inter-module dependancies
+ * in one place (if only to avoid creating inter-module dependencies
  * where there don't have to be).
  */
 
@@ -180,10 +180,10 @@ AP_DECLARE(void) ap_add_common_vars(request_rec *r)
          * for no particular reason.
          */
 
-        if (!strcasecmp(hdrs[i].key, "Content-type")) {
+        if (!ap_cstr_casecmp(hdrs[i].key, "Content-type")) {
             apr_table_addn(e, "CONTENT_TYPE", hdrs[i].val);
         }
-        else if (!strcasecmp(hdrs[i].key, "Content-length")) {
+        else if (!ap_cstr_casecmp(hdrs[i].key, "Content-length")) {
             apr_table_addn(e, "CONTENT_LENGTH", hdrs[i].val);
         }
         /* HTTP_PROXY collides with a popular envvar used to configure
@@ -200,8 +200,8 @@ AP_DECLARE(void) ap_add_common_vars(request_rec *r)
          * in the environment with "ps -e".  But, if you must...
          */
 #ifndef SECURITY_HOLE_PASS_AUTHORIZATION
-        else if (!strcasecmp(hdrs[i].key, "Authorization")
-                 || !strcasecmp(hdrs[i].key, "Proxy-Authorization")) {
+        else if (!ap_cstr_casecmp(hdrs[i].key, "Authorization")
+                 || !ap_cstr_casecmp(hdrs[i].key, "Proxy-Authorization")) {
             if (conf->cgi_pass_auth == AP_CGI_PASS_AUTH_ON) {
                 add_unless_null(e, http2env(r, hdrs[i].key), hdrs[i].val);
             }
@@ -620,7 +620,7 @@ AP_DECLARE(int) ap_scan_script_header_err_core_ex(request_rec *r, char *buffer,
             ++l;
         }
 
-        if (!strcasecmp(w, "Content-type")) {
+        if (!ap_cstr_casecmp(w, "Content-type")) {
             char *tmp;
 
             /* Nuke trailing whitespace */
@@ -638,7 +638,7 @@ AP_DECLARE(int) ap_scan_script_header_err_core_ex(request_rec *r, char *buffer,
          * If the script returned a specific status, that's what
          * we'll use - otherwise we assume 200 OK.
          */
-        else if (!strcasecmp(w, "Status")) {
+        else if (!ap_cstr_casecmp(w, "Status")) {
             r->status = cgi_status = atoi(l);
             if (!ap_is_HTTP_VALID_RESPONSE(cgi_status))
                 /* Intentional no APLOGNO */
@@ -652,30 +652,73 @@ AP_DECLARE(int) ap_scan_script_header_err_core_ex(request_rec *r, char *buffer,
                                  apr_filepath_name_get(r->filename), l);
             r->status_line = apr_pstrdup(r->pool, l);
         }
-        else if (!strcasecmp(w, "Location")) {
+        else if (!ap_cstr_casecmp(w, "Location")) {
             apr_table_set(r->headers_out, w, l);
         }
-        else if (!strcasecmp(w, "Content-Length")) {
+        else if (!ap_cstr_casecmp(w, "Content-Length")) {
             apr_table_set(r->headers_out, w, l);
         }
-        else if (!strcasecmp(w, "Content-Range")) {
+        else if (!ap_cstr_casecmp(w, "Content-Range")) {
             apr_table_set(r->headers_out, w, l);
         }
-        else if (!strcasecmp(w, "Transfer-Encoding")) {
+        else if (!ap_cstr_casecmp(w, "Transfer-Encoding")) {
             apr_table_set(r->headers_out, w, l);
         }
-        else if (!strcasecmp(w, "ETag")) {
+        else if (!ap_cstr_casecmp(w, "ETag")) {
             apr_table_set(r->headers_out, w, l);
         }
         /*
          * If the script gave us a Last-Modified header, we can't just
-         * pass it on blindly because of restrictions on future values.
+         * pass it on blindly because of restrictions on future or invalid values.
          */
-        else if (!strcasecmp(w, "Last-Modified")) {
-            ap_update_mtime(r, apr_date_parse_http(l));
-            ap_set_last_modified(r);
+        else if (!ap_cstr_casecmp(w, "Last-Modified")) {
+            apr_time_t parsed_date = apr_date_parse_http(l);
+            if (parsed_date != APR_DATE_BAD) {
+                ap_update_mtime(r, parsed_date);
+                ap_set_last_modified(r);
+                if (APLOGrtrace1(r)) {
+                    apr_time_t last_modified_date = apr_date_parse_http(apr_table_get(r->headers_out,
+                                                                                      "Last-Modified"));
+                    /*
+                     * A Last-Modified header value coming from a (F)CGI source
+                     * is considered HTTP input so we assume the GMT timezone.
+                     * The following logs should inform the admin about violations
+                     * and related actions taken by httpd.
+                     * The apr_date_parse_rfc function is 'timezone aware'
+                     * and it will be used to generate a more informative set of logs
+                     * (we don't use it as a replacement of apr_date_parse_http
+                     * for the aforementioned reason).
+                     */
+                    apr_time_t parsed_date_tz_aware = apr_date_parse_rfc(l);
+
+                    /* 
+                     * The parsed Last-Modified header datestring has been replaced by httpd.
+                     */
+                    if (parsed_date > last_modified_date) {
+                        ap_log_rerror(SCRIPT_LOG_MARK, APLOG_TRACE1, 0, r,
+                                      "The Last-Modified header value %s (%s) "
+                                      "has been replaced with '%s'", l,
+                                      parsed_date != parsed_date_tz_aware ? "not in GMT"
+                                                                          : "in the future",
+                                      apr_table_get(r->headers_out, "Last-Modified"));
+                    /* 
+                     * Last-Modified header datestring not in GMT and not considered in the future
+                     * by httpd (like now() + 1 hour in the PST timezone). No action is taken but
+                     * the admin is warned about the violation.
+                     */
+                    } else if (parsed_date != parsed_date_tz_aware) {
+                        ap_log_rerror(SCRIPT_LOG_MARK, APLOG_TRACE1, 0, r,
+                                      "The Last-Modified header value is not set "
+                                      "within the GMT timezone (as required)");
+                    }
+                }
+            }
+            else {
+                ap_log_rerror(SCRIPT_LOG_MARK, APLOG_INFO, 0, r, APLOGNO(10247)
+                              "Ignored invalid header value: Last-Modified: '%s'", l);
+            }
         }
-        else if (!strcasecmp(w, "Set-Cookie")) {
+        else if (!ap_cstr_casecmp(w, "Set-Cookie")) {
             apr_table_add(cookie_table, w, l);
         }
         else {

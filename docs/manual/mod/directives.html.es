@@ -7,7 +7,7 @@
               This file is generated from xml source: DO NOT EDIT
         XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
       -->
-<title>Índice de Directivas - Servidor HTTP Apache Versión 2.4</title>
+<title>&#205;ndice de Directivas - Servidor HTTP Apache Versi&#243;n 2.4</title>
 <link href="../style/css/manual.css" rel="stylesheet" media="all" type="text/css" title="Main stylesheet" />
 <link href="../style/css/manual-loose-100pc.css" rel="alternate stylesheet" media="all" type="text/css" title="No Sidebar - Default font size" />
 <link href="../style/css/manual-print.css" rel="stylesheet" media="print" type="text/css" /><link rel="stylesheet" type="text/css" href="../style/css/prettify.css" />
@@ -16,35 +16,35 @@
 
 <link href="../images/favicon.ico" rel="shortcut icon" /></head>
 <body id="directive-index"><div id="page-header">
-<p class="menu"><a href="../mod/">Módulos</a> | <a href="../mod/directives.html">Directivas</a> | <a href="http://wiki.apache.org/httpd/FAQ">Preguntas Frecuentes</a> | <a href="../glossary.html">Glosario</a> | <a href="../sitemap.html">Mapa del sitio web</a></p>
-<p class="apache">Versión 2.4 del Servidor HTTP Apache</p>
+<p class="menu"><a href="../mod/">M&#243;dulos</a> | <a href="../mod/directives.html">Directivas</a> | <a href="http://wiki.apache.org/httpd/FAQ">Preguntas Frecuentes</a> | <a href="../glossary.html">Glosario</a> | <a href="../sitemap.html">Mapa del sitio web</a></p>
+<p class="apache">Versi&#243;n 2.4 del Servidor HTTP Apache</p>
 <img alt="" src="../images/feather.png" /></div>
 <div class="up"><a href="./"><img title="&lt;-" alt="&lt;-" src="../images/left.gif" /></a></div>
 <div id="path">
-<a href="http://www.apache.org/">Apache</a> &gt; <a href="http://httpd.apache.org/">Servidor HTTP</a> &gt; <a href="http://httpd.apache.org/docs/">Documentación</a> &gt; <a href="../">Versión 2.4</a> &gt; <a href="./">Módulos</a></div><div id="preamble"><h1>Índice de Directivas</h1>
+<a href="http://www.apache.org/">Apache</a> &gt; <a href="http://httpd.apache.org/">Servidor HTTP</a> &gt; <a href="http://httpd.apache.org/docs/">Documentaci&#243;n</a> &gt; <a href="../">Versi&#243;n 2.4</a> &gt; <a href="./">M&#243;dulos</a></div><div id="preamble"><h1>&#205;ndice de Directivas</h1>
 <div class="toplang">
 <p><span>Idiomas disponibles: </span><a href="../de/mod/directives.html" hreflang="de" rel="alternate" title="Deutsch">&nbsp;de&nbsp;</a> |
 <a href="../en/mod/directives.html" hreflang="en" rel="alternate" title="English">&nbsp;en&nbsp;</a> |
-<a href="../es/mod/directives.html" title="Español">&nbsp;es&nbsp;</a> |
-<a href="../fr/mod/directives.html" hreflang="fr" rel="alternate" title="Français">&nbsp;fr&nbsp;</a> |
+<a href="../es/mod/directives.html" title="Espa&#241;ol">&nbsp;es&nbsp;</a> |
+<a href="../fr/mod/directives.html" hreflang="fr" rel="alternate" title="Fran&#231;ais">&nbsp;fr&nbsp;</a> |
 <a href="../ja/mod/directives.html" hreflang="ja" rel="alternate" title="Japanese">&nbsp;ja&nbsp;</a> |
 <a href="../ko/mod/directives.html" hreflang="ko" rel="alternate" title="Korean">&nbsp;ko&nbsp;</a> |
-<a href="../tr/mod/directives.html" hreflang="tr" rel="alternate" title="Türkçe">&nbsp;tr&nbsp;</a> |
+<a href="../tr/mod/directives.html" hreflang="tr" rel="alternate" title="T&#252;rk&#231;e">&nbsp;tr&nbsp;</a> |
 <a href="../zh-cn/mod/directives.html" hreflang="zh-cn" rel="alternate" title="Simplified Chinese">&nbsp;zh-cn&nbsp;</a></p>
 </div>
 
     <p>
-      Todas las directivas disponibles en la distribución
-      estándar de Apache están en la lista que se muestra más
+      Todas las directivas disponibles en la distribuci&#243;n
+      est&#225;ndar de Apache est&#225;n en la lista que se muestra m&#225;s
       abajo. Cada una se describe usando un formato uniforme, y existe
       un <a href="directive-dict.html" rel="Glossary">glosario</a>
-      de los términos usados en las descripciones que puede 
+      de los t&#233;rminos usados en las descripciones que puede 
       consultar.
     </p>
 
     <p>
-      También existe una <a href="quickreference.html">Guía Rápida de
-      Referencia de Directivas</a> con información de cada
+      Tambi&#233;n existe una <a href="quickreference.html">Gu&#237;a R&#225;pida de
+      Referencia de Directivas</a> con informaci&#243;n de cada
       directiva de forma resumida.
     </p>
   
@@ -135,7 +135,7 @@
 <li><a href="mod_authnz_ldap.html#authldapsearchasuser">AuthLDAPSearchAsUser</a></li>
 <li><a href="mod_authnz_ldap.html#authldapsubgroupattribute">AuthLDAPSubGroupAttribute</a></li>
 <li><a href="mod_authnz_ldap.html#authldapsubgroupclass">AuthLDAPSubGroupClass</a></li>
-<li><a href="mod_authnz_ldap.html#authldapurl">AuthLDAPUrl</a></li>
+<li><a href="mod_authnz_ldap.html#authldapurl">AuthLDAPURL</a></li>
 <li><a href="mod_authz_core.html#authmerging">AuthMerging</a></li>
 <li><a href="mod_authn_core.html#authname">AuthName</a></li>
 <li><a href="mod_authn_socache.html#authncachecontext">AuthnCacheContext</a></li>
@@ -211,13 +211,17 @@
 <li><a href="mod_charset_lite.html#charsetdefault">CharsetDefault</a></li>
 <li><a href="mod_charset_lite.html#charsetoptions">CharsetOptions</a></li>
 <li><a href="mod_charset_lite.html#charsetsourceenc">CharsetSourceEnc</a></li>
+<li><a href="mod_speling.html#checkbasenamematch">CheckBasenameMatch</a></li>
 <li><a href="mod_speling.html#checkcaseonly">CheckCaseOnly</a></li>
 <li><a href="mod_speling.html#checkspelling">CheckSpelling</a></li>
 <li><a href="mod_unixd.html#chrootdir">ChrootDir</a></li>
 <li><a href="core.html#contentdigest">ContentDigest</a></li>
 <li><a href="mod_usertrack.html#cookiedomain">CookieDomain</a></li>
 <li><a href="mod_usertrack.html#cookieexpires">CookieExpires</a></li>
+<li><a href="mod_usertrack.html#cookiehttponly">CookieHTTPOnly</a></li>
 <li><a href="mod_usertrack.html#cookiename">CookieName</a></li>
+<li><a href="mod_usertrack.html#cookiesamesite">CookieSameSite</a></li>
+<li><a href="mod_usertrack.html#cookiesecure">CookieSecure</a></li>
 <li><a href="mod_usertrack.html#cookiestyle">CookieStyle</a></li>
 <li><a href="mod_usertrack.html#cookietracking">CookieTracking</a></li>
 <li><a href="mpm_common.html#coredumpdirectory">CoreDumpDirectory</a></li>
@@ -285,6 +289,8 @@
 <li><a href="mod_filter.html#filterprotocol">FilterProtocol</a></li>
 <li><a href="mod_filter.html#filterprovider">FilterProvider</a></li>
 <li><a href="mod_filter.html#filtertrace">FilterTrace</a></li>
+<li><a href="core.html#flushmaxpipelined">FlushMaxPipelined</a></li>
+<li><a href="core.html#flushmaxthreshold">FlushMaxThreshold</a></li>
 <li><a href="mod_negotiation.html#forcelanguagepriority">ForceLanguagePriority</a></li>
 <li><a href="core.html#forcetype">ForceType</a></li>
 <li><a href="mod_log_forensic.html#forensiclog">ForensicLog</a></li>
@@ -300,6 +306,8 @@
 <li><a href="mod_http2.html#h2maxworkers">H2MaxWorkers</a></li>
 <li><a href="mod_http2.html#h2minworkers">H2MinWorkers</a></li>
 <li><a href="mod_http2.html#h2moderntlsonly">H2ModernTLSOnly</a></li>
+<li><a href="mod_http2.html#h2outputbuffering">H2OutputBuffering</a></li>
+<li><a href="mod_http2.html#h2padding">H2Padding</a></li>
 <li><a href="mod_http2.html#h2push">H2Push</a></li>
 <li><a href="mod_http2.html#h2pushdiarysize">H2PushDiarySize</a></li>
 <li><a href="mod_http2.html#h2pushpriority">H2PushPriority</a></li>
@@ -396,6 +404,7 @@
 <li><a href="mod_lua.html#luahookinsertfilter">LuaHookInsertFilter</a></li>
 <li><a href="mod_lua.html#luahooklog">LuaHookLog</a></li>
 <li><a href="mod_lua.html#luahookmaptostorage">LuaHookMapToStorage</a></li>
+<li><a href="mod_lua.html#luahookpretranslate">LuaHookPreTranslate</a></li>
 <li><a href="mod_lua.html#luahooktranslatename">LuaHookTranslateName</a></li>
 <li><a href="mod_lua.html#luahooktypechecker">LuaHookTypeChecker</a></li>
 <li><a href="mod_lua.html#luainherit">LuaInherit</a></li>
@@ -418,25 +427,43 @@
 <li><a href="prefork.html#maxspareservers">MaxSpareServers</a></li>
 <li><a href="mpm_common.html#maxsparethreads">MaxSpareThreads</a></li>
 <li><a href="mpm_netware.html#maxthreads">MaxThreads</a></li>
+<li><a href="mod_md.html#mdactivationdelay">MDActivationDelay</a></li>
 <li><a href="mod_md.html#mdbaseserver">MDBaseServer</a></li>
 <li><a href="mod_md.html#mdcachallenges">MDCAChallenges</a></li>
 <li><a href="mod_md.html#mdcertificateagreement">MDCertificateAgreement</a></li>
 <li><a href="mod_md.html#mdcertificateauthority">MDCertificateAuthority</a></li>
+<li><a href="mod_md.html#mdcertificatecheck">MDCertificateCheck</a></li>
+<li><a href="mod_md.html#mdcertificatefile">MDCertificateFile</a></li>
+<li><a href="mod_md.html#mdcertificatekeyfile">MDCertificateKeyFile</a></li>
+<li><a href="mod_md.html#mdcertificatemonitor">MDCertificateMonitor</a></li>
 <li><a href="mod_md.html#mdcertificateprotocol">MDCertificateProtocol</a></li>
+<li><a href="mod_md.html#mdcertificatestatus">MDCertificateStatus</a></li>
+<li><a href="mod_md.html#mdchallengedns01">MDChallengeDns01</a></li>
+<li><a href="mod_md.html#mdcontactemail">MDContactEmail</a></li>
 <li><a href="mod_md.html#mddrivemode">MDDriveMode</a></li>
+<li><a href="mod_md.html#mdexternalaccountbinding">MDExternalAccountBinding</a></li>
 <li><a href="mod_md.html#mdhttpproxy">MDHttpProxy</a></li>
 <li><a href="mod_md.html#mdmember">MDMember</a></li>
 <li><a href="mod_md.html#mdmembers">MDMembers</a></li>
+<li><a href="mod_md.html#mdmessagecmd">MDMessageCmd</a></li>
 <li><a href="mod_md.html#mdmuststaple">MDMustStaple</a></li>
 <li><a href="mod_md.html#mdnotifycmd">MDNotifyCmd</a></li>
 <li><a href="mod_md.html#mdomain">MDomain</a></li>
 <li><a href="mod_md.html#mdomainset">&lt;MDomainSet&gt;</a></li>
 <li><a href="mod_md.html#mdportmap">MDPortMap</a></li>
 <li><a href="mod_md.html#mdprivatekeys">MDPrivateKeys</a></li>
+<li><a href="mod_md.html#mdrenewmode">MDRenewMode</a></li>
 <li><a href="mod_md.html#mdrenewwindow">MDRenewWindow</a></li>
 <li><a href="mod_md.html#mdrequirehttps">MDRequireHttps</a></li>
+<li><a href="mod_md.html#mdserverstatus">MDServerStatus</a></li>
+<li><a href="mod_md.html#mdstapleothers">MDStapleOthers</a></li>
+<li><a href="mod_md.html#mdstapling">MDStapling</a></li>
+<li><a href="mod_md.html#mdstaplingkeepresponse">MDStaplingKeepResponse</a></li>
+<li><a href="mod_md.html#mdstaplingrenewwindow">MDStaplingRenewWindow</a></li>
 <li><a href="mod_md.html#mdstoredir">MDStoreDir</a></li>
+<li><a href="mod_md.html#mdwarnwindow">MDWarnWindow</a></li>
 <li><a href="mod_socache_memcache.html#memcacheconnttl">MemcacheConnTTL</a></li>
+<li><a href="core.html#mergeslashes">MergeSlashes</a></li>
 <li><a href="core.html#mergetrailers">MergeTrailers</a></li>
 <li><a href="mod_cern_meta.html#metadir">MetaDir</a></li>
 <li><a href="mod_cern_meta.html#metafiles">MetaFiles</a></li>
@@ -464,6 +491,7 @@
 <li><a href="core.html#protocols">Protocols</a></li>
 <li><a href="core.html#protocolshonororder">ProtocolsHonorOrder</a></li>
 <li><a href="mod_proxy.html#proxy">&lt;Proxy&gt;</a></li>
+<li><a href="mod_proxy.html#proxy100continue">Proxy100Continue</a></li>
 <li><a href="mod_proxy.html#proxyaddheaders">ProxyAddHeaders</a></li>
 <li><a href="mod_proxy.html#proxybadheader">ProxyBadHeader</a></li>
 <li><a href="mod_proxy.html#proxyblock">ProxyBlock</a></li>
@@ -514,13 +542,17 @@
 <li><a href="mod_proxy.html#proxystatus">ProxyStatus</a></li>
 <li><a href="mod_proxy.html#proxytimeout">ProxyTimeout</a></li>
 <li><a href="mod_proxy.html#proxyvia">ProxyVia</a></li>
+<li><a href="mod_proxy_wstunnel.html#proxywebsocketfallbacktoproxyhttp">ProxyWebsocketFallbackToProxyHttp</a></li>
 <li><a href="core.html#qualifyredirecturl" id="Q" name="Q">QualifyRedirectURL</a></li>
-<li><a href="mod_autoindex.html#readmename" id="R" name="R">ReadmeName</a></li>
+<li><a href="core.html#readbuffersize" id="R" name="R">ReadBufferSize</a></li>
+<li><a href="mod_autoindex.html#readmename">ReadmeName</a></li>
 <li><a href="mpm_common.html#receivebuffersize">ReceiveBufferSize</a></li>
 <li><a href="mod_alias.html#redirect">Redirect</a></li>
 <li><a href="mod_alias.html#redirectmatch">RedirectMatch</a></li>
 <li><a href="mod_alias.html#redirectpermanent">RedirectPermanent</a></li>
 <li><a href="mod_alias.html#redirecttemp">RedirectTemp</a></li>
+<li><a href="mod_socache_redis.html#redisconnpoolttl">RedisConnPoolTTL</a></li>
+<li><a href="mod_socache_redis.html#redistimeout">RedisTimeout</a></li>
 <li><a href="mod_reflector.html#reflectorheader">ReflectorHeader</a></li>
 <li><a href="core.html#regexdefaultoptions">RegexDefaultOptions</a></li>
 <li><a href="core.html#registerhttpmethod">RegisterHttpMethod</a></li>
@@ -593,6 +625,7 @@
 <li><a href="mod_session_dbd.html#sessiondbdupdatelabel">SessionDBDUpdateLabel</a></li>
 <li><a href="mod_session.html#sessionenv">SessionEnv</a></li>
 <li><a href="mod_session.html#sessionexclude">SessionExclude</a></li>
+<li><a href="mod_session.html#sessionexpiryupdateinterval">SessionExpiryUpdateInterval</a></li>
 <li><a href="mod_session.html#sessionheader">SessionHeader</a></li>
 <li><a href="mod_session.html#sessioninclude">SessionInclude</a></li>
 <li><a href="mod_session.html#sessionmaxage">SessionMaxAge</a></li>
@@ -684,6 +717,7 @@
 <li><a href="mod_ssl.html#sslverifydepth">SSLVerifyDepth</a></li>
 <li><a href="mpm_common.html#startservers">StartServers</a></li>
 <li><a href="mpm_common.html#startthreads">StartThreads</a></li>
+<li><a href="core.html#stricthostcheck">StrictHostCheck</a></li>
 <li><a href="mod_substitute.html#substitute">Substitute</a></li>
 <li><a href="mod_substitute.html#substituteinheritbefore">SubstituteInheritBefore</a></li>
 <li><a href="mod_substitute.html#substitutemaxlinelength">SubstituteMaxLineLength</a></li>
@@ -693,6 +727,21 @@
 <li><a href="mpm_common.html#threadsperchild">ThreadsPerChild</a></li>
 <li><a href="mpm_common.html#threadstacksize">ThreadStackSize</a></li>
 <li><a href="core.html#timeout">TimeOut</a></li>
+<li><a href="mod_tls.html#tlscertificate">TLSCertificate</a></li>
+<li><a href="mod_tls.html#tlsciphersprefer">TLSCiphersPrefer</a></li>
+<li><a href="mod_tls.html#tlscipherssuppress">TLSCiphersSuppress</a></li>
+<li><a href="mod_tls.html#tlsengine">TLSEngine</a></li>
+<li><a href="mod_tls.html#tlshonorclientorder">TLSHonorClientOrder</a></li>
+<li><a href="mod_tls.html#tlsoptions">TLSOptions</a></li>
+<li><a href="mod_tls.html#tlsprotocol">TLSProtocol</a></li>
+<li><a href="mod_tls.html#tlsproxyca">TLSProxyCA</a></li>
+<li><a href="mod_tls.html#tlsproxyciphersprefer">TLSProxyCiphersPrefer</a></li>
+<li><a href="mod_tls.html#tlsproxycipherssuppress">TLSProxyCiphersSuppress</a></li>
+<li><a href="mod_tls.html#tlsproxyengine">TLSProxyEngine</a></li>
+<li><a href="mod_tls.html#tlsproxymachinecertificate">TLSProxyMachineCertificate</a></li>
+<li><a href="mod_tls.html#tlsproxyprotocol">TLSProxyProtocol</a></li>
+<li><a href="mod_tls.html#tlssessioncache">TLSSessionCache</a></li>
+<li><a href="mod_tls.html#tlsstrictsni">TLSStrictSNI</a></li>
 <li><a href="core.html#traceenable">TraceEnable</a></li>
 <li><a href="mod_log_config.html#transferlog">TransferLog</a></li>
 <li><a href="mod_mime.html#typesconfig">TypesConfig</a></li>
@@ -724,13 +773,13 @@
 <div class="bottomlang">
 <p><span>Idiomas disponibles: </span><a href="../de/mod/directives.html" hreflang="de" rel="alternate" title="Deutsch">&nbsp;de&nbsp;</a> |
 <a href="../en/mod/directives.html" hreflang="en" rel="alternate" title="English">&nbsp;en&nbsp;</a> |
-<a href="../es/mod/directives.html" title="Español">&nbsp;es&nbsp;</a> |
-<a href="../fr/mod/directives.html" hreflang="fr" rel="alternate" title="Français">&nbsp;fr&nbsp;</a> |
+<a href="../es/mod/directives.html" title="Espa&#241;ol">&nbsp;es&nbsp;</a> |
+<a href="../fr/mod/directives.html" hreflang="fr" rel="alternate" title="Fran&#231;ais">&nbsp;fr&nbsp;</a> |
 <a href="../ja/mod/directives.html" hreflang="ja" rel="alternate" title="Japanese">&nbsp;ja&nbsp;</a> |
 <a href="../ko/mod/directives.html" hreflang="ko" rel="alternate" title="Korean">&nbsp;ko&nbsp;</a> |
-<a href="../tr/mod/directives.html" hreflang="tr" rel="alternate" title="Türkçe">&nbsp;tr&nbsp;</a> |
+<a href="../tr/mod/directives.html" hreflang="tr" rel="alternate" title="T&#252;rk&#231;e">&nbsp;tr&nbsp;</a> |
 <a href="../zh-cn/mod/directives.html" hreflang="zh-cn" rel="alternate" title="Simplified Chinese">&nbsp;zh-cn&nbsp;</a></p>
-</div><div class="top"><a href="#page-header"><img src="../images/up.gif" alt="top" /></a></div><div class="section"><h2><a id="comments_section" name="comments_section">Comentarios</a></h2><div class="warning"><strong>Notice:</strong><br />This is not a Q&amp;A section. Comments placed here should be pointed towards suggestions on improving the documentation or server, and may be removed again by our moderators if they are either implemented or considered invalid/off-topic. Questions on how to manage the Apache HTTP Server should be directed at either our IRC channel, #httpd, on Freenode, or sent to our <a href="http://httpd.apache.org/lists.html">mailing lists</a>.</div>
+</div><div class="top"><a href="#page-header"><img src="../images/up.gif" alt="top" /></a></div><div class="section"><h2><a id="comments_section" name="comments_section">Comentarios</a></h2><div class="warning"><strong>Notice:</strong><br />This is not a Q&amp;A section. Comments placed here should be pointed towards suggestions on improving the documentation or server, and may be removed by our moderators if they are either implemented or considered invalid/off-topic. Questions on how to manage the Apache HTTP Server should be directed at either our IRC channel, #httpd, on Libera.chat, or sent to our <a href="https://httpd.apache.org/lists.html">mailing lists</a>.</div>
 <script type="text/javascript"><!--//--><![CDATA[//><!--
 var comments_shortname = 'httpd';
 var comments_identifier = 'http://httpd.apache.org/docs/2.4/mod/directives.html';
@@ -748,8 +797,8 @@ var comments_identifier = 'http://httpd.apache.org/docs/2.4/mod/directives.html'
     }
 })(window, document);
 //--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2018 The Apache Software Foundation.<br />Licencia bajo los términos de la <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
-<p class="menu"><a href="../mod/">Módulos</a> | <a href="../mod/directives.html">Directivas</a> | <a href="http://wiki.apache.org/httpd/FAQ">Preguntas Frecuentes</a> | <a href="../glossary.html">Glosario</a> | <a href="../sitemap.html">Mapa del sitio web</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
+<p class="apache">Copyright 2022 The Apache Software Foundation.<br />Licencia bajo los t&#233;rminos de la <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
+<p class="menu"><a href="../mod/">M&#243;dulos</a> | <a href="../mod/directives.html">Directivas</a> | <a href="http://wiki.apache.org/httpd/FAQ">Preguntas Frecuentes</a> | <a href="../glossary.html">Glosario</a> | <a href="../sitemap.html">Mapa del sitio web</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();
 }

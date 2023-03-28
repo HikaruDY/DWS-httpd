@@ -1,7 +1,7 @@
-<?xml version="1.0" encoding="ISO-8859-1"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
-<meta content="text/html; charset=ISO-8859-1" http-equiv="Content-Type" />
+<meta content="text/html; charset=UTF-8" http-equiv="Content-Type" />
 <!--
         XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
               This file is generated from xml source: DO NOT EDIT
@@ -27,15 +27,15 @@
 <div id="preamble"><h1>Apache Module mod_deflate</h1>
 <div class="toplang">
 <p><span>Available Languages: </span><a href="../en/mod/mod_deflate.html" title="English">&nbsp;en&nbsp;</a> |
-<a href="../fr/mod/mod_deflate.html" hreflang="fr" rel="alternate" title="Français">&nbsp;fr&nbsp;</a> |
+<a href="../fr/mod/mod_deflate.html" hreflang="fr" rel="alternate" title="FranÃ§ais">&nbsp;fr&nbsp;</a> |
 <a href="../ja/mod/mod_deflate.html" hreflang="ja" rel="alternate" title="Japanese">&nbsp;ja&nbsp;</a> |
 <a href="../ko/mod/mod_deflate.html" hreflang="ko" rel="alternate" title="Korean">&nbsp;ko&nbsp;</a></p>
 </div>
 <table class="module"><tr><th><a href="module-dict.html#Description">Description:</a></th><td>Compress content before it is delivered to the
 client</td></tr>
 <tr><th><a href="module-dict.html#Status">Status:</a></th><td>Extension</td></tr>
-<tr><th><a href="module-dict.html#ModuleIdentifier">Module Identifier:</a></th><td>deflate_module</td></tr>
-<tr><th><a href="module-dict.html#SourceFile">Source File:</a></th><td>mod_deflate.c</td></tr></table>
+<tr><th><a href="module-dict.html#ModuleIdentifier">ModuleÂ Identifier:</a></th><td>deflate_module</td></tr>
+<tr><th><a href="module-dict.html#SourceFile">SourceÂ File:</a></th><td>mod_deflate.c</td></tr></table>
 <h3>Summary</h3>
 
     <p>The <code class="module"><a href="../mod/mod_deflate.html">mod_deflate</a></code> module provides
@@ -71,7 +71,7 @@ content</a></li>
 <h2><a name="supportedencodings" id="supportedencodings">Supported Encodings</a></h2>
   <p>The <code>gzip</code> encoding is the only one supported to ensure complete compatibility
   with old browser implementations. The <code>deflate</code> encoding is not supported, 
-  please check the <a href="http://www.gzip.org/zlib/zlib_faq.html#faq38">zlib's documentation</a>
+  please check the <a href="https://zlib.net/zlib_faq.html#faq39">zlib's documentation</a>
   for a complete explanation.
   </p>
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
@@ -203,36 +203,29 @@ SetEnvIfNoCase Request_URI "\.(?:gif|jpe?g|png)$" no-gzip</pre>
 <h2><a name="precompressed" id="precompressed">Serving pre-compressed
 content</a></h2>
 
-    <p>Since <code class="module"><a href="../mod/mod_deflate.html">mod_deflate</a></code> re-compresses content each 
+    <p>Since <code class="module"><a href="../mod/mod_deflate.html">mod_deflate</a></code> re-compresses content each
     time a request is made, some performance benefit can be derived by
-    pre-compressing the content and telling mod_deflate to serve them
+    pre-compressing the content and telling <code class="module"><a href="../mod/mod_deflate.html">mod_deflate</a></code> to serve them
     without re-compressing them. This may be accomplished using a
     configuration like the following:</p>
 
     <pre class="prettyprint lang-config">&lt;IfModule mod_headers.c&gt;
-    # Serve gzip compressed CSS files if they exist 
+    # Serve gzip compressed CSS and JS files if they exist
     # and the client accepts gzip.
     RewriteCond "%{HTTP:Accept-encoding}" "gzip"
     RewriteCond "%{REQUEST_FILENAME}\.gz" -s
-    RewriteRule "^(.*)\.css" "$1\.css\.gz" [QSA]
-
-    # Serve gzip compressed JS files if they exist 
-    # and the client accepts gzip.
-    RewriteCond "%{HTTP:Accept-encoding}" "gzip"
-    RewriteCond "%{REQUEST_FILENAME}\.gz" -s
-    RewriteRule "^(.*)\.js" "$1\.js\.gz" [QSA]
-
+    RewriteRule "^(.*)\.(css|js)"         "$1\.$2\.gz" [QSA]
 
     # Serve correct content types, and prevent mod_deflate double gzip.
     RewriteRule "\.css\.gz$" "-" [T=text/css,E=no-gzip:1]
-    RewriteRule "\.js\.gz$" "-" [T=text/javascript,E=no-gzip:1]
+    RewriteRule "\.js\.gz$"  "-" [T=text/javascript,E=no-gzip:1]
 
 
     &lt;FilesMatch "(\.js\.gz|\.css\.gz)$"&gt;
       # Serve correct encoding type.
       Header append Content-Encoding gzip
 
-      # Force proxies to cache gzipped &amp; 
+      # Force proxies to cache gzipped &amp;
       # non-gzipped css/js files separately.
       Header append Vary Accept-Encoding
     &lt;/FilesMatch&gt;
@@ -294,10 +287,10 @@ content</a></h2>
     the directive. You can use that note for statistical purposes by
     adding the value to your <a href="../logs.html#accesslog">access log</a>.</p>
 
-    <div class="example"><h3>Example</h3><pre class="prettyprint lang-config">      DeflateFilterNote ratio
-    
-      LogFormat '"%r" %b (%{ratio}n) "%{User-agent}i"' deflate
-      CustomLog "logs/deflate_log" deflate</pre>
+    <div class="example"><h3>Example</h3><pre class="prettyprint lang-config">DeflateFilterNote ratio
+
+LogFormat '"%r" %b (%{ratio}n) "%{User-agent}i"' deflate
+CustomLog "logs/deflate_log" deflate</pre>
 </div>
 
     <p>If you want to extract more accurate values from your logs, you
@@ -336,14 +329,14 @@ CustomLog "logs/deflate_log" deflate</pre>
 <div class="directive-section"><h2><a name="DeflateInflateLimitRequestBody" id="DeflateInflateLimitRequestBody">DeflateInflateLimitRequestBody</a> <a name="deflateinflatelimitrequestbody" id="deflateinflatelimitrequestbody">Directive</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Maximum size of inflated request bodies</td></tr>
-<tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>DeflateInflateLimitRequestBody<var>value</var></code></td></tr>
+<tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>DeflateInflateLimitRequestBody <var>value</var></code></td></tr>
 <tr><th><a href="directive-dict.html#Default">Default:</a></th><td><code>None, but LimitRequestBody applies after deflation</code></td></tr>
 <tr><th><a href="directive-dict.html#Context">Context:</a></th><td>server config, virtual host, directory, .htaccess</td></tr>
 <tr><th><a href="directive-dict.html#Status">Status:</a></th><td>Extension</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_deflate</td></tr>
 <tr><th><a href="directive-dict.html#Compatibility">Compatibility:</a></th><td>2.4.10 and later</td></tr>
 </table>
-    <p>The <code class="directive">DeflateInflateLimitRequestBody</code> directive 
+    <p>The <code class="directive">DeflateInflateLimitRequestBody</code> directive
         specifies the maximum size of an inflated request body. If it is unset,
         <code class="directive"><a href="../mod/core.html#limitrequestbody">LimitRequestBody</a></code> is applied to the
         inflated body.</p>
@@ -352,19 +345,19 @@ CustomLog "logs/deflate_log" deflate</pre>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="directive-section"><h2><a name="DeflateInflateRatioBurst" id="DeflateInflateRatioBurst">DeflateInflateRatioBurst</a> <a name="deflateinflateratioburst" id="deflateinflateratioburst">Directive</a></h2>
 <table class="directive">
-<tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Maximum number of times the inflation ratio for request bodies 
+<tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Maximum number of times the inflation ratio for request bodies
              can be crossed</td></tr>
 <tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>DeflateInflateRatioBurst <var>value</var></code></td></tr>
-<tr><th><a href="directive-dict.html#Default">Default:</a></th><td><code>3</code></td></tr>
+<tr><th><a href="directive-dict.html#Default">Default:</a></th><td><code>DeflateInflateRatioBurst 3</code></td></tr>
 <tr><th><a href="directive-dict.html#Context">Context:</a></th><td>server config, virtual host, directory, .htaccess</td></tr>
 <tr><th><a href="directive-dict.html#Status">Status:</a></th><td>Extension</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_deflate</td></tr>
 <tr><th><a href="directive-dict.html#Compatibility">Compatibility:</a></th><td>2.4.10 and later</td></tr>
 </table>
-    <p>The <code class="directive">DeflateInflateRatioBurst</code> directive 
-       specifies the maximum number of times the 
-       <code class="directive">DeflateInflateRatioLimit</code> can be crossed before 
-       terminating the request.</p>
+    <p>The <code class="directive">DeflateInflateRatioBurst</code> directive
+       specifies the maximum number of times the
+       <code class="directive"><a href="#deflateinflateratiolimit">DeflateInflateRatioLimit</a></code> can
+       be crossed before terminating the request.</p>
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
@@ -372,18 +365,18 @@ CustomLog "logs/deflate_log" deflate</pre>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Maximum inflation ratio for request bodies</td></tr>
 <tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>DeflateInflateRatioLimit <var>value</var></code></td></tr>
-<tr><th><a href="directive-dict.html#Default">Default:</a></th><td><code>200</code></td></tr>
+<tr><th><a href="directive-dict.html#Default">Default:</a></th><td><code>DeflateInflateRatioLimit 200</code></td></tr>
 <tr><th><a href="directive-dict.html#Context">Context:</a></th><td>server config, virtual host, directory, .htaccess</td></tr>
 <tr><th><a href="directive-dict.html#Status">Status:</a></th><td>Extension</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_deflate</td></tr>
 <tr><th><a href="directive-dict.html#Compatibility">Compatibility:</a></th><td>2.4.10 and later</td></tr>
 </table>
-    <p>The <code class="directive">DeflateInflateRatioLimit</code> directive 
-        specifies the maximum ratio of deflated to inflated size of an 
+    <p>The <code class="directive">DeflateInflateRatioLimit</code> directive
+        specifies the maximum ratio of deflated to inflated size of an
         inflated request body. This ratio is checked as the body is
-        streamed in, and if crossed more than 
-        <code class="directive">DeflateInflateRatioBurst</code> times, the request
-        will be terminated.</p>
+        streamed in, and if crossed more than
+        <code class="directive"><a href="#deflateinflateratioburst">DeflateInflateRatioBurst</a></code>
+        times, the request will be terminated.</p>
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
@@ -419,10 +412,10 @@ CustomLog "logs/deflate_log" deflate</pre>
 </div>
 <div class="bottomlang">
 <p><span>Available Languages: </span><a href="../en/mod/mod_deflate.html" title="English">&nbsp;en&nbsp;</a> |
-<a href="../fr/mod/mod_deflate.html" hreflang="fr" rel="alternate" title="Français">&nbsp;fr&nbsp;</a> |
+<a href="../fr/mod/mod_deflate.html" hreflang="fr" rel="alternate" title="FranÃ§ais">&nbsp;fr&nbsp;</a> |
 <a href="../ja/mod/mod_deflate.html" hreflang="ja" rel="alternate" title="Japanese">&nbsp;ja&nbsp;</a> |
 <a href="../ko/mod/mod_deflate.html" hreflang="ko" rel="alternate" title="Korean">&nbsp;ko&nbsp;</a></p>
-</div><div class="top"><a href="#page-header"><img src="../images/up.gif" alt="top" /></a></div><div class="section"><h2><a id="comments_section" name="comments_section">Comments</a></h2><div class="warning"><strong>Notice:</strong><br />This is not a Q&amp;A section. Comments placed here should be pointed towards suggestions on improving the documentation or server, and may be removed again by our moderators if they are either implemented or considered invalid/off-topic. Questions on how to manage the Apache HTTP Server should be directed at either our IRC channel, #httpd, on Freenode, or sent to our <a href="http://httpd.apache.org/lists.html">mailing lists</a>.</div>
+</div><div class="top"><a href="#page-header"><img src="../images/up.gif" alt="top" /></a></div><div class="section"><h2><a id="comments_section" name="comments_section">Comments</a></h2><div class="warning"><strong>Notice:</strong><br />This is not a Q&amp;A section. Comments placed here should be pointed towards suggestions on improving the documentation or server, and may be removed by our moderators if they are either implemented or considered invalid/off-topic. Questions on how to manage the Apache HTTP Server should be directed at either our IRC channel, #httpd, on Libera.chat, or sent to our <a href="https://httpd.apache.org/lists.html">mailing lists</a>.</div>
 <script type="text/javascript"><!--//--><![CDATA[//><!--
 var comments_shortname = 'httpd';
 var comments_identifier = 'http://httpd.apache.org/docs/2.4/mod/mod_deflate.html';
@@ -440,7 +433,7 @@ var comments_identifier = 'http://httpd.apache.org/docs/2.4/mod/mod_deflate.html
     }
 })(window, document);
 //--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2018 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
+<p class="apache">Copyright 2022 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
 <p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/directives.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossary</a> | <a href="../sitemap.html">Sitemap</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();

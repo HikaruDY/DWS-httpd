@@ -15,8 +15,42 @@
  */
 
 #include "mod_proxy.h"
+#include "http_config.h"
 
 module AP_MODULE_DECLARE_DATA proxy_wstunnel_module;
+
+typedef struct {
+    unsigned int fallback_to_proxy_http     :1,
+                 fallback_to_proxy_http_set :1;
+} proxyws_dir_conf;
+
+static int can_fallback_to_proxy_http;
+
+static int proxy_wstunnel_check_trans(request_rec *r, const char *url)
+{
+    proxyws_dir_conf *dconf = ap_get_module_config(r->per_dir_config,
+                                                   &proxy_wstunnel_module);
+
+    if (can_fallback_to_proxy_http && dconf->fallback_to_proxy_http) {
+        ap_log_rerror(APLOG_MARK, APLOG_TRACE5, 0, r, "check_trans fallback");
+        return DECLINED;
+    }
+
+    if (ap_cstr_casecmpn(url, "ws:", 3) != 0
+            && ap_cstr_casecmpn(url, "wss:", 4) != 0) {
+        return DECLINED;
+    }
+
+    if (!apr_table_get(r->headers_in, "Upgrade")) {
+        /* No Upgrade, let mod_proxy_http handle it (for instance).
+         * Note: anything but OK/DECLINED will do (i.e. bypass wstunnel w/o
+         * aborting the request), HTTP_UPGRADE_REQUIRED is documentary...
+         */
+        return HTTP_UPGRADE_REQUIRED;
+    }
+
+    return OK;
+}
 
 /*
  * Canonicalise http-like URLs.
@@ -26,19 +60,26 @@ module AP_MODULE_DECLARE_DATA proxy_wstunnel_module;
  */
 static int proxy_wstunnel_canon(request_rec *r, char *url)
 {
+    proxyws_dir_conf *dconf = ap_get_module_config(r->per_dir_config,
+                                                   &proxy_wstunnel_module);
     char *host, *path, sport[7];
     char *search = NULL;
     const char *err;
     char *scheme;
     apr_port_t port, def_port;
 
+    if (can_fallback_to_proxy_http && dconf->fallback_to_proxy_http) {
+        ap_log_rerror(APLOG_MARK, APLOG_TRACE5, 0, r, "canon fallback");
+        return DECLINED;
+    }
+
     /* ap_port_of_scheme() */
-    if (strncasecmp(url, "ws:", 3) == 0) {
+    if (ap_cstr_casecmpn(url, "ws:", 3) == 0) {
         url += 3;
         scheme = "ws:";
         def_port = apr_uri_port_of_scheme("http");
     }
-    else if (strncasecmp(url, "wss:", 4) == 0) {
+    else if (ap_cstr_casecmpn(url, "wss:", 4) == 0) {
         url += 4;
         scheme = "wss:";
         def_port = apr_uri_port_of_scheme("https");
@@ -77,7 +118,10 @@ static int proxy_wstunnel_canon(request_rec *r, char *url)
     if (path == NULL)
         return HTTP_BAD_REQUEST;
 
-    apr_snprintf(sport, sizeof(sport), ":%d", port);
+    if (port != def_port)
+        apr_snprintf(sport, sizeof(sport), ":%d", port);
+    else
+        sport[0] = '\0';
 
     if (ap_strchr_c(host, ':')) {
         /* if literal IPv6 address */
@@ -280,112 +324,166 @@ static int proxy_wstunnel_handler(request_rec *r, proxy_worker *worker,
                              char *url, const char *proxyname,
                              apr_port_t proxyport)
 {
+    proxyws_dir_conf *dconf = ap_get_module_config(r->per_dir_config,
+                                                   &proxy_wstunnel_module);
     int status;
     char server_portstr[32];
     proxy_conn_rec *backend = NULL;
+    const char *upgrade;
     char *scheme;
-    int retry;
     apr_pool_t *p = r->pool;
+    char *locurl = url;
     apr_uri_t *uri;
     int is_ssl = 0;
-    const char *upgrade_method = *worker->s->upgrade ? worker->s->upgrade : "WebSocket";
 
-    if (strncasecmp(url, "wss:", 4) == 0) {
-        scheme = "WSS";
-        is_ssl = 1;
-    }
-    else if (strncasecmp(url, "ws:", 3) == 0) {
-        scheme = "WS";
-    }
-    else {
-        ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(02450) "declining URL %s", url);
+    if (can_fallback_to_proxy_http && dconf->fallback_to_proxy_http) {
+        ap_log_rerror(APLOG_MARK, APLOG_TRACE5, 0, r, "handler fallback");
         return DECLINED;
     }
 
-    if (ap_cstr_casecmp(upgrade_method, "NONE") != 0) {
-        const char *upgrade;
-        upgrade = apr_table_get(r->headers_in, "Upgrade");
-        if (!upgrade || (ap_cstr_casecmp(upgrade, upgrade_method) != 0 &&
-            ap_cstr_casecmp(upgrade_method, "ANY") !=0)) {
-            ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(02900)
-                          "declining URL %s  (not %s, Upgrade: header is %s)", 
-                          url, upgrade_method, upgrade ? upgrade : "missing");
-            return DECLINED;
-        }
+    if (ap_cstr_casecmpn(url, "wss:", 4) == 0) {
+        scheme = "WSS";
+        is_ssl = 1;
+    }
+    else if (ap_cstr_casecmpn(url, "ws:", 3) == 0) {
+        scheme = "WS";
+    }
+    else {
+        ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(02450)
+                      "declining URL %s", url);
+        return DECLINED;
+    }
+    ap_log_rerror(APLOG_MARK, APLOG_TRACE1, 0, r, "serving URL %s", url);
+
+    upgrade = apr_table_get(r->headers_in, "Upgrade");
+    if (!upgrade || !ap_proxy_worker_can_upgrade(p, worker, upgrade,
+                                                 "WebSocket")) {
+        const char *worker_upgrade = *worker->s->upgrade ? worker->s->upgrade
+                                                         : "WebSocket";
+        ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, APLOGNO(02900)
+                      "require upgrade for URL %s "
+                      "(Upgrade header is %s, expecting %s)", 
+                      url, upgrade ? upgrade : "missing", worker_upgrade);
+        apr_table_setn(r->err_headers_out, "Connection", "Upgrade");
+        apr_table_setn(r->err_headers_out, "Upgrade", worker_upgrade);
+        return HTTP_UPGRADE_REQUIRED;
     }
 
     uri = apr_palloc(p, sizeof(*uri));
     ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(02451) "serving URL %s", url);
 
     /* create space for state information */
-    status = ap_proxy_acquire_connection(scheme, &backend, worker,
-                                         r->server);
+    status = ap_proxy_acquire_connection(scheme, &backend, worker, r->server);
     if (status != OK) {
-        if (backend) {
-            backend->close = 1;
-            ap_proxy_release_connection(scheme, backend, r->server);
-        }
-        return status;
+        goto cleanup;
     }
 
     backend->is_ssl = is_ssl;
     backend->close = 0;
 
-    retry = 0;
-    while (retry < 2) {
-        char *locurl = url;
-        /* Step One: Determine Who To Connect To */
-        status = ap_proxy_determine_connection(p, r, conf, worker, backend,
-                                               uri, &locurl, proxyname, proxyport,
-                                               server_portstr,
-                                               sizeof(server_portstr));
-
-        if (status != OK)
-            break;
-
-        /* Step Two: Make the Connection */
-        if (ap_proxy_connect_backend(scheme, backend, worker, r->server)) {
-            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(02452)
-                          "failed to make connection to backend: %s",
-                          backend->hostname);
-            status = HTTP_SERVICE_UNAVAILABLE;
-            break;
-        }
-
-        /* Step Three: Create conn_rec */
-        if (!backend->connection) {
-            status = ap_proxy_connection_create_ex(scheme, backend, r);
-            if (status  != OK) {
-                break;
-            }
-        }
-
-        backend->close = 1; /* must be after ap_proxy_determine_connection */
-
-
-        /* Step Three: Process the Request */
-        status = proxy_wstunnel_request(p, r, backend, worker, conf, uri, locurl,
-                                      server_portstr);
-        break;
+    /* Step One: Determine Who To Connect To */
+    status = ap_proxy_determine_connection(p, r, conf, worker, backend,
+                                           uri, &locurl, proxyname, proxyport,
+                                           server_portstr,
+                                           sizeof(server_portstr));
+    if (status != OK) {
+        goto cleanup;
     }
 
+    /* Step Two: Make the Connection */
+    if (ap_proxy_connect_backend(scheme, backend, worker, r->server)) {
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(02452)
+                      "failed to make connection to backend: %s",
+                      backend->hostname);
+        status = HTTP_SERVICE_UNAVAILABLE;
+        goto cleanup;
+    }
+
+    /* Step Three: Create conn_rec */
+    status = ap_proxy_connection_create_ex(scheme, backend, r);
+    if (status != OK) {
+        goto cleanup;
+    }
+
+    /* Step Four: Process the Request */
+    status = proxy_wstunnel_request(p, r, backend, worker, conf, uri, locurl,
+                                  server_portstr);
+
+cleanup:
     /* Do not close the socket */
-    ap_proxy_release_connection(scheme, backend, r->server);
+    if (backend) { 
+        backend->close = 1;
+        ap_proxy_release_connection(scheme, backend, r->server);
+    }
     return status;
 }
 
-static void ap_proxy_http_register_hook(apr_pool_t *p)
+static void *create_proxyws_dir_config(apr_pool_t *p, char *dummy)
 {
-    proxy_hook_scheme_handler(proxy_wstunnel_handler, NULL, NULL, APR_HOOK_FIRST);
-    proxy_hook_canon_handler(proxy_wstunnel_canon, NULL, NULL, APR_HOOK_FIRST);
+    proxyws_dir_conf *new =
+        (proxyws_dir_conf *) apr_pcalloc(p, sizeof(proxyws_dir_conf));
+
+    new->fallback_to_proxy_http = 1;
+
+    return (void *) new;
+}
+
+static void *merge_proxyws_dir_config(apr_pool_t *p, void *vbase, void *vadd)
+{
+    proxyws_dir_conf *new = apr_pcalloc(p, sizeof(proxyws_dir_conf)),
+                     *add = vadd, *base = vbase;
+
+    new->fallback_to_proxy_http = (add->fallback_to_proxy_http_set)
+                                  ? add->fallback_to_proxy_http
+                                  : base->fallback_to_proxy_http;
+    new->fallback_to_proxy_http_set = (add->fallback_to_proxy_http_set
+                                       || base->fallback_to_proxy_http_set);
+
+    return new;
+}
+
+static const char * proxyws_fallback_to_proxy_http(cmd_parms *cmd, void *conf, int arg)
+{
+    proxyws_dir_conf *dconf = conf;
+    dconf->fallback_to_proxy_http = !!arg;
+    dconf->fallback_to_proxy_http_set = 1;
+    return NULL;
+}
+
+static int proxy_wstunnel_post_config(apr_pool_t *pconf, apr_pool_t *plog,
+                                      apr_pool_t *ptemp, server_rec *s)
+{
+    can_fallback_to_proxy_http =
+        (ap_find_linked_module("mod_proxy_http.c") != NULL);
+
+    return OK;
+}
+
+static const command_rec ws_proxy_cmds[] =
+{
+    AP_INIT_FLAG("ProxyWebsocketFallbackToProxyHttp",
+                 proxyws_fallback_to_proxy_http, NULL, RSRC_CONF|ACCESS_CONF,
+                 "whether to let mod_proxy_http handle the upgrade and tunneling, "
+                 "On by default"),
+
+    {NULL}
+};
+
+static void ws_proxy_hooks(apr_pool_t *p)
+{
+    static const char * const aszSucc[] = { "mod_proxy_http.c", NULL};
+    ap_hook_post_config(proxy_wstunnel_post_config, NULL, NULL, APR_HOOK_MIDDLE);
+    proxy_hook_scheme_handler(proxy_wstunnel_handler, NULL, aszSucc, APR_HOOK_FIRST);
+    proxy_hook_check_trans(proxy_wstunnel_check_trans, NULL, aszSucc, APR_HOOK_MIDDLE);
+    proxy_hook_canon_handler(proxy_wstunnel_canon, NULL, aszSucc, APR_HOOK_FIRST);
 }
 
 AP_DECLARE_MODULE(proxy_wstunnel) = {
     STANDARD20_MODULE_STUFF,
-    NULL,                       /* create per-directory config structure */
-    NULL,                       /* merge per-directory config structures */
+    create_proxyws_dir_config,  /* create per-directory config structure */
+    merge_proxyws_dir_config,   /* merge per-directory config structures */
     NULL,                       /* create per-server config structure */
     NULL,                       /* merge per-server config structures */
-    NULL,                       /* command apr_table_t */
-    ap_proxy_http_register_hook /* register hooks */
+    ws_proxy_cmds,              /* command apr_table_t */
+    ws_proxy_hooks              /* register hooks */
 };

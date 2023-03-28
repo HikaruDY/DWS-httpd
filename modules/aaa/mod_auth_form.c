@@ -40,11 +40,10 @@
 #define FORM_REDIRECT_HANDLER "form-redirect-handler"
 #define MOD_AUTH_FORM_HASH "site"
 
-static int (*ap_session_load_fn) (request_rec * r, session_rec ** z) = NULL;
-static apr_status_t (*ap_session_get_fn)(request_rec * r, session_rec * z,
-        const char *key, const char **value) = NULL;
-static apr_status_t (*ap_session_set_fn)(request_rec * r, session_rec * z,
-        const char *key, const char *value) = NULL;
+static APR_OPTIONAL_FN_TYPE(ap_session_load) *ap_session_load_fn = NULL;
+static APR_OPTIONAL_FN_TYPE(ap_session_get)  *ap_session_get_fn = NULL;
+static APR_OPTIONAL_FN_TYPE(ap_session_set)  *ap_session_set_fn = NULL;
+
 static void (*ap_request_insert_filter_fn) (request_rec * r) = NULL;
 static void (*ap_request_remove_filter_fn) (request_rec * r) = NULL;
 
@@ -420,7 +419,7 @@ static void note_cookie_auth_failure(request_rec * r)
 static int hook_note_cookie_auth_failure(request_rec * r,
                                          const char *auth_type)
 {
-    if (strcasecmp(auth_type, "form"))
+    if (ap_cstr_casecmp(auth_type, "form"))
         return DECLINED;
 
     note_cookie_auth_failure(r);
@@ -892,7 +891,7 @@ static int authenticate_form_authn(request_rec * r)
 
     /* Are we configured to be Form auth? */
     current_auth = ap_auth_type(r);
-    if (!current_auth || strcasecmp(current_auth, "form")) {
+    if (!current_auth || ap_cstr_casecmp(current_auth, "form")) {
         return DECLINED;
     }
 
