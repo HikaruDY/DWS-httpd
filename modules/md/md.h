@@ -87,8 +87,9 @@ struct md_t {
     md_timeslice_t *renew_window;   /* time before expiration that starts renewal */
     md_timeslice_t *warn_window;    /* time before expiration that warnings are sent out */
     
-    const char *ca_url;             /* url of CA certificate service */
     const char *ca_proto;           /* protocol used vs CA (e.g. ACME) */
+    struct apr_array_header_t *ca_urls; /* urls of CAs */
+    const char *ca_effective;       /* url of CA used */
     const char *ca_account;         /* account used at CA */
     const char *ca_agreement;       /* accepted agreement uri between CA and user */
     struct apr_array_header_t *ca_challenges; /* challenge types configured for this MD */
@@ -102,7 +103,8 @@ struct md_t {
     
     struct apr_array_header_t *acme_tls_1_domains; /* domains supporting "acme-tls/1" protocol */
     int stapling;                   /* if OCSP stapling is enabled */
-    
+    const char *dns01_cmd;          /* DNS challenge command, override global command */
+
     int watched;               /* if certificate is supervised (renew or expiration warning) */
     const struct md_srv_conf_t *sc; /* server config where it was defined or NULL */
     const char *defn_name;          /* config file this MD was defined */
@@ -203,6 +205,7 @@ struct md_t {
 #define MD_KEY_UNKNOWN          "unknown"
 #define MD_KEY_UNTIL            "until"
 #define MD_KEY_URL              "url"
+#define MD_KEY_URLS             "urls"
 #define MD_KEY_URI              "uri"
 #define MD_KEY_VALID            "valid"
 #define MD_KEY_VALID_FROM       "valid-from"

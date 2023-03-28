@@ -61,8 +61,8 @@
 #define MD_USE_OPENSSL_PRE_1_1_API (OPENSSL_VERSION_NUMBER < 0x10100000L)
 #endif
 
-#if defined(LIBRESSL_VERSION_NUMBER) || (OPENSSL_VERSION_NUMBER < 0x10100000L) 
-/* Missing from LibreSSL and only available since OpenSSL v1.1.x */
+#if (defined(LIBRESSL_VERSION_NUMBER) && (LIBRESSL_VERSION_NUMBER < 0x3050000fL)) || (OPENSSL_VERSION_NUMBER < 0x10100000L) 
+/* Missing from LibreSSL < 3.5.0 and only available since OpenSSL v1.1.x */
 #ifndef OPENSSL_NO_CT
 #define OPENSSL_NO_CT
 #endif
@@ -210,7 +210,8 @@ static int pem_passwd(char *buf, int size, int rwflag, void *baton)
  */
 static apr_time_t md_asn1_time_get(const ASN1_TIME* time)
 {
-#if OPENSSL_VERSION_NUMBER < 0x10002000L || defined(LIBRESSL_VERSION_NUMBER)
+#if OPENSSL_VERSION_NUMBER < 0x10002000L || (defined(LIBRESSL_VERSION_NUMBER) && \
+                                             LIBRESSL_VERSION_NUMBER < 0x3060000fL)
     /* courtesy: https://stackoverflow.com/questions/10975542/asn1-time-to-time-t-conversion#11263731
      * all bugs are mine */
     apr_time_exp_t t;
@@ -709,6 +710,53 @@ apr_status_t md_pkey_fsave(md_pkey_t *pkey, apr_pool_t *p,
     return rv;
 }
 
+apr_status_t md_pkey_read_http(md_pkey_t **ppkey, apr_pool_t *pool,
+                               const struct md_http_response_t *res)
+{
+    apr_status_t rv;
+    apr_off_t data_len;
+    char *pem_data;
+    apr_size_t pem_len;
+    md_pkey_t *pkey;
+    BIO *bf;
+    passwd_ctx ctx;
+
+    rv = apr_brigade_length(res->body, 1, &data_len);
+    if (APR_SUCCESS != rv) goto leave;
+    if (data_len > 1024*1024) { /* certs usually are <2k each */
+        rv = APR_EINVAL;
+        goto leave;
+    }
+    rv = apr_brigade_pflatten(res->body, &pem_data, &pem_len, res->req->pool);
+    if (APR_SUCCESS != rv) goto leave;
+
+    if (NULL == (bf = BIO_new_mem_buf(pem_data, (int)pem_len))) {
+        rv = APR_ENOMEM;
+        goto leave;
+    }
+    pkey = make_pkey(pool);
+    ctx.pass_phrase = NULL;
+    ctx.pass_len = 0;
+    ERR_clear_error();
+    pkey->pkey = PEM_read_bio_PrivateKey(bf, NULL, NULL, &ctx);
+    BIO_free(bf);
+
+    if (pkey->pkey == NULL) {
+        unsigned long err = ERR_get_error();
+        rv = APR_EINVAL;
+        md_log_perror(MD_LOG_MARK, MD_LOG_WARNING, rv, pool,
+                      "error loading pkey from http response: %s",
+                      ERR_error_string(err, NULL));
+        goto leave;
+    }
+    rv = APR_SUCCESS;
+    apr_pool_cleanup_register(pool, pkey, pkey_cleanup, apr_pool_cleanup_null);
+
+leave:
+    *ppkey = (APR_SUCCESS == rv)? pkey : NULL;
+    return rv;
+}
+
 /* Determine the message digest used for signing with the given private key. 
  */
 static const EVP_MD *pkey_get_MD(md_pkey_t *pkey)
@@ -807,7 +855,8 @@ static apr_status_t gen_ec(md_pkey_t **ppkey, apr_pool_t *p, const char *curve)
         curve = EC_curve_nid2nist(curve_nid);
     }
 #endif
-#if defined(NID_X25519) && !defined(LIBRESSL_VERSION_NUMBER)
+#if defined(NID_X25519) && (!defined(LIBRESSL_VERSION_NUMBER) || \
+                            LIBRESSL_VERSION_NUMBER >= 0x3070000fL)
     if (NID_undef == curve_nid && !apr_strnatcasecmp("X25519", curve)) {
         curve_nid = NID_X25519;
         curve = EC_curve_nid2nist(curve_nid);
@@ -825,7 +874,8 @@ static apr_status_t gen_ec(md_pkey_t **ppkey, apr_pool_t *p, const char *curve)
     *ppkey = make_pkey(p);
     switch (curve_nid) {
 
-#if defined(NID_X25519) && !defined(LIBRESSL_VERSION_NUMBER)
+#if defined(NID_X25519) && (!defined(LIBRESSL_VERSION_NUMBER) || \
+                            LIBRESSL_VERSION_NUMBER >= 0x3070000fL)
     case NID_X25519:
         /* no parameters */
         if (NULL == (ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_X25519, NULL))
@@ -1135,6 +1185,11 @@ const char *md_cert_get_serial_number(const md_cert_t *cert, apr_pool_t *p)
         OPENSSL_free((void*)bn);
     }
     return s;
+}
+
+int md_certs_are_equal(const md_cert_t *a, const md_cert_t *b)
+{
+    return X509_cmp(a->x509, b->x509) == 0;
 }
 
 int md_cert_is_valid_now(const md_cert_t *cert)
