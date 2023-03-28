@@ -26,6 +26,7 @@ FIND_PACKAGE(LibXml2)
 FIND_PACKAGE(Lua51)
 FIND_PACKAGE(OpenSSL)
 FIND_PACKAGE(ZLIB)
+FIND_PACKAGE(CURL)
 
 # Options for support libraries not supported by cmake-bundled FindFOO
 
@@ -46,7 +47,13 @@ ENDIF()
 # PCRE names its libraries differently for debug vs. release builds.
 # We can't query our own CMAKE_BUILD_TYPE at configure time.
 # If the debug version exists in PREFIX/lib, default to that one.
-IF(EXISTS "${CMAKE_INSTALL_PREFIX}/lib/pcred.lib")
+IF(EXISTS "${CMAKE_INSTALL_PREFIX}/lib/pcre2-8d.lib")
+  SET(default_pcre_libraries ${CMAKE_INSTALL_PREFIX}/lib/pcre2-8d.lib)
+  SET(default_pcre_cflags "-DHAVE_PCRE2")
+ELSEIF(EXISTS "${CMAKE_INSTALL_PREFIX}/lib/pcre2-8.lib")
+  SET(default_pcre_libraries ${CMAKE_INSTALL_PREFIX}/lib/pcre2-8.lib)
+  SET(default_pcre_cflags "-DHAVE_PCRE2")
+ELSEIF(EXISTS "${CMAKE_INSTALL_PREFIX}/lib/pcred.lib")
   SET(default_pcre_libraries ${CMAKE_INSTALL_PREFIX}/lib/pcred.lib)
 ELSE()
   SET(default_pcre_libraries ${CMAKE_INSTALL_PREFIX}/lib/pcre.lib)
@@ -64,16 +71,25 @@ ELSE()
   SET(default_brotli_libraries)
 ENDIF()
 
+IF(EXISTS "${CMAKE_INSTALL_PREFIX}/lib/jansson.lib")
+  SET(default_jansson_libraries "${CMAKE_INSTALL_PREFIX}/lib/jansson.lib")
+ELSE()
+  SET(default_jansson_libraries)
+ENDIF()
+
 SET(APR_INCLUDE_DIR       "${CMAKE_INSTALL_PREFIX}/include" CACHE STRING "Directory with APR[-Util] include files")
 SET(APR_LIBRARIES         ${default_apr_libraries}       CACHE STRING "APR libraries to link with")
 SET(NGHTTP2_INCLUDE_DIR   "${CMAKE_INSTALL_PREFIX}/include" CACHE STRING "Directory with NGHTTP2 include files within nghttp2 subdirectory")
 SET(NGHTTP2_LIBRARIES     ${default_nghttp2_libraries}   CACHE STRING "NGHTTP2 libraries to link with")
+SET(PCRE_CFLAGS           "${default_pcre_cflags}"       CACHE STRING "PCRE flags for util_pcre.c compilation")
 SET(PCRE_INCLUDE_DIR      "${CMAKE_INSTALL_PREFIX}/include" CACHE STRING "Directory with PCRE include files")
 SET(PCRE_LIBRARIES        ${default_pcre_libraries}      CACHE STRING "PCRE libraries to link with")
 SET(LIBXML2_ICONV_INCLUDE_DIR     ""                     CACHE STRING "Directory with iconv include files for libxml2")
 SET(LIBXML2_ICONV_LIBRARIES       ""                     CACHE STRING "iconv libraries to link with for libxml2")
 SET(BROTLI_INCLUDE_DIR    "${CMAKE_INSTALL_PREFIX}/include" CACHE STRING "Directory with include files for Brotli")
 SET(BROTLI_LIBRARIES      ${default_brotli_libraries}    CACHE STRING "Brotli libraries to link with")
+SET(JANSSON_INCLUDE_DIR   "${CMAKE_INSTALL_PREFIX}/include" CACHE STRING "Directory with include files for jansson")
+SET(JANSSON_LIBRARIES     "${default_jansson_libraries}" CACHE STRING "Jansson libraries to link with")
 # end support library configuration
 
 # Misc. options
@@ -199,6 +215,19 @@ ELSE()
   SET(BROTLI_FOUND FALSE)
 ENDIF()
 
+# See if we have Jansson
+SET(JANSSON_FOUND TRUE)
+IF(EXISTS "${JANSSON_INCLUDE_DIR}/jansson.h")
+  FOREACH(onelib ${JANSSON_LIBRARIES})
+    IF(NOT EXISTS ${onelib})
+      SET(JANSSON_FOUND FALSE)
+    ENDIF()
+  ENDFOREACH()
+ELSE()
+  SET(JANSSON_FOUND FALSE)
+ENDIF()
+
+
 MESSAGE(STATUS "")
 MESSAGE(STATUS "Summary of feature detection:")
 MESSAGE(STATUS "")
@@ -208,6 +237,8 @@ MESSAGE(STATUS "NGHTTP2_FOUND ............ : ${NGHTTP2_FOUND}")
 MESSAGE(STATUS "OPENSSL_FOUND ............ : ${OPENSSL_FOUND}")
 MESSAGE(STATUS "ZLIB_FOUND ............... : ${ZLIB_FOUND}")
 MESSAGE(STATUS "BROTLI_FOUND ............. : ${BROTLI_FOUND}")
+MESSAGE(STATUS "CURL_FOUND ............... : ${CURL_FOUND}")
+MESSAGE(STATUS "JANSSON_FOUND ............ : ${JANSSON_FOUND}")
 MESSAGE(STATUS "APR_HAS_LDAP ............. : ${APR_HAS_LDAP}")
 MESSAGE(STATUS "APR_HAS_XLATE ............ : ${APR_HAS_XLATE}")
 MESSAGE(STATUS "APU_HAVE_CRYPTO .......... : ${APU_HAVE_CRYPTO}")
@@ -264,6 +295,7 @@ SET(MODULE_LIST
   "modules/cache/mod_socache_dc+O+distcache small object cache provider"
   "modules/cache/mod_socache_memcache+I+memcache small object cache provider"
   "modules/cache/mod_socache_shmcb+I+ shmcb small object cache provider"
+  "modules/cache/mod_socache_redis+I+redis small object cache provider"
   "modules/cluster/mod_heartbeat+I+Generates Heartbeats"
   "modules/cluster/mod_heartmonitor+I+Collects Heartbeats"
   "modules/core/mod_macro+I+Define and use macros in configuration files"
@@ -308,6 +340,7 @@ SET(MODULE_LIST
   "modules/loggers/mod_log_forensic+I+forensic logging"
   "modules/loggers/mod_logio+I+input and output logging"
   "modules/lua/mod_lua+i+Apache Lua Framework"
+  "modules/md/mod_md+i+Apache Managed Domains (Certificates)"
   "modules/mappers/mod_actions+I+Action triggering on requests"
   "modules/mappers/mod_alias+A+mapping of requests to different filesystem parts"
   "modules/mappers/mod_dir+A+directory request handling"
@@ -419,7 +452,7 @@ SET(mod_http2_extra_sources
   modules/http2/h2_mplx.c            modules/http2/h2_push.c
   modules/http2/h2_request.c         modules/http2/h2_headers.c
   modules/http2/h2_session.c         modules/http2/h2_stream.c 
-  modules/http2/h2_switch.c          modules/http2/h2_ngn_shed.c 
+  modules/http2/h2_switch.c
   modules/http2/h2_task.c            modules/http2/h2_util.c
   modules/http2/h2_workers.c
 )
@@ -439,6 +472,25 @@ SET(mod_lua_extra_sources
   modules/lua/lua_vmprep.c           modules/lua/lua_dbd.c
 )
 SET(mod_lua_requires                 LUA51_FOUND)
+SET(mod_md_requires                  OPENSSL_FOUND CURL_FOUND JANSSON_FOUND)
+SET(mod_md_extra_includes            ${OPENSSL_INCLUDE_DIR} ${CURL_INCLUDE_DIR} ${JANSSON_INCLUDE_DIR})
+SET(mod_md_extra_libs                ${OPENSSL_LIBRARIES} ${CURL_LIBRARIES} ${JANSSON_LIBRARIES} mod_watchdog)
+SET(mod_md_extra_sources
+  modules/md/md_acme.c               modules/md/md_acme_acct.c
+  modules/md/md_acme_authz.c         modules/md/md_acme_drive.c
+  modules/md/md_acmev2_drive.c       modules/md/md_event.c
+  modules/md/md_acme_order.c         modules/md/md_core.c
+  modules/md/md_curl.c               modules/md/md_crypt.c
+  modules/md/md_http.c               modules/md/md_json.c
+  modules/md/md_jws.c                modules/md/md_log.c
+  modules/md/md_result.c             modules/md/md_reg.c
+  modules/md/md_status.c             modules/md/md_store.c
+  modules/md/md_store_fs.c           modules/md/md_time.c
+  modules/md/md_ocsp.c               modules/md/md_util.c               
+  modules/md/mod_md_config.c         modules/md/mod_md_drive.c
+  modules/md/mod_md_os.c             modules/md/mod_md_status.c
+  modules/md/mod_md_ocsp.c           
+)
 SET(mod_optional_hook_export_extra_defines AP_DECLARE_EXPORT) # bogus reuse of core API prefix
 SET(mod_proxy_extra_defines          PROXY_DECLARE_EXPORT)
 SET(mod_proxy_extra_sources          modules/proxy/proxy_util.c)
@@ -616,6 +668,7 @@ SET(LIBHTTPD_SOURCES
   server/protocol.c
   server/provider.c
   server/request.c
+  server/ssl.c
   server/scoreboard.c
   server/util.c
   server/util_cfgtree.c
@@ -656,6 +709,7 @@ SET(HTTPD_INCLUDE_DIRECTORIES
   ${CMAKE_CURRENT_SOURCE_DIR}/modules/session
   ${CMAKE_CURRENT_SOURCE_DIR}/modules/ssl
   ${CMAKE_CURRENT_SOURCE_DIR}/server
+  ${CMAKE_CURRENT_SOURCE_DIR}/server/mpm/winnt
   ${APR_INCLUDE_DIR}
   ${PCRE_INCLUDE_DIR}
 )
@@ -718,15 +772,17 @@ FOREACH (mod ${MODULE_PATHS})
   IF(NOT ${enable_mod_val} STREQUAL "O") # build of module is desired
     SET(mod_requires "${mod_name}_requires")
     STRING(TOUPPER ${enable_mod_val} enable_mod_val_upper)
-    IF(NOT ${${mod_requires}} STREQUAL "") # module has some prerequisite
-      IF(NOT ${${mod_requires}}) # prerequisite doesn't exist
-        IF(NOT ${enable_mod_val} STREQUAL ${enable_mod_val_upper}) # lower case, so optional based on prereq
-          MESSAGE(STATUS "${mod_name} was requested but couldn't be built due to a missing prerequisite (${${mod_requires}})")
-          SET(enable_mod_val_upper "O") # skip due to missing prerequisite
-        ELSE() # must be upper case "A" or "I" (or coding error above)
-          MESSAGE(FATAL_ERROR "${mod_name} was requested but couldn't be built due to a missing prerequisite (${${mod_requires}})")
+    IF(NOT "${${mod_requires}}" STREQUAL "") # module has some prerequisite
+      FOREACH (required ${${mod_requires}})
+        IF(NOT ${required}) # prerequisite doesn't exist
+          IF(NOT ${enable_mod_val} STREQUAL ${enable_mod_val_upper}) # lower case, so optional based on prereq
+            MESSAGE(STATUS "${mod_name} was requested but couldn't be built due to a missing prerequisite (${required})")
+            SET(enable_mod_val_upper "O") # skip due to missing prerequisite
+          ELSE() # must be upper case "A" or "I" (or coding error above)
+            MESSAGE(FATAL_ERROR "${mod_name} was requested but couldn't be built due to a missing prerequisite (${required})")
+          ENDIF()
         ENDIF()
-      ENDIF()
+      ENDFOREACH()
     ENDIF()
     # map a->A, i->I, O->O for remaining logic since prereq checking is over
     SET(enable_mod_val ${enable_mod_val_upper})
@@ -802,7 +858,7 @@ SET(install_targets ${install_targets} libhttpd)
 SET(install_bin_pdb ${install_bin_pdb} $<TARGET_PDB_FILE:libhttpd>)
 TARGET_LINK_LIBRARIES(libhttpd ${EXTRA_LIBS} ${APR_LIBRARIES} ${PCRE_LIBRARIES} ${HTTPD_SYSTEM_LIBS})
 DEFINE_WITH_BLANKS(define_long_name "LONG_NAME" "Apache HTTP Server Core")
-SET_TARGET_PROPERTIES(libhttpd PROPERTIES COMPILE_FLAGS "-DAP_DECLARE_EXPORT ${define_long_name} -DBIN_NAME=libhttpd.dll ${EXTRA_COMPILE_FLAGS}")
+SET_TARGET_PROPERTIES(libhttpd PROPERTIES COMPILE_FLAGS "-DAP_DECLARE_EXPORT ${define_long_name} ${PCRE_CFLAGS} -DBIN_NAME=libhttpd.dll ${EXTRA_COMPILE_FLAGS}")
 ADD_DEPENDENCIES(libhttpd test_char_header)
 
 ###########   HTTPD EXECUTABLES   ##########
@@ -956,6 +1012,8 @@ MESSAGE(STATUS "  libxml2 iconv prereq include dir. : ${LIBXML2_ICONV_INCLUDE_DI
 MESSAGE(STATUS "  libxml2 iconv prereq libraries .. : ${LIBXML2_ICONV_LIBRARIES}")
 MESSAGE(STATUS "  Brotli include directory......... : ${BROTLI_INCLUDE_DIR}")
 MESSAGE(STATUS "  Brotli libraries ................ : ${BROTLI_LIBRARIES}")
+MESSAGE(STATUS "  Curl include directory........... : ${CURL_INCLUDE_DIR}")
+MESSAGE(STATUS "  Jansson libraries ............... : ${JANSSON_LIBRARIES}")
 MESSAGE(STATUS "  Extra include directories ....... : ${EXTRA_INCLUDES}")
 MESSAGE(STATUS "  Extra compile flags ............. : ${EXTRA_COMPILE_FLAGS}")
 MESSAGE(STATUS "  Extra libraries ................. : ${EXTRA_LIBS}")

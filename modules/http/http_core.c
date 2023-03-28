@@ -140,16 +140,17 @@ static int ap_process_http_async_connection(conn_rec *c)
     AP_DEBUG_ASSERT(cs != NULL);
     AP_DEBUG_ASSERT(cs->state == CONN_STATE_READ_REQUEST_LINE);
 
-    while (cs->state == CONN_STATE_READ_REQUEST_LINE) {
+    if (cs->state == CONN_STATE_READ_REQUEST_LINE) {
         ap_update_child_status_from_conn(c->sbh, SERVER_BUSY_READ, c);
-
+        if (ap_extended_status) {
+            ap_set_conn_count(c->sbh, r, c->keepalives);
+        }
         if ((r = ap_read_request(c))) {
-
-            c->keepalive = AP_CONN_UNKNOWN;
-            /* process the request if it was read without error */
-
             if (r->status == HTTP_OK) {
                 cs->state = CONN_STATE_HANDLER;
+                if (ap_extended_status) {
+                    ap_set_conn_count(c->sbh, r, c->keepalives + 1);
+                }
                 ap_update_child_status(c->sbh, SERVER_BUSY_WRITE, r);
                 ap_process_async_request(r);
                 /* After the call to ap_process_request, the
@@ -199,9 +200,6 @@ static int ap_process_http_sync_connection(conn_rec *c)
         if (!r->server->keep_alive_timeout_set) {
             keep_alive_timeout = c->base_server->keep_alive_timeout;
         }
-
-        c->keepalive = AP_CONN_UNKNOWN;
-        /* process the request if it was read without error */
 
         if (r->status == HTTP_OK) {
             if (cs)

@@ -137,125 +137,124 @@ disponibles avec Require</a></li>
 
 <p>Ce module peut être configuré pour fournir aux espaces de nommage SSI
 et CGI de nombreux éléments d'informations concernant SSL par le biais
-de variables d'environnement supplémentaires. Par défaut, et pour
-des raisons de performances, ces informations ne sont pas fournies (Voir
-la directive <code class="directive">SSLOptions</code> StdEnvVars ci-dessous).
+de variables d'environnement supplémentaires. Par défaut, sauf pour
+<code>HTTPS</code> et <code>SSL_TLS_SNI</code> qui sont toujours définies, ces
+informations ne sont pas fournies pour des raisons de performances (Voir
+la directive <code class="directive"><a href="#ssloptions">SSLOptions</a></code>
+<code>StdEnvVars</code> ci-dessous).
 Les variables générées se trouvent dans la table ci-dessous.
 Ces informations peuvent également être disponible sous des noms différents
 à des fins de compatibilité ascendante. Reportez-vous au chapitre <a href="../ssl/ssl_compat.html">Compatibilité</a> pour plus de détails à
 propos des variables de compatibilité.</p>
 
-<table class="bordered">
-
-<tr>
- <th><a name="table3">Nom de la variable :</a></th>
- <th>Type de valeur :</th>
- <th>Description :</th>
+<table class="bordered"><tr class="header">
+ <th><a name="table3">Nom de la variable</a></th>
+ <th>Type de valeur</th>
+ <th>Description</th>
 </tr>
 <tr><td><code>HTTPS</code></td>                         <td>drapeau</td>
 <td>HTTPS est utilisé.</td></tr>
-<tr><td><code>SSL_PROTOCOL</code></td>                  <td>chaîne</td>
+<tr class="odd"><td><code>SSL_PROTOCOL</code></td>                  <td>chaîne</td>
 <td>La version du protocole SSL (SSLv3, TLSv1, TLSv1.1, TLSv1.2)</td></tr>
 <tr><td><code>SSL_SESSION_ID</code></td>                <td>chaîne</td>
 <td>L'identifiant de session SSL codé en hexadécimal</td></tr>
-<tr><td><code>SSL_SESSION_RESUMED</code></td>           <td>chaîne</td>
+<tr class="odd"><td><code>SSL_SESSION_RESUMED</code></td>           <td>chaîne</td>
 <td>Session SSL initiale ou reprise. Note : plusieurs requêtes peuvent
 être servies dans le cadre de la même session SSL (initiale ou reprise)
 si les connexions persistantes (HTTP KeepAlive) sont utilisées</td></tr>
 <tr><td><code>SSL_SECURE_RENEG</code></td>              <td>chaîne</td>
 <td><code>true</code> si la renégociation sécurisée est supportée,
 <code>false</code> dans le cas contraire</td></tr>
-<tr><td><code>SSL_CIPHER</code></td>                    <td>chaîne</td>
+<tr class="odd"><td><code>SSL_CIPHER</code></td>                    <td>chaîne</td>
 <td>Le nom de l'algorithme de chiffrement</td></tr>
 <tr><td><code>SSL_CIPHER_EXPORT</code></td>             <td>chaîne</td>
 <td><code>true</code> si l'algorithme de chiffrement est un algorithme
 exporté</td></tr>
-<tr><td><code>SSL_CIPHER_USEKEYSIZE</code></td>         <td>nombre</td>
+<tr class="odd"><td><code>SSL_CIPHER_USEKEYSIZE</code></td>         <td>nombre</td>
 <td>Nombre de bits de chiffrement (réellement utilisés)</td></tr>
 <tr><td><code>SSL_CIPHER_ALGKEYSIZE</code></td>         <td>nombre</td>
 <td>Nombre de bits de chiffrement (possible)</td></tr>
-<tr><td><code>SSL_COMPRESS_METHOD</code></td>           <td>chaîne</td>
+<tr class="odd"><td><code>SSL_COMPRESS_METHOD</code></td>           <td>chaîne</td>
 <td>Méthode de compression SSL négociée</td></tr>
-
 <tr><td><code>SSL_VERSION_INTERFACE</code></td>         <td>chaîne</td>
 <td>La version du programme mod_ssl</td></tr>
-<tr><td><code>SSL_VERSION_LIBRARY</code></td>           <td>chaîne</td>
+<tr class="odd"><td><code>SSL_VERSION_LIBRARY</code></td>           <td>chaîne</td>
 <td>La version du programme OpenSSL</td></tr>
 <tr><td><code>SSL_CLIENT_M_VERSION</code></td>          <td>chaîne</td>
 <td>La version du certificat client</td></tr>
-<tr><td><code>SSL_CLIENT_M_SERIAL</code></td>           <td>chaîne</td>
+<tr class="odd"><td><code>SSL_CLIENT_M_SERIAL</code></td>           <td>chaîne</td>
 <td>Le numéro de série du certificat client</td></tr>
 <tr><td><code>SSL_CLIENT_S_DN</code></td>               <td>chaîne</td>
 <td>Le DN sujet du certificat client</td></tr>
-<tr><td><code>SSL_CLIENT_S_DN_</code><em>x509</em></td> <td>chaîne</td>
+<tr class="odd"><td><code>SSL_CLIENT_S_DN_</code><em>x509</em></td> <td>chaîne</td>
 <td>Elément du DN sujet du client</td></tr>
 <tr><td><code>SSL_CLIENT_SAN_Email_</code><em>n</em></td> <td>chaîne</td>
 <td>Les entrées d'extension subjectAltName du certificat client de type rfc822Name</td></tr>
-<tr><td><code>SSL_CLIENT_SAN_DNS_</code><em>n</em></td> <td>chaîne</td>
+<tr class="odd"><td><code>SSL_CLIENT_SAN_DNS_</code><em>n</em></td> <td>chaîne</td>
 <td>Les entrées d'extension subjectAltName du certificat client de type dNSName</td></tr>
 <tr><td><code>SSL_CLIENT_SAN_OTHER_msUPN_</code><em>n</em></td>
 <td>chaîne</td>    <td>Extensions subjectAltName de type otherName du
 certificat client, forme Microsoft du nom principal de l'utilisateur (OID 1.3.6.1.4.1.311.20.2.3)</td></tr>
-<tr><td><code>SSL_CLIENT_I_DN</code></td>               <td>chaîne</td>
+<tr class="odd"><td><code>SSL_CLIENT_I_DN</code></td>               <td>chaîne</td>
 <td>DN de l'émetteur du certificat du client</td></tr>
 <tr><td><code>SSL_CLIENT_I_DN_</code><em>x509</em></td> <td>chaîne</td>
 <td>Elément du DN de l'émetteur du certificat du client</td></tr>
-<tr><td><code>SSL_CLIENT_V_START</code></td>            <td>chaîne</td>
+<tr class="odd"><td><code>SSL_CLIENT_V_START</code></td>            <td>chaîne</td>
 <td>Validité du certificat du client (date de début)</td></tr>
 <tr><td><code>SSL_CLIENT_V_END</code></td>              <td>chaîne</td>
 <td>Validité du certificat du client (date de fin)</td></tr>
-<tr><td><code>SSL_CLIENT_V_REMAIN</code></td>           <td>chaîne</td>
+<tr class="odd"><td><code>SSL_CLIENT_V_REMAIN</code></td>           <td>chaîne</td>
 <td>Nombre de jours avant expiration du certificat du client</td></tr>
 <tr><td><code>SSL_CLIENT_A_SIG</code></td>              <td>chaîne</td>
 <td>Algorithme utilisé pour la signature du certificat du client</td></tr>
-<tr><td><code>SSL_CLIENT_A_KEY</code></td>              <td>chaîne</td>
+<tr class="odd"><td><code>SSL_CLIENT_A_KEY</code></td>              <td>chaîne</td>
 <td>Algorithme utilisé pour la clé publique du certificat du client</td></tr>
 <tr><td><code>SSL_CLIENT_CERT</code></td>               <td>chaîne</td>
 <td>Certificat du client au format PEM</td></tr>
-<tr><td><code>SSL_CLIENT_CERT_CHAIN_</code><em>n</em></td>
+<tr class="odd"><td><code>SSL_CLIENT_CERT_CHAIN_</code><em>n</em></td>
 <td>chaîne</td>    <td>Certificats de la chaîne de certification du
 client au format PEM</td></tr>
 <tr><td><code>SSL_CLIENT_CERT_RFC4523_CEA</code></td>   <td>chaîne</td>
 <td>Numéro de série et fournisseur du certificat. le format correspond à
 celui de la CertificateExactAssertion dans la RFC4523</td></tr>
-<tr><td><code>SSL_CLIENT_VERIFY</code></td>             <td>chaîne</td>
+<tr class="odd"><td><code>SSL_CLIENT_VERIFY</code></td>             <td>chaîne</td>
 <td><code>NONE</code>, <code>SUCCESS</code>, <code>GENEROUS</code> ou
 <code>FAILED:</code><em>raison</em></td></tr>
 <tr><td><code>SSL_SERVER_M_VERSION</code></td>          <td>chaîne</td>
 <td>La version du certificat du serveur</td></tr>
-<tr><td><code>SSL_SERVER_M_SERIAL</code></td>           <td>chaîne</td>    <td>
+<tr class="odd"><td><code>SSL_SERVER_M_SERIAL</code></td>           <td>chaîne</td>    <td>
 
 The serial of the server certificate</td></tr>
 <tr><td><code>SSL_SERVER_S_DN</code></td>               <td>chaîne</td>
 <td>DN sujet du certificat du serveur</td></tr>
-<tr><td><code>SSL_SERVER_S_DN_</code><em>x509</em></td> <td>chaîne</td>
+<tr class="odd"><td><code>SSL_SERVER_S_DN_</code><em>x509</em></td> <td>chaîne</td>
 <td>Elément du DN sujet du certificat du serveur</td></tr>
 <tr><td><code>SSL_SERVER_SAN_Email_</code><em>n</em></td>
 <td>chaîne</td>  <td>Les entrées d'extension subjectAltName du
 certificat de serveur de type rfc822Name</td></tr>
-<tr><td><code>SSL_SERVER_SAN_DNS_</code><em>n</em></td> <td>chaîne</td>
+<tr class="odd"><td><code>SSL_SERVER_SAN_DNS_</code><em>n</em></td> <td>chaîne</td>
 <td>Les entrées d'extension subjectAltName du
 certificat de serveur de type dNSName</td></tr>
 <tr><td><code>SSL_SERVER_SAN_OTHER_dnsSRV_</code><em>n</em></td>
 <td>chaîne</td>    <td>Extensions subjectAltName de type otherName du
 certificat serveur, sous la forme SRVName (OID 1.3.6.1.5.5.7.8.7, RFC 4985)</td></tr>
-<tr><td><code>SSL_SERVER_I_DN</code></td>               <td>chaîne</td>
+<tr class="odd"><td><code>SSL_SERVER_I_DN</code></td>               <td>chaîne</td>
 <td>DN de l'émetteur du certificat du serveur</td></tr>
 <tr><td><code>SSL_SERVER_I_DN_</code><em>x509</em></td> <td>chaîne</td>
 <td>Elément du DN de l'émetteur du certificat du serveur</td></tr>
-<tr><td><code>SSL_SERVER_V_START</code></td>            <td>chaîne</td>
+<tr class="odd"><td><code>SSL_SERVER_V_START</code></td>            <td>chaîne</td>
 <td>Validité du certificat du serveur (date de dédut)</td></tr>
 <tr><td><code>SSL_SERVER_V_END</code></td>              <td>chaîne</td>
 <td>Validité du certificat du serveur (date de fin)</td></tr>
-<tr><td><code>SSL_SERVER_A_SIG</code></td>              <td>chaîne</td>
+<tr class="odd"><td><code>SSL_SERVER_A_SIG</code></td>              <td>chaîne</td>
 <td>Algorithme utilisé pour la signature du certificat du serveur</td></tr>
 <tr><td><code>SSL_SERVER_A_KEY</code></td>              <td>chaîne</td>
 <td>Algorithme utilisé pour la clé publique du certificat du serveur</td></tr>
-<tr><td><code>SSL_SERVER_CERT</code></td>               <td>chaîne</td>
+<tr class="odd"><td><code>SSL_SERVER_CERT</code></td>               <td>chaîne</td>
 <td>Certificat du serveur au format PEM</td></tr>
 <tr><td><code>SSL_SRP_USER</code></td>                  <td>chaîne</td>
 <td>nom d'utilisateur SRP</td></tr>
-<tr><td><code>SSL_SRP_USERINFO</code></td>              <td>chaîne</td>
+<tr class="odd"><td><code>SSL_SRP_USERINFO</code></td>              <td>chaîne</td>
 <td>informations sur l'utilisateur SRP</td></tr>
 <tr><td><code>SSL_TLS_SNI</code></td>                   <td>string</td>
 <td>Contenu de l'extension SNI TLS (si supporté par ClientHello)</td></tr>
@@ -440,7 +439,7 @@ Require valid-user</pre>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Fichier contenant une concaténation des certificats de CA
 codés en PEM pour l'authentification des clients</td></tr>
-<tr><th><a href="directive-dict.html#Syntax">Syntaxe:</a></th><td><code>SSLCACertificateFile <em>chemin-fichier</em></code></td></tr>
+<tr><th><a href="directive-dict.html#Syntax">Syntaxe:</a></th><td><code>SSLCACertificateFile <var>file-path</var></code></td></tr>
 <tr><th><a href="directive-dict.html#Context">Contexte:</a></th><td>configuration globale, serveur virtuel</td></tr>
 <tr><th><a href="directive-dict.html#Status">Statut:</a></th><td>Extension</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_ssl</td></tr>
@@ -488,7 +487,7 @@ assurer que ce répertoire contient les liens symboliques appropriés.</p>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Fichier contenant la concaténation des certificats de CA
 codés en PEM pour la définition de noms de CA acceptables</td></tr>
-<tr><th><a href="directive-dict.html#Syntax">Syntaxe:</a></th><td><code>SSLCADNRequestFile <em>chemin-fichier</em></code></td></tr>
+<tr><th><a href="directive-dict.html#Syntax">Syntaxe:</a></th><td><code>SSLCADNRequestFile <var>file-path</var></code></td></tr>
 <tr><th><a href="directive-dict.html#Context">Contexte:</a></th><td>configuration globale, serveur virtuel</td></tr>
 <tr><th><a href="directive-dict.html#Status">Statut:</a></th><td>Extension</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_ssl</td></tr>
@@ -552,7 +551,7 @@ assurer que ce répertoire contient les liens symboliques appropriés.</p>
 <div class="directive-section"><h2><a name="sslcarevocationcheck" id="sslcarevocationcheck">Directive</a> <a name="SSLCARevocationCheck" id="SSLCARevocationCheck">SSLCARevocationCheck</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Active la vérification des révocations basée sur les CRL</td></tr>
-<tr><th><a href="directive-dict.html#Syntax">Syntaxe:</a></th><td><code>SSLCARevocationCheck chain|leaf|none <em>flag</em>s</code></td></tr>
+<tr><th><a href="directive-dict.html#Syntax">Syntaxe:</a></th><td><code>SSLCARevocationCheck chain|leaf|none [<em>flag</em>s ...]</code></td></tr>
 <tr><th><a href="directive-dict.html#Default">Défaut:</a></th><td><code>SSLCARevocationCheck none</code></td></tr>
 <tr><th><a href="directive-dict.html#Context">Contexte:</a></th><td>configuration globale, serveur virtuel</td></tr>
 <tr><th><a href="directive-dict.html#Status">Statut:</a></th><td>Extension</td></tr>
@@ -596,7 +595,7 @@ retrouver le comportement précédent.</p>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Fichier contenant la concaténation des CRLs des CA codés en
 PEM pour l'authentification des clients</td></tr>
-<tr><th><a href="directive-dict.html#Syntax">Syntaxe:</a></th><td><code>SSLCARevocationFile <em>chemin-fichier</em></code></td></tr>
+<tr><th><a href="directive-dict.html#Syntax">Syntaxe:</a></th><td><code>SSLCARevocationFile <var>file-path</var></code></td></tr>
 <tr><th><a href="directive-dict.html#Context">Contexte:</a></th><td>configuration globale, serveur virtuel</td></tr>
 <tr><th><a href="directive-dict.html#Status">Statut:</a></th><td>Extension</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_ssl</td></tr>
@@ -646,7 +645,7 @@ assurer que ce répertoire contient les liens symboliques appropriés.</p>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Fichier contenant les certificats de CA du serveur codés en
 PEM</td></tr>
-<tr><th><a href="directive-dict.html#Syntax">Syntaxe:</a></th><td><code>SSLCertificateChainFile <em>chemin-fichier</em></code></td></tr>
+<tr><th><a href="directive-dict.html#Syntax">Syntaxe:</a></th><td><code>SSLCertificateChainFile <var>file-path</var></code></td></tr>
 <tr><th><a href="directive-dict.html#Context">Contexte:</a></th><td>configuration globale, serveur virtuel</td></tr>
 <tr><th><a href="directive-dict.html#Status">Statut:</a></th><td>Extension</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_ssl</td></tr>
@@ -693,17 +692,20 @@ navigateurs.</p>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="directive-section"><h2><a name="sslcertificatefile" id="sslcertificatefile">Directive</a> <a name="SSLCertificateFile" id="SSLCertificateFile">SSLCertificateFile</a></h2>
 <table class="directive">
-<tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Fichier de données contenant le certificat X.509 du serveur codé en
-PEM</td></tr>
-<tr><th><a href="directive-dict.html#Syntax">Syntaxe:</a></th><td><code>SSLCertificateFile <em>chemin-fichier</em></code></td></tr>
+<tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Fichier de données contenant les informations de certificat X.509 du serveur
+codées au format PEM ou identificateur de jeton</td></tr>
+<tr><th><a href="directive-dict.html#Syntax">Syntaxe:</a></th><td><code>SSLCertificateFile <var>file-path</var>|<var>certid</var></code></td></tr>
 <tr><th><a href="directive-dict.html#Context">Contexte:</a></th><td>configuration globale, serveur virtuel</td></tr>
 <tr><th><a href="directive-dict.html#Status">Statut:</a></th><td>Extension</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_ssl</td></tr>
+<tr><th><a href="directive-dict.html#Compatibility">Compatibilité:</a></th><td>L'option <var>certid</var> est disponible à partir de la version
+2.4.42 du serveur HTTP Apache.</td></tr>
 </table>
-<p>Cette directive permet de définir le fichier de données contenant
-les informations de certificat
-X.509 du serveur codées au format PEM. Ce fichier doit contenir
-au minimum un certificat d'entité finale (feuille). 
+<p>Cette directive permet de définir le fichier de données contenant les
+informations de certificat X.509 du serveur codées au format PEM ou
+l'identificateur de certificat via un jeton cryptographique. Si on utilise un
+fichier au format PEM, ce dernier doit contenir au minimum un certificat
+d'entité finale (feuille).
 La directive peut être utilisée plusieurs fois (elle référence des
 fichiers différents) pour accepter plusieurs algorithmes
 d'authentification au niveau du serveur - souvent RSA, DSA et ECC. Le
@@ -742,6 +744,14 @@ avant les certificats en utilisant un fichier de clé séparé. En outre,
 si la clé est chiffrée, une boîte de dialogue pour entrer le mot de
 passe de la clé s'ouvre au démarrage du serveur.
 </p>
+
+<p>Plutôt que de stocker les certificats et les clés privées dans des fichiers,
+on peut utiliser un identificateur de certificat pour identifier un certificat
+stocké dans un jeton. Actuellement, seuls les <a href="https://tools.ietf.org/html/rfc7512">URIs PKCS#11</a> sont reconnus comme
+identificateurs de certificats et peuvent être utilisés en conjonction avec le
+moteur OpenSSL <code>pkcs11</code>. Si la directive <code class="directive"><a href="#sslcertificatekeyfile">SSLCertificateKeyFile</a></code> est absente, le certificat et
+la clé privée peuvent être chargés avec l'identificateur spécifié via la
+directive <code class="directive"><a href="#sslcertificatefile">SSLCertificateFile</a></code>.</p>
 
 <div class="note">
 <h3>Interopérabilité des paramètres DH avec les nombres premiers de
@@ -790,7 +800,11 @@ et appropriée.
 </p>
 </div>
 
-<div class="example"><h3>Exemple</h3><pre class="prettyprint lang-config">SSLCertificateFile "/usr/local/apache2/conf/ssl.crt/server.crt"</pre>
+<div class="example"><h3>Exemple</h3><pre class="prettyprint lang-config"># Exemple utilisant un fichier codé en PEM.
+SSLCertificateFile "/usr/local/apache2/conf/ssl.crt/server.crt"
+# Exemple d'utilisation d'un certificat et d'une clé privés issus d'un jeton
+# PKCS#11 :
+SSLCertificateFile "pkcs11:token=My%20Token%20Name;id=45"</pre>
 </div>
 
 </div>
@@ -799,15 +813,18 @@ et appropriée.
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Fichier contenant la clé privée du serveur codée en
 PEM</td></tr>
-<tr><th><a href="directive-dict.html#Syntax">Syntaxe:</a></th><td><code>SSLCertificateKeyFile <em>chemin-fichier</em></code></td></tr>
+<tr><th><a href="directive-dict.html#Syntax">Syntaxe:</a></th><td><code>SSLCertificateKeyFile <var>file-path</var>|<var>keyid</var></code></td></tr>
 <tr><th><a href="directive-dict.html#Context">Contexte:</a></th><td>configuration globale, serveur virtuel</td></tr>
 <tr><th><a href="directive-dict.html#Status">Statut:</a></th><td>Extension</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_ssl</td></tr>
+<tr><th><a href="directive-dict.html#Compatibility">Compatibilité:</a></th><td><var>keyid</var> est disponible à partir de la version 2.4.42 du
+serveur HTTP Apache.</td></tr>
 </table>
-<p>Cette directive permet de définir le fichier contenant la clé privée du
-serveur codée en PEM. Si la clé privée est
-chiffrée, une boîte de dialogue demandant le mot de passe s'ouvre au
-démarrage.</p>
+<p>
+Cette directive permet de définir le fichier contenant la clé privée du serveur
+codée en PEM ou l'identifiant de la clé via un jeton cryptographique défini. Si
+la clé privée est chiffrée, une boîte de dialogue demandant le mot de passe de
+cette dernière s'ouvre au démarrage du serveur.</p>
 
 <p>
 Cette directive peut être utilisée plusieurs fois pour référencer
@@ -823,7 +840,16 @@ pratique est fortement déconseillée. En effet, les fichiers de
 certificats qui comportent une telle clé doivent être définis après les
 certificats en utilisant un fichier de clé séparé.</p>
 
-<div class="example"><h3>Exemple</h3><pre class="prettyprint lang-config">SSLCertificateKeyFile "/usr/local/apache2/conf/ssl.key/server.key"</pre>
+<p>Plutôt que de stocker des clés privées dans des fichiers, il est possible
+d'identifier une clé privée via un identifiant stocké dans un jeton.
+Actuellement, seuls les <a href="https://tools.ietf.org/html/rfc7512">PKCS#11
+URIs</a> sont reconnus comme identifiants de clés privées et peuvent être
+utilisés en conjonction avec le moteur OpenSSL <code>pkcs11</code>.</p>
+
+<div class="example"><h3>Exemple</h3><pre class="prettyprint lang-config"># Pour utiliser une clé privée stockée dans fichier encodé PEM :
+SSLCertificateKeyFile "/usr/local/apache2/conf/ssl.key/server.key"
+# Pour utiliser une clé privée à partir d'un jeton PKCS#11 :
+SSLCertificateKeyFile "pkcs11:token=My%20Token%20Name;id=45"</pre>
 </div>
 
 </div>
@@ -1225,7 +1251,7 @@ sécurisée est supportée pour une connexion SSL donnée.</p>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Définit l'URI du répondeur par défaut pour la validation
 OCSP</td></tr>
-<tr><th><a href="directive-dict.html#Syntax">Syntaxe:</a></th><td><code>SSLOCSDefaultResponder <em>uri</em></code></td></tr>
+<tr><th><a href="directive-dict.html#Syntax">Syntaxe:</a></th><td><code>SSLOCSPDefaultResponder <em>uri</em></code></td></tr>
 <tr><th><a href="directive-dict.html#Context">Contexte:</a></th><td>configuration globale, serveur virtuel</td></tr>
 <tr><th><a href="directive-dict.html#Status">Statut:</a></th><td>Extension</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_ssl</td></tr>
@@ -1269,8 +1295,8 @@ SSLOCSPOverrideResponder on</pre>
 <div class="directive-section"><h2><a name="sslocspnoverify" id="sslocspnoverify">Directive</a> <a name="SSLOCSPNoverify" id="SSLOCSPNoverify">SSLOCSPNoverify</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Evite la vérification des certificats des répondeurs OCSP</td></tr>
-<tr><th><a href="directive-dict.html#Syntax">Syntaxe:</a></th><td><code>SSLOCSPNoverify <em>On/Off</em></code></td></tr>
-<tr><th><a href="directive-dict.html#Default">Défaut:</a></th><td><code>SSLOCSPNoverify Off</code></td></tr>
+<tr><th><a href="directive-dict.html#Syntax">Syntaxe:</a></th><td><code>SSLOCSPNoverify on|off</code></td></tr>
+<tr><th><a href="directive-dict.html#Default">Défaut:</a></th><td><code>SSLOCSPNoverify off</code></td></tr>
 <tr><th><a href="directive-dict.html#Context">Contexte:</a></th><td>configuration globale, serveur virtuel</td></tr>
 <tr><th><a href="directive-dict.html#Status">Statut:</a></th><td>Extension</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_ssl</td></tr>
@@ -1444,7 +1470,7 @@ SSLOpenSSLConfCmd SignatureAlgorithms RSA+SHA384:ECDSA+SHA256</pre>
 <p>
 Cette directive permet de contrôler différentes options d'exécution du
 moteur SSL dans un contexte de répertoire. Normalement, si plusieurs
-<code>SSLOptions</code> peuvent s'appliquer à un répertoire, c'est la
+<code class="directive">SSLOptions</code> peuvent s'appliquer à un répertoire, c'est la
 plus spécifique qui est véritablement prise en compte ; les options ne
 se combinent pas entre elles. Elles se combinent cependant entre elles
 si elles sont <em>toutes</em> précédées par un symbole plus
@@ -1506,7 +1532,7 @@ Les <em>option</em>s disponibles sont :</p>
 <li><code>StrictRequire</code>
     <p>
     Cette option <em>force</em> l'interdiction d'accès lorsque
-    <code>SSLRequireSSL</code> ou <code>SSLRequire</code> a décidé que
+    <code class="directive"><a href="#sslrequiressl">SSLRequireSSL</a></code> ou <code class="directive"><a href="#sslrequire">SSLRequire</a></code> a décidé que
     l'accès devait être interdit. Par défaut, dans le cas où
     une directive ``<code>Satisfy any</code>'' est utilisée, et si
     d'autres restrictions d'accès ont été franchies, on passe en général
@@ -1710,6 +1736,34 @@ casse) :</p>
 </ul>
 <div class="example"><h3>Exemple</h3><pre class="prettyprint lang-config">SSLProtocol TLSv1</pre>
 </div>
+<div class="note">
+<h3>La directive <code class="directive">SSLProtocol</code> et les serveurs virtuels
+basés sur le nom</h3>
+<p>
+Avant OpenSSL 1.1.1, et même si l'indication du nom de serveur (Server Name
+Indication ou SNI) permettait de déterminer le serveur virtuel cible assez tôt
+au cours de la négociation TLS, il était impossible de changer de version de
+protocole TLS à ce point, si bien que le <code class="directive">SSLProtocol</code>
+négocié se basait toujours sur celui du <em>serveur virtuel de base</em> (le
+premier serveur virtuel déclaré avec le couple <code>IP:port</code> de la
+connexion).
+</p>
+<p>
+A partir de la version 2.4.42, si le serveur HTTP Apache est compilé avec une
+version 1.1.1. ou supérieure d'OpenSSL, et si le client fournit la SNI dans la
+négociation TLS, le <code class="directive">SSLProtocol</code> de chaque serveur virtuel
+(basé sur le nom) pourra être pris en compte et le sera.
+</p>
+<p>
+A des fins de compatibilité avec les versions précédentes, si un serveur virtuel
+basé sur le nom n'a aucune directive <code class="directive">SSLProtocol</code> définie,
+c'est le protocole du serveur virtuel de base qui s'appliquera, <strong>à
+moins</strong> qu'une directive <code class="directive">SSLProtocol</code> ne soit
+configurée au niveau global, auquel cas c'est le protocole défini par cette
+directive qui s'appliquera (ce dernier cas relève cependant plus d'un
+comportement logique que d'un souci de compatibilité).
+</p>
+</div>
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
@@ -1717,10 +1771,12 @@ casse) :</p>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Fichier contenant la concaténation des certificats de CA
 codés en PEM pour l'authentification des serveurs distants</td></tr>
-<tr><th><a href="directive-dict.html#Syntax">Syntaxe:</a></th><td><code>SSLProxyCACertificateFile <em>file-path</em></code></td></tr>
+<tr><th><a href="directive-dict.html#Syntax">Syntaxe:</a></th><td><code>SSLProxyCACertificateFile <var>file-path</var></code></td></tr>
 <tr><th><a href="directive-dict.html#Context">Contexte:</a></th><td>configuration globale, serveur virtuel, section proxy</td></tr>
 <tr><th><a href="directive-dict.html#Status">Statut:</a></th><td>Extension</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_ssl</td></tr>
+<tr><th><a href="directive-dict.html#Compatibility">Compatibilité:</a></th><td>Le contexte d'une section proxy est supporté à partir de la
+version 2.4.30 du serveur HTTP Apache</td></tr>
 </table>
 <p>
 Cette directive permet de définir le fichier <em>tout-en-un</em> où sont
@@ -1744,6 +1800,8 @@ l'authentification des serveurs distants</td></tr>
 <tr><th><a href="directive-dict.html#Context">Contexte:</a></th><td>configuration globale, serveur virtuel, section proxy</td></tr>
 <tr><th><a href="directive-dict.html#Status">Statut:</a></th><td>Extension</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_ssl</td></tr>
+<tr><th><a href="directive-dict.html#Compatibility">Compatibilité:</a></th><td>Le contexte d'une section proxy est supporté à partir de la
+version 2.4.30 du serveur HTTP Apache</td></tr>
 </table>
 <p>
 Cette directive permet de spécifier le répertoire où sont stockés les
@@ -1772,6 +1830,8 @@ pour l'authentification du serveur distant</td></tr>
 <tr><th><a href="directive-dict.html#Context">Contexte:</a></th><td>configuration globale, serveur virtuel, section proxy</td></tr>
 <tr><th><a href="directive-dict.html#Status">Statut:</a></th><td>Extension</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_ssl</td></tr>
+<tr><th><a href="directive-dict.html#Compatibility">Compatibilité:</a></th><td>Le contexte d'une section proxy est supporté à partir de la
+version 2.4.30 du serveur HTTP Apache</td></tr>
 </table>
 <p>
 Active la vérification des révocations basée sur les Listes de
@@ -1805,10 +1865,12 @@ erreur <code>"CRL introuvable"</code>.
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Fichier contenant la concaténation des CRLs de CA codés en
 PEM pour l'authentification des serveurs distants</td></tr>
-<tr><th><a href="directive-dict.html#Syntax">Syntaxe:</a></th><td><code>SSLProxyCARevocationFile <em>chemin-fichier</em></code></td></tr>
+<tr><th><a href="directive-dict.html#Syntax">Syntaxe:</a></th><td><code>SSLProxyCARevocationFile <var>file-path</var></code></td></tr>
 <tr><th><a href="directive-dict.html#Context">Contexte:</a></th><td>configuration globale, serveur virtuel, section proxy</td></tr>
 <tr><th><a href="directive-dict.html#Status">Statut:</a></th><td>Extension</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_ssl</td></tr>
+<tr><th><a href="directive-dict.html#Compatibility">Compatibilité:</a></th><td>Le contexte d'une section proxy est supporté à partir de la
+version 2.4.30 du serveur HTTP Apache</td></tr>
 </table>
 <p>
 Cette directive permet de définir le fichier <em>tout-en-un</em> où sont
@@ -1833,6 +1895,8 @@ l'authentification des serveurs distants</td></tr>
 <tr><th><a href="directive-dict.html#Context">Contexte:</a></th><td>configuration globale, serveur virtuel, section proxy</td></tr>
 <tr><th><a href="directive-dict.html#Status">Statut:</a></th><td>Extension</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_ssl</td></tr>
+<tr><th><a href="directive-dict.html#Compatibility">Compatibilité:</a></th><td>Le contexte d'une section proxy est supporté à partir de la
+version 2.4.30 du serveur HTTP Apache</td></tr>
 </table>
 <p>
 Cette directive permet de définir le répertoire où sont stockées les
@@ -1862,6 +1926,8 @@ du serveur distant
 <tr><th><a href="directive-dict.html#Context">Contexte:</a></th><td>configuration globale, serveur virtuel, section proxy</td></tr>
 <tr><th><a href="directive-dict.html#Status">Statut:</a></th><td>Extension</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_ssl</td></tr>
+<tr><th><a href="directive-dict.html#Compatibility">Compatibilité:</a></th><td>Le contexte d'une section proxy est supporté à partir de la
+version 2.4.30 du serveur HTTP Apache</td></tr>
 </table>
 <p>
 Cette directive permet de définir si le champ CN du certificat du serveur
@@ -1904,6 +1970,8 @@ certificat du serveur distant
 <tr><th><a href="directive-dict.html#Context">Contexte:</a></th><td>configuration globale, serveur virtuel, section proxy</td></tr>
 <tr><th><a href="directive-dict.html#Status">Statut:</a></th><td>Extension</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_ssl</td></tr>
+<tr><th><a href="directive-dict.html#Compatibility">Compatibilité:</a></th><td>Le contexte d'une section proxy est supporté à partir de la
+version 2.4.30 du serveur HTTP Apache</td></tr>
 </table>
 <p>
 Cette directive permet de définir si l'expiration du certificat du
@@ -1926,7 +1994,9 @@ certificats serveur distants
 <tr><th><a href="directive-dict.html#Status">Statut:</a></th><td>Extension</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_ssl</td></tr>
 <tr><th><a href="directive-dict.html#Compatibility">Compatibilité:</a></th><td>Disponible à partir de la version 2.4.5 du serveur HTTP
-Apache</td></tr>
+Apache<br />
+Le contexte d'une section proxy est supporté à partir de la
+version 2.4.30 du serveur HTTP Apache</td></tr>
 </table>
 <p>
 Cette directive permet de configurer la vérification du nom d'hôte pour
@@ -1967,6 +2037,8 @@ lors de l'initialisation d'une connexion SSL de mandataire</td></tr>
 <tr><th><a href="directive-dict.html#Context">Contexte:</a></th><td>configuration globale, serveur virtuel, section proxy</td></tr>
 <tr><th><a href="directive-dict.html#Status">Statut:</a></th><td>Extension</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_ssl</td></tr>
+<tr><th><a href="directive-dict.html#Compatibility">Compatibilité:</a></th><td>Le contexte d'une section proxy est supporté à partir de la
+version 2.4.30 du serveur HTTP Apache</td></tr>
 </table>
 <p>Cette directive est équivalente à la directive <code class="directive"><a href="#sslciphersuite">SSLCipherSuite</a></code>, mais s'applique à une connexion de
 mandataire. Veuillez vous reporter à la directive <code class="directive"><a href="#sslciphersuite">SSLCipherSuite</a></code> pour plus d'informations.</p>
@@ -1982,6 +2054,8 @@ SSL</td></tr>
 <tr><th><a href="directive-dict.html#Context">Contexte:</a></th><td>configuration globale, serveur virtuel, section proxy</td></tr>
 <tr><th><a href="directive-dict.html#Status">Statut:</a></th><td>Extension</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_ssl</td></tr>
+<tr><th><a href="directive-dict.html#Compatibility">Compatibilité:</a></th><td>Le contexte d'une section proxy est supporté à partir de la
+version 2.4.30 du serveur HTTP Apache</td></tr>
 </table>
 <p>
 Cette directive permet d'activer/désactiver l'utilisation du moteur de
@@ -2015,6 +2089,8 @@ mandataire de choisir un certificat</td></tr>
 <tr><th><a href="directive-dict.html#Context">Contexte:</a></th><td>configuration globale, serveur virtuel, section proxy</td></tr>
 <tr><th><a href="directive-dict.html#Status">Statut:</a></th><td>Extension</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_ssl</td></tr>
+<tr><th><a href="directive-dict.html#Compatibility">Compatibilité:</a></th><td>Le contexte d'une section proxy est supporté à partir de la
+version 2.4.30 du serveur HTTP Apache</td></tr>
 </table>
 <p>
 Cette directive permet de définir le fichier global où est enregistrée
@@ -2048,6 +2124,8 @@ clients codés en PEM que le mandataire doit utiliser</td></tr>
 <tr><th><a href="directive-dict.html#Context">Contexte:</a></th><td>configuration globale, serveur virtuel, section proxy</td></tr>
 <tr><th><a href="directive-dict.html#Status">Statut:</a></th><td>Extension</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_ssl</td></tr>
+<tr><th><a href="directive-dict.html#Compatibility">Compatibilité:</a></th><td>Le contexte d'une section proxy est supporté à partir de la
+version 2.4.30 du serveur HTTP Apache</td></tr>
 </table>
 <p>
 Cette directive permet de définir le fichier tout-en-un où sont stockés
@@ -2055,13 +2133,45 @@ les clés et certificats permettant au serveur mandataire de
 s'authentifier auprès des serveurs distants.
 </p>
 <p>
-Le fichier spécifié est la simple concaténation des différents fichiers
-de certificats codés en PEM, classés par ordre de préférence. Cette
-directive s'utilise à la place ou en complément de la directive
-<code>SSLProxyMachineCertificatePath</code>.
+Le fichier spécifié est la simple concaténation des différents fichiers de
+certificats codés en PEM. Cette directive s'utilise à la place ou en complément
+de la directive <code>SSLProxyMachineCertificatePath</code>. Le fichier spécifié
+peut contenir un nombre quelconque de paires certificat client/clé privée
+associée, et chaque paire peut être spécifiée selon l'ordre (certificat, clé) ou
+(clé, certificat). Des certificats non-feuilles (CA) peuvent aussi être inclus
+dans le fichier et sont traités comme s'ils avaient été définis via la directive
+<code class="directive"><a href="#sslproxymachinecertificatechainfile">SSLProxyMachineCertificateChainFile</a></code>.
 </p>
+
+<p>Lorsqu'un serveur distant sollicite le serveur pour obtenir un certificat
+client, ce dernier doit fournir une liste de <em>noms d'autorités de
+certification acceptables</em> au cours de la négociation. Si cette liste n'est
+<em>pas</em> fournie, <code class="module"><a href="../mod/mod_ssl.html">mod_ssl</a></code> utilisera la première paire certificat/clé
+client définie. Si par contre cette liste <em>est</em> fournie,
+<code class="module"><a href="../mod/mod_ssl.html">mod_ssl</a></code> va la parcourir afin de trouver un certificat client
+défini qui a été fourni soit directement par l'autorité de certification
+considérée, soit indirectement via un nombre quelconque de certificats d'autorités de
+certification intermédiaires. La chaîne de certificats d'autorités de
+certification intermédiaires peut être construite à partir de ceux qui sont
+inclus dans le fichier ou configurés
+via la directive <code class="directive"><a href="#sslproxymachinecertificatechainfile">SSLProxyMachineCertificateChainFile</a></code>. Le premier
+certificat défini correspondant sera alors fourni comme réponse au cours de la
+négociation</p>
+
+<p>Si la liste de noms de CA <em>est</em> fournie au serveur distant, et si
+<em>aucun</em> certificat client correspondant n'est trouvé, aucun certificat
+client ne sera fourni par <code class="module"><a href="../mod/mod_ssl.html">mod_ssl</a></code>, ce qui fera probablement
+échouer la négociation SSL/TLS (en fonction de la configuration du serveur
+distant).</p>
+
 <div class="warning">
 <p>Actuellement, les clés privées chiffrées ne sont pas supportées.</p>
+</div>
+<div class="warning">
+<p>Seules les clés au format PKCS1 RSA, DSA ou EC sont supportées. Les clés
+au format PKCS8, autrement dit celles commençant par "<code>-----BEGIN
+PRIVATE KEY-----</code>", doivent être converties via une commande du style
+"<code>openssl rsa -in private-pkcs8.pem -outform pem</code>".</p>
 </div>
 <div class="example"><h3>Exemple</h3><pre class="prettyprint lang-config">SSLProxyMachineCertificateFile
 "/usr/local/apache2/conf/ssl.crt/proxy.pem"</pre>
@@ -2077,19 +2187,26 @@ le mandataire doit utiliser</td></tr>
 <tr><th><a href="directive-dict.html#Context">Contexte:</a></th><td>configuration globale, serveur virtuel, section proxy</td></tr>
 <tr><th><a href="directive-dict.html#Status">Statut:</a></th><td>Extension</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_ssl</td></tr>
+<tr><th><a href="directive-dict.html#Compatibility">Compatibilité:</a></th><td>Le contexte d'une section proxy est supporté à partir de la
+version 2.4.30 du serveur HTTP Apache</td></tr>
 </table>
 <p>
 Cette directive permet de définir le répertoire où sont stockés les clés
-et certificats permettant au serveur mandataire de s'authentifier auprès
+et certificats clients permettant au serveur mandataire de s'authentifier auprès
 des serveurs distants.
 </p>
-<p>Les fichiers de ce répertoire doivent être codés en PEM et ils sont
-accédés via des noms de fichier sous forme de condensés ou hash. Vous
-devez donc aussi créer des liens symboliques nommés
-<em>valeur-de-hashage</em><code>.N</code>, et vous devez toujours vous
-assurer que ce répertoire contient les liens symboliques appropriés.</p>
+<p>mod_ssl va essayer de charger tous les fichiers contenus dans le répertoire
+spécifié, comme si ces derniers étaient définis individuellement via la
+directive <code class="directive"><a href="#sslproxymachinecertificatefile">SSLProxyMachineCertificateFile</a></code>.</p>
+
 <div class="warning">
 <p>Actuellement, les clés privées chiffrées ne sont pas supportées.</p>
+</div>
+<div class="warning">
+<p>Seules les clés au format PKCS1 RSA, DSA ou EC sont supportées. Les clés
+au format PKCS8, autrement dit celles commençant par "<code>-----BEGIN
+PRIVATE KEY-----</code>", doivent être converties via une commande du style
+"<code>openssl rsa -in private-pkcs8.pem -outform pem</code>".</p>
 </div>
 <div class="example"><h3>Exemple</h3><pre class="prettyprint lang-config">SSLProxyMachineCertificatePath "/usr/local/apache2/conf/proxy.crt/"</pre>
 </div>
@@ -2105,6 +2222,8 @@ mandataire</td></tr>
 <tr><th><a href="directive-dict.html#Context">Contexte:</a></th><td>configuration globale, serveur virtuel, section proxy</td></tr>
 <tr><th><a href="directive-dict.html#Status">Statut:</a></th><td>Extension</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_ssl</td></tr>
+<tr><th><a href="directive-dict.html#Compatibility">Compatibilité:</a></th><td>Le contexte d'une section proxy est supporté à partir de la
+version 2.4.30 du serveur HTTP Apache</td></tr>
 </table>
 
 <p>
@@ -2126,6 +2245,8 @@ distant</td></tr>
 <tr><th><a href="directive-dict.html#Context">Contexte:</a></th><td>configuration globale, serveur virtuel, section proxy</td></tr>
 <tr><th><a href="directive-dict.html#Status">Statut:</a></th><td>Extension</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_ssl</td></tr>
+<tr><th><a href="directive-dict.html#Compatibility">Compatibilité:</a></th><td>Le contexte d'une section proxy est supporté à partir de la
+version 2.4.30 du serveur HTTP Apache</td></tr>
 </table>
 
 <p>Lorsqu'un mandataire est configuré pour faire suivre les requêtes
@@ -2166,6 +2287,8 @@ lors de la vérification du certificat du serveur distant</td></tr>
 <tr><th><a href="directive-dict.html#Context">Contexte:</a></th><td>configuration globale, serveur virtuel, section proxy</td></tr>
 <tr><th><a href="directive-dict.html#Status">Statut:</a></th><td>Extension</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_ssl</td></tr>
+<tr><th><a href="directive-dict.html#Compatibility">Compatibilité:</a></th><td>Le contexte d'une section proxy est supporté à partir de la
+version 2.4.30 du serveur HTTP Apache</td></tr>
 </table>
 <p>
 Cette directive permet de définir le niveau de profondeur maximum
@@ -2583,7 +2706,7 @@ valeur très supérieure comme 300 en production.</p>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Clé de chiffrement/déchiffrement permanente pour les
 tickets de session TLS</td></tr>
-<tr><th><a href="directive-dict.html#Syntax">Syntaxe:</a></th><td><code>SSLSessionTicketKeyFile <em>chemin-fichier</em></code></td></tr>
+<tr><th><a href="directive-dict.html#Syntax">Syntaxe:</a></th><td><code>SSLSessionTicketKeyFile <var>file-path</var></code></td></tr>
 <tr><th><a href="directive-dict.html#Context">Contexte:</a></th><td>configuration globale, serveur virtuel</td></tr>
 <tr><th><a href="directive-dict.html#Status">Statut:</a></th><td>Extension</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_ssl</td></tr>
@@ -2672,7 +2795,7 @@ SSLSRPUnknownUserSeed "secret"
 <div class="directive-section"><h2><a name="sslsrpverifierfile" id="sslsrpverifierfile">Directive</a> <a name="SSLSRPVerifierFile" id="SSLSRPVerifierFile">SSLSRPVerifierFile</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Chemin du fichier de vérification SRP</td></tr>
-<tr><th><a href="directive-dict.html#Syntax">Syntaxe:</a></th><td><code>SSLSRPVerifierFile <em>file-path</em></code></td></tr>
+<tr><th><a href="directive-dict.html#Syntax">Syntaxe:</a></th><td><code>SSLSRPVerifierFile <var>file-path</var></code></td></tr>
 <tr><th><a href="directive-dict.html#Context">Contexte:</a></th><td>configuration globale, serveur virtuel</td></tr>
 <tr><th><a href="directive-dict.html#Status">Statut:</a></th><td>Extension</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_ssl</td></tr>
@@ -3048,7 +3171,7 @@ certificat de la CA doit être référencé par la directive <code class="direct
 <div class="bottomlang">
 <p><span>Langues Disponibles: </span><a href="../en/mod/mod_ssl.html" hreflang="en" rel="alternate" title="English">&nbsp;en&nbsp;</a> |
 <a href="../fr/mod/mod_ssl.html" title="Français">&nbsp;fr&nbsp;</a></p>
-</div><div class="top"><a href="#page-header"><img src="../images/up.gif" alt="top" /></a></div><div class="section"><h2><a id="comments_section" name="comments_section">Commentaires</a></h2><div class="warning"><strong>Notice:</strong><br />This is not a Q&amp;A section. Comments placed here should be pointed towards suggestions on improving the documentation or server, and may be removed again by our moderators if they are either implemented or considered invalid/off-topic. Questions on how to manage the Apache HTTP Server should be directed at either our IRC channel, #httpd, on Freenode, or sent to our <a href="http://httpd.apache.org/lists.html">mailing lists</a>.</div>
+</div><div class="top"><a href="#page-header"><img src="../images/up.gif" alt="top" /></a></div><div class="section"><h2><a id="comments_section" name="comments_section">Commentaires</a></h2><div class="warning"><strong>Notice:</strong><br />This is not a Q&amp;A section. Comments placed here should be pointed towards suggestions on improving the documentation or server, and may be removed by our moderators if they are either implemented or considered invalid/off-topic. Questions on how to manage the Apache HTTP Server should be directed at either our IRC channel, #httpd, on Libera.chat, or sent to our <a href="https://httpd.apache.org/lists.html">mailing lists</a>.</div>
 <script type="text/javascript"><!--//--><![CDATA[//><!--
 var comments_shortname = 'httpd';
 var comments_identifier = 'http://httpd.apache.org/docs/2.4/mod/mod_ssl.html';
@@ -3066,7 +3189,7 @@ var comments_identifier = 'http://httpd.apache.org/docs/2.4/mod/mod_ssl.html';
     }
 })(window, document);
 //--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2018 The Apache Software Foundation.<br />Autorisé sous <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
+<p class="apache">Copyright 2022 The Apache Software Foundation.<br />Autorisé sous <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
 <p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/directives.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossaire</a> | <a href="../sitemap.html">Plan du site</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();

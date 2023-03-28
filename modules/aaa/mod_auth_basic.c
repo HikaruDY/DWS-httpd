@@ -238,7 +238,7 @@ static void note_basic_auth_failure(request_rec *r)
 
 static int hook_note_basic_auth_failure(request_rec *r, const char *auth_type)
 {
-    if (strcasecmp(auth_type, "Basic"))
+    if (ap_cstr_casecmp(auth_type, "Basic"))
         return DECLINED;
 
     note_basic_auth_failure(r);
@@ -261,7 +261,7 @@ static int get_basic_auth(request_rec *r, const char **user,
         return HTTP_UNAUTHORIZED;
     }
 
-    if (strcasecmp(ap_getword(r->pool, &auth_line, ' '), "Basic")) {
+    if (ap_cstr_casecmp(ap_getword(r->pool, &auth_line, ' '), "Basic")) {
         /* Client tried to authenticate using wrong auth scheme */
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(01614)
                       "client used wrong authentication scheme: %s", r->uri);
@@ -301,7 +301,7 @@ static int authenticate_basic_user(request_rec *r)
 
     /* Are we configured to be Basic auth? */
     current_auth = ap_auth_type(r);
-    if (!current_auth || strcasecmp(current_auth, "Basic")) {
+    if (!current_auth || ap_cstr_casecmp(current_auth, "Basic")) {
         return DECLINED;
     }
 
@@ -320,7 +320,7 @@ static int authenticate_basic_user(request_rec *r)
     }
 
     if (conf->use_digest_algorithm
-        && !strcasecmp(conf->use_digest_algorithm, "MD5")) {
+        && !ap_cstr_casecmp(conf->use_digest_algorithm, "MD5")) {
         realm = ap_auth_name(r);
         digest = ap_md5(r->pool,
                         (unsigned char *)apr_pstrcat(r->pool, sent_user, ":",

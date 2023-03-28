@@ -26,13 +26,20 @@ struct md_json_t;
 struct md_pkey_t;
 struct md_t;
 struct md_acme_acct_t;
-struct md_proto_t;
+struct md_acmev2_acct_t;
 struct md_store_t;
+struct md_result_t;
 
 #define MD_PROTO_ACME               "ACME"
 
 #define MD_AUTHZ_CHA_HTTP_01        "http-01"
 #define MD_AUTHZ_CHA_SNI_01         "tls-sni-01"
+
+#define MD_ACME_VERSION_UNKNOWN    0x0
+#define MD_ACME_VERSION_1          0x010000
+#define MD_ACME_VERSION_2          0x020000
+
+#define MD_ACME_VERSION_MAJOR(i)    (((i)&0xFF0000) >> 16)
 
 typedef enum {
     MD_ACME_S_UNKNOWN,              /* MD has not been analysed yet */
@@ -46,30 +53,92 @@ typedef enum {
 
 typedef struct md_acme_t md_acme_t;
 
+typedef struct md_acme_req_t md_acme_req_t;
+/**
+ * Request callback on a successful HTTP response (status 2xx).
+ */
+typedef apr_status_t md_acme_req_res_cb(md_acme_t *acme, 
+                                        const struct md_http_response_t *res, void *baton);
+
+/**
+ * Request callback to initialize before sending. May be invoked more than once in
+ * case of retries.
+ */
+typedef apr_status_t md_acme_req_init_cb(md_acme_req_t *req, void *baton);
+
+/**
+ * Request callback on a successful response (HTTP response code 2xx) and content
+ * type matching application/.*json.
+ */
+typedef apr_status_t md_acme_req_json_cb(md_acme_t *acme, apr_pool_t *p, 
+                                         const apr_table_t *headers, 
+                                         struct md_json_t *jbody, void *baton);
+
+/**
+ * Request callback on detected errors.
+ */
+typedef apr_status_t md_acme_req_err_cb(md_acme_req_t *req, 
+                                        const struct md_result_t *result, void *baton);
+
+
+typedef apr_status_t md_acme_new_nonce_fn(md_acme_t *acme);
+typedef apr_status_t md_acme_req_init_fn(md_acme_req_t *req, struct md_json_t *jpayload);
+
+typedef apr_status_t md_acme_post_fn(md_acme_t *acme, 
+                                     md_acme_req_init_cb *on_init,
+                                     md_acme_req_json_cb *on_json,
+                                     md_acme_req_res_cb *on_res,
+                                     md_acme_req_err_cb *on_err,
+                                     void *baton);
+
 struct md_acme_t {
     const char *url;                /* directory url of the ACME service */
     const char *sname;              /* short name for the service, not necessarily unique */
     apr_pool_t *p;
     const char *user_agent;
     const char *proxy_url;
-    struct md_acme_acct_t *acct;
-    struct md_pkey_t *acct_key;
+    const char *ca_file;
     
-    const char *new_authz;
-    const char *new_cert;
-    const char *new_reg;
-    const char *revoke_cert;
+    const char *acct_id;            /* local storage id account was loaded from or NULL */
+    struct md_acme_acct_t *acct;    /* account at ACME server to use for requests */
+    struct md_pkey_t *acct_key;     /* private RSA key belonging to account */
+    
+    int version;                    /* as detected from the server */
+    union {
+        struct { /* obsolete */
+            const char *new_authz;
+            const char *new_cert;
+            const char *new_reg;
+            const char *revoke_cert;
+            
+        } v1;
+        struct {
+            const char *new_account;
+            const char *new_order;
+            const char *key_change;
+            const char *revoke_cert;
+            const char *new_nonce;
+        } v2;
+    } api;
+    const char *ca_agreement;
+    const char *acct_name;
+    int eab_required;
+    
+    md_acme_new_nonce_fn *new_nonce_fn;
+    md_acme_req_init_fn *req_init_fn;
+    md_acme_post_fn *post_new_account_fn;
     
     struct md_http_t *http;
     
     const char *nonce;
     int max_retries;
+    struct md_result_t *last;      /* result of last request */
 };
 
 /**
  * Global init, call once at start up.
  */
-apr_status_t md_acme_init(apr_pool_t *pool, const char *base_version);
+apr_status_t md_acme_init(apr_pool_t *pool, const char *base_version, int init_ssl);
 
 /**
  * Create a new ACME server instance. If path is not NULL, will use that directory
@@ -82,39 +151,68 @@ apr_status_t md_acme_init(apr_pool_t *pool, const char *base_version);
  * @param proxy_url optional url of a HTTP(S) proxy to use
  */
 apr_status_t md_acme_create(md_acme_t **pacme, apr_pool_t *p, const char *url,
-                            const char *proxy_url);
+                            const char *proxy_url, const char *ca_file);
 
 /**
  * Contact the ACME server and retrieve its directory information.
  * 
  * @param acme    the ACME server to contact
  */
-apr_status_t md_acme_setup(md_acme_t *acme);
+apr_status_t md_acme_setup(md_acme_t *acme, struct md_result_t *result);
+
+void md_acme_report_result(md_acme_t *acme, apr_status_t rv, struct md_result_t *result);
 
 /**************************************************************************************************/
 /* account handling */
 
-#define MD_ACME_ACCT_STAGED     "staged"
-
-apr_status_t md_acme_acct_load(struct md_acme_acct_t **pacct, struct md_pkey_t **ppkey,
-                               struct md_store_t *store, md_store_group_t group, 
-                               const char *name, apr_pool_t *p);
-
-/** 
- * Specify the account to use by name in local store. On success, the account
- * the "current" one used by the acme instance.
+/**
+ * Clear any existing account data from acme instance.
  */
-apr_status_t md_acme_use_acct(md_acme_t *acme, struct md_store_t *store, 
-                              apr_pool_t *p, const char *acct_id);
+void md_acme_clear_acct(md_acme_t *acme);
 
-apr_status_t md_acme_use_acct_staged(md_acme_t *acme, struct md_store_t *store, 
-                                     md_t *md, apr_pool_t *p);
+apr_status_t md_acme_POST_new_account(md_acme_t *acme, 
+                                      md_acme_req_init_cb *on_init,
+                                      md_acme_req_json_cb *on_json,
+                                      md_acme_req_res_cb *on_res,
+                                      md_acme_req_err_cb *on_err,
+                                      void *baton);
 
 /**
  * Get the local name of the account currently used by the acme instance.
  * Will be NULL if no account has been setup successfully.
  */
-const char *md_acme_get_acct_id(md_acme_t *acme);
+const char *md_acme_acct_id_get(md_acme_t *acme);
+const char *md_acme_acct_url_get(md_acme_t *acme);
+
+/** 
+ * Specify the account to use by name in local store. On success, the account
+ * is the "current" one used by the acme instance.
+ * @param acme the acme instance to set the account for
+ * @param store the store to load accounts from
+ * @param p pool for allocations
+ * @param acct_id name of the account to load
+ */
+apr_status_t md_acme_use_acct(md_acme_t *acme, struct md_store_t *store, 
+                              apr_pool_t *p, const char *acct_id);
+
+/**
+ * Specify the account to use for a specific MD by name in local store.
+ * On success, the account is the "current" one used by the acme instance.
+ * @param acme the acme instance to set the account for
+ * @param store the store to load accounts from
+ * @param p pool for allocations
+ * @param acct_id name of the account to load
+ * @param md the MD the account shall be used for
+ */
+apr_status_t md_acme_use_acct_for_md(md_acme_t *acme, struct md_store_t *store,
+                                     apr_pool_t *p, const char *acct_id,
+                                     const md_t *md);
+
+/**
+ * Get the local name of the account currently used by the acme instance.
+ * Will be NULL if no account has been setup successfully.
+ */
+const char *md_acme_acct_id_get(md_acme_t *acme);
 
 /**
  * Agree to the given Terms-of-Service url for the current account.
@@ -136,70 +234,15 @@ apr_status_t md_acme_agree(md_acme_t *acme, apr_pool_t *p, const char *tos);
 apr_status_t md_acme_check_agreement(md_acme_t *acme, apr_pool_t *p, 
                                      const char *agreement, const char **prequired);
 
-/**
- * Get the ToS agreement for current account.
- */
-const char *md_acme_get_agreement(md_acme_t *acme);
-
-
-/** 
- * Find an existing account in the local store. On APR_SUCCESS, the acme
- * instance will have a current, validated account to use.
- */ 
-apr_status_t md_acme_find_acct(md_acme_t *acme, struct md_store_t *store, apr_pool_t *p);
-
-/**
- * Create a new account at the ACME server. The
- * new account is the one used by the acme instance afterwards, on success.
- */
-apr_status_t md_acme_create_acct(md_acme_t *acme, apr_pool_t *p, apr_array_header_t *contacts, 
-                                 const char *agreement);
-
-apr_status_t md_acme_acct_save(struct md_store_t *store, apr_pool_t *p, md_acme_t *acme,  
-                               struct md_acme_acct_t *acct, struct md_pkey_t *acct_key);
+apr_status_t md_acme_save_acct(md_acme_t *acme, apr_pool_t *p, struct md_store_t *store);
                                
-apr_status_t md_acme_save(md_acme_t *acme, struct md_store_t *store, apr_pool_t *p);
-
-apr_status_t md_acme_acct_save_staged(md_acme_t *acme, struct md_store_t *store, 
-                                      md_t *md, apr_pool_t *p);
-
 /**
- * Delete the current account at the ACME server and remove it from store. 
+ * Deactivate the current account at the ACME server.. 
  */
-apr_status_t md_acme_delete_acct(md_acme_t *acme, struct md_store_t *store, apr_pool_t *p);
-
-/**
- * Delete the account from the local store without contacting the ACME server.
- */
-apr_status_t md_acme_unstore_acct(struct md_store_t *store, apr_pool_t *p, const char *acct_id);
+apr_status_t md_acme_acct_deactivate(md_acme_t *acme, apr_pool_t *p);
 
 /**************************************************************************************************/
 /* request handling */
-
-/**
- * Request callback on a successful HTTP response (status 2xx).
- */
-typedef apr_status_t md_acme_req_res_cb(md_acme_t *acme, 
-                                        const struct md_http_response_t *res, void *baton);
-
-/**
- * A request against an ACME server
- */
-typedef struct md_acme_req_t md_acme_req_t;
-
-/**
- * Request callback to initialize before sending. May be invoked more than once in
- * case of retries.
- */
-typedef apr_status_t md_acme_req_init_cb(md_acme_req_t *req, void *baton);
-
-/**
- * Request callback on a successful response (HTTP response code 2xx) and content
- * type matching application/.*json.
- */
-typedef apr_status_t md_acme_req_json_cb(md_acme_t *acme, apr_pool_t *p, 
-                                         const apr_table_t *headers, 
-                                         struct md_json_t *jbody, void *baton);
 
 struct md_acme_req_t {
     md_acme_t *acme;               /* the ACME server to talk to */
@@ -207,7 +250,7 @@ struct md_acme_req_t {
     
     const char *url;               /* url to POST the request to */
     const char *method;            /* HTTP method to use */
-    apr_table_t *prot_hdrs;        /* JWS headers needing protection (nonce) */
+    struct md_json_t *prot_fields; /* JWS protected fields */
     struct md_json_t *req_json;    /* JSON to be POSTed in request body */
 
     apr_table_t *resp_hdrs;        /* HTTP response headers */
@@ -218,14 +261,19 @@ struct md_acme_req_t {
     md_acme_req_init_cb *on_init;  /* callback to initialize the request before submit */
     md_acme_req_json_cb *on_json;  /* callback on successful JSON response */
     md_acme_req_res_cb *on_res;    /* callback on generic HTTP response */
+    md_acme_req_err_cb *on_err;    /* callback on encountered error */
     int max_retries;               /* how often this might be retried */
     void *baton;                   /* userdata for callbacks */
+    struct md_result_t *result;    /* result of this request */
 };
+
+apr_status_t md_acme_req_body_init(md_acme_req_t *req, struct md_json_t *payload);
 
 apr_status_t md_acme_GET(md_acme_t *acme, const char *url,
                          md_acme_req_init_cb *on_init,
                          md_acme_req_json_cb *on_json,
                          md_acme_req_res_cb *on_res,
+                         md_acme_req_err_cb *on_err,
                          void *baton);
 /**
  * Perform a POST against the ACME url. If a on_json callback is given and
@@ -245,13 +293,8 @@ apr_status_t md_acme_POST(md_acme_t *acme, const char *url,
                           md_acme_req_init_cb *on_init,
                           md_acme_req_json_cb *on_json,
                           md_acme_req_res_cb *on_res,
+                          md_acme_req_err_cb *on_err,
                           void *baton);
-
-apr_status_t md_acme_GET(md_acme_t *acme, const char *url,
-                         md_acme_req_init_cb *on_init,
-                         md_acme_req_json_cb *on_json,
-                         md_acme_req_res_cb *on_res,
-                         void *baton);
 
 /**
  * Retrieve a JSON resource from the ACME server 
@@ -263,5 +306,12 @@ apr_status_t md_acme_get_json(struct md_json_t **pjson, md_acme_t *acme,
 apr_status_t md_acme_req_body_init(md_acme_req_t *req, struct md_json_t *jpayload);
 
 apr_status_t md_acme_protos_add(struct apr_hash_t *protos, apr_pool_t *p);
+
+/**
+ * Return != 0 iff the given problem identifier is an ACME error string
+ * indicating something is wrong with the input values, e.g. from our
+ * configuration.
+ */
+int md_acme_problem_is_input_related(const char *problem);
 
 #endif /* md_acme_h */

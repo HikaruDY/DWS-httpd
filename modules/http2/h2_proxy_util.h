@@ -168,6 +168,8 @@ typedef struct h2_proxy_ngheader {
 h2_proxy_ngheader *h2_proxy_util_nghd_make_req(apr_pool_t *p, 
                                                const struct h2_proxy_request *req);
 
+h2_proxy_ngheader *h2_proxy_util_nghd_make(apr_pool_t *p, apr_table_t *headers);
+
 /*******************************************************************************
  * h2_proxy_request helpers
  ******************************************************************************/
@@ -183,7 +185,7 @@ struct h2_proxy_request {
     
     apr_time_t request_time;
     
-    unsigned int chunked : 1;   /* iff requst body needs to be forwarded as chunked */
+    unsigned int chunked : 1;   /* iff request body needs to be forwarded as chunked */
     unsigned int serialize : 1; /* iff this request is written in HTTP/1.1 serialization */
 };
 

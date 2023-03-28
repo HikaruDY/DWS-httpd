@@ -60,7 +60,7 @@
 
 APLOG_USE_MODULE(http);
 
-/* New Apache routine to map status codes into array indicies
+/* New Apache routine to map status codes into array indices
  *  e.g.  100 -> 0,  101 -> 1,  200 -> 2 ...
  * The number of status lines must equal the value of
  * RESPONSE_CODES (httpd.h) and must be listed in order.
@@ -257,10 +257,9 @@ AP_DECLARE(int) ap_set_keepalive(request_rec *r)
         && (r->header_only
             || AP_STATUS_IS_HEADER_ONLY(r->status)
             || apr_table_get(r->headers_out, "Content-Length")
-            || ap_find_last_token(r->pool,
+            || ap_is_chunked(r->pool,
                                   apr_table_get(r->headers_out,
-                                                "Transfer-Encoding"),
-                                  "chunked")
+                                                "Transfer-Encoding"))
             || ((r->proto_num >= HTTP_VERSION(1,1))
                 && (r->chunked = 1))) /* THIS CODE IS CORRECT, see above. */
         && r->server->keep_alive
@@ -987,14 +986,17 @@ AP_DECLARE(const char *) ap_method_name_of(apr_pool_t *p, int methnum)
  * from status_lines[shortcut[i]] to status_lines[shortcut[i+1]-1];
  * or use NULL to fill the gaps.
  */
-AP_DECLARE(int) ap_index_of_response(int status)
+static int index_of_response(int status)
 {
-    static int shortcut[6] = {0, LEVEL_200, LEVEL_300, LEVEL_400,
-    LEVEL_500, RESPONSE_CODES};
+    static int shortcut[6] = {0, LEVEL_200, LEVEL_300, LEVEL_400, LEVEL_500,
+                                 RESPONSE_CODES};
     int i, pos;
 
-    if (status < 100) {               /* Below 100 is illegal for HTTP status */
-        return LEVEL_500;
+    if (status < 100) {     /* Below 100 is illegal for HTTP status */
+        return -1;
+    }
+    if (status > 999) {     /* Above 999 is also illegal for HTTP status */
+        return -1;
     }
 
     for (i = 0; i < 5; i++) {
@@ -1005,11 +1007,29 @@ AP_DECLARE(int) ap_index_of_response(int status)
                 return pos;
             }
             else {
-                return LEVEL_500;            /* status unknown (falls in gap) */
+                break;
             }
         }
     }
-    return LEVEL_500;                         /* 600 or above is also illegal */
+    return -2;              /* Status unknown (falls in gap) or above 600 */
+}
+
+AP_DECLARE(int) ap_index_of_response(int status)
+{
+    int index = index_of_response(status);
+    return (index < 0) ? LEVEL_500 : index;
+}
+
+AP_DECLARE(const char *) ap_get_status_line_ex(apr_pool_t *p, int status)
+{
+    int index = index_of_response(status);
+    if (index >= 0) {
+        return status_lines[index];
+    }
+    else if (index == -2) {
+        return apr_psprintf(p, "%i Status %i", status, status);
+    }
+    return status_lines[LEVEL_500];
 }
 
 AP_DECLARE(const char *) ap_get_status_line(int status)
@@ -1132,13 +1152,10 @@ static const char *get_canned_error_string(int status,
                            "\">here</a>.</p>\n",
                            NULL));
     case HTTP_USE_PROXY:
-        return(apr_pstrcat(p,
-                           "<p>This resource is only accessible "
-                           "through the proxy\n",
-                           ap_escape_html(r->pool, location),
-                           "<br />\nYou will need to configure "
-                           "your client to use that proxy.</p>\n",
-                           NULL));
+        return("<p>This resource is only accessible "
+               "through the proxy\n"
+               "<br />\nYou will need to configure "
+               "your client to use that proxy.</p>\n");
     case HTTP_PROXY_AUTHENTICATION_REQUIRED:
     case HTTP_UNAUTHORIZED:
         return("<p>This server could not verify that you\n"
@@ -1154,34 +1171,20 @@ static const char *get_canned_error_string(int status,
                                   "error-notes",
                                   "</p>\n"));
     case HTTP_FORBIDDEN:
-        s1 = apr_pstrcat(p,
-                         "<p>You don't have permission to access ",
-                         ap_escape_html(r->pool, r->uri),
-                         "\non this server.<br />\n",
-                         NULL);
-        return(add_optional_notes(r, s1, "error-notes", "</p>\n"));
+        return(add_optional_notes(r, "<p>You don't have permission to access this resource.", "error-notes", "</p>\n"));
     case HTTP_NOT_FOUND:
-        return(apr_pstrcat(p,
-                           "<p>The requested URL ",
-                           ap_escape_html(r->pool, r->uri),
-                           " was not found on this server.</p>\n",
-                           NULL));
+        return("<p>The requested URL was not found on this server.</p>\n");
     case HTTP_METHOD_NOT_ALLOWED:
         return(apr_pstrcat(p,
                            "<p>The requested method ",
                            ap_escape_html(r->pool, r->method),
-                           " is not allowed for the URL ",
-                           ap_escape_html(r->pool, r->uri),
-                           ".</p>\n",
+                           " is not allowed for this URL.</p>\n",
                            NULL));
     case HTTP_NOT_ACCEPTABLE:
-        s1 = apr_pstrcat(p,
-                         "<p>An appropriate representation of the "
-                         "requested resource ",
-                         ap_escape_html(r->pool, r->uri),
-                         " could not be found on this server.</p>\n",
-                         NULL);
-        return(add_optional_notes(r, s1, "variant-list", ""));
+        return(add_optional_notes(r, 
+            "<p>An appropriate representation of the requested resource "
+            "could not be found on this server.</p>\n",
+            "variant-list", ""));
     case HTTP_MULTIPLE_CHOICES:
         return(add_optional_notes(r, "", "variant-list", ""));
     case HTTP_LENGTH_REQUIRED:
@@ -1192,18 +1195,13 @@ static const char *get_canned_error_string(int status,
                          NULL);
         return(add_optional_notes(r, s1, "error-notes", "</p>\n"));
     case HTTP_PRECONDITION_FAILED:
-        return(apr_pstrcat(p,
-                           "<p>The precondition on the request "
-                           "for the URL ",
-                           ap_escape_html(r->pool, r->uri),
-                           " evaluated to false.</p>\n",
-                           NULL));
+        return("<p>The precondition on the request "
+               "for this URL evaluated to false.</p>\n");
     case HTTP_NOT_IMPLEMENTED:
         s1 = apr_pstrcat(p,
                          "<p>",
-                         ap_escape_html(r->pool, r->method), " to ",
-                         ap_escape_html(r->pool, r->uri),
-                         " not supported.<br />\n",
+                         ap_escape_html(r->pool, r->method),
+                         " not supported for current URL.<br />\n",
                          NULL);
         return(add_optional_notes(r, s1, "error-notes", "</p>\n"));
     case HTTP_BAD_GATEWAY:
@@ -1211,29 +1209,19 @@ static const char *get_canned_error_string(int status,
             "response from an upstream server.<br />" CRLF;
         return(add_optional_notes(r, s1, "error-notes", "</p>\n"));
     case HTTP_VARIANT_ALSO_VARIES:
-        return(apr_pstrcat(p,
-                           "<p>A variant for the requested "
-                           "resource\n<pre>\n",
-                           ap_escape_html(r->pool, r->uri),
-                           "\n</pre>\nis itself a negotiable resource. "
-                           "This indicates a configuration error.</p>\n",
-                           NULL));
+        return("<p>A variant for the requested "
+               "resource\n<pre>\n"
+               "\n</pre>\nis itself a negotiable resource. "
+               "This indicates a configuration error.</p>\n");
     case HTTP_REQUEST_TIME_OUT:
         return("<p>Server timeout waiting for the HTTP request from the client.</p>\n");
     case HTTP_GONE:
-        return(apr_pstrcat(p,
-                           "<p>The requested resource<br />",
-                           ap_escape_html(r->pool, r->uri),
-                           "<br />\nis no longer available on this server "
-                           "and there is no forwarding address.\n"
-                           "Please remove all references to this "
-                           "resource.</p>\n",
-                           NULL));
+        return("<p>The requested resource is no longer available on this server"
+               " and there is no forwarding address.\n"
+               "Please remove all references to this resource.</p>\n");
     case HTTP_REQUEST_ENTITY_TOO_LARGE:
         return(apr_pstrcat(p,
-                           "The requested resource<br />",
-                           ap_escape_html(r->pool, r->uri), "<br />\n",
-                           "does not allow request data with ",
+                           "The requested resource does not allow request data with ",
                            ap_escape_html(r->pool, r->method),
                            " requests, or the amount of data provided in\n"
                            "the request exceeds the capacity limit.\n",
@@ -1317,11 +1305,9 @@ static const char *get_canned_error_string(int status,
                "the Server Name Indication (SNI) in use for this\n"
                "connection.</p>\n");
     case HTTP_UNAVAILABLE_FOR_LEGAL_REASONS:
-        s1 = apr_pstrcat(p,
-                         "<p>Access to ", ap_escape_html(r->pool, r->uri),
-                         "\nhas been denied for legal reasons.<br />\n",
-                         NULL);
-        return(add_optional_notes(r, s1, "error-notes", "</p>\n"));
+        return(add_optional_notes(r, 
+               "<p>Access to this URL has been denied for legal reasons.<br />\n",
+               "error-notes", "</p>\n"));
     default:                    /* HTTP_INTERNAL_SERVER_ERROR */
         /*
          * This comparison to expose error-notes could be modified to

@@ -22,7 +22,7 @@
 #ifndef AP_RELEASE_H
 #define AP_RELEASE_H
 
-#define AP_SERVER_COPYRIGHT "(C)2015-2018 Dark Software All Rights Reserved."
+#define AP_SERVER_COPYRIGHT "(C)2015-2022 Project Entertainments All Rights Reserved."
 
 /*
  * The below defines the base string of the Server: header. Additional
@@ -36,13 +36,13 @@
  *
  * Example: "Apache/1.1.0 MrWidget/0.1-alpha"
  */
-#define AP_SERVER_BASEVENDOR "Dark Software"
+#define AP_SERVER_BASEVENDOR "Project Entertainments"
 #define AP_SERVER_BASEPROJECT "Dark Web Server"
-#define AP_SERVER_BASEPRODUCT "Dark Web Server [DESEX:X:A:A:20180415001]"
+#define AP_SERVER_BASEPRODUCT "Dark Web Server [DESEX:X:A:A:20220525001]"
 
-#define AP_SERVER_MAJORVERSION_NUMBER 2018
-#define AP_SERVER_MINORVERSION_NUMBER 1115
-#define AP_SERVER_PATCHLEVEL_NUMBER   2437
+#define AP_SERVER_MAJORVERSION_NUMBER 2022
+#define AP_SERVER_MINORVERSION_NUMBER 0525
+#define AP_SERVER_PATCHLEVEL_NUMBER   2453
 #define AP_SERVER_DEVBUILD_BOOLEAN    0
 
 /* Synchronize the above with docs/manual/style/version.ent */
