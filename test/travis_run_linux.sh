@@ -39,6 +39,9 @@ if test ! -v SKIP_TESTING; then
         CONFIG="--with-test-suite=test/perl-framework $CONFIG"
         WITH_TEST_SUITE=1
     fi
+
+    # Use the CPAN environment.
+    eval $(perl -I ~/perl5/lib/perl5/ -Mlocal::lib)
 fi
 if test -v APR_VERSION; then
     CONFIG="$CONFIG --with-apr=$HOME/root/apr-${APR_VERSION}"
@@ -55,9 +58,10 @@ fi
 # build the version we want from source
 if test -v TEST_MOD_TLS; then
   RUSTLS_HOME="$HOME/build/rustls-ffi"
-  RUSTLS_VERSION="v0.8.2"
+  RUSTLS_VERSION="v0.9.0"
   git clone https://github.com/rustls/rustls-ffi.git "$RUSTLS_HOME"
   pushd "$RUSTLS_HOME"
+    # since v0.9.0, there is no longer a dependency on cbindgen
     git fetch origin
     git checkout tags/$RUSTLS_VERSION
     make install DESTDIR="$PREFIX"
@@ -190,7 +194,6 @@ if ! test -v SKIP_TESTING; then
         # Run ACME tests.
         # need the go based pebble as ACME test server
         # which is a package on debian sid, but not on focal
-        export GOROOT=/usr/lib/go-1.14
         export GOPATH=${PREFIX}/gocode
         mkdir -p "${GOPATH}"
         export PATH="${GOROOT}/bin:${GOPATH}/bin:${PATH}"
