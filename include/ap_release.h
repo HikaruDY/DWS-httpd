@@ -22,7 +22,7 @@
 #ifndef AP_RELEASE_H
 #define AP_RELEASE_H
 
-#define AP_SERVER_COPYRIGHT "(C)2015-2022 Project Entertainments All Rights Reserved."
+#define AP_SERVER_COPYRIGHT "(C)2015-2023 Project Entertainments All Rights Reserved."
 
 /*
  * The below defines the base string of the Server: header. Additional
@@ -38,11 +38,11 @@
  */
 #define AP_SERVER_BASEVENDOR "Project Entertainments"
 #define AP_SERVER_BASEPROJECT "Dark Web Server"
-#define AP_SERVER_BASEPRODUCT "Dark Web Server [DWSEX:X:A:A:20220525001]"
+#define AP_SERVER_BASEPRODUCT "Dark Web Server [DESEX:X:A:A:20230325001]"
+#define AP_SERVER_MAJORVERSION_NUMBER 2023
+#define AP_SERVER_MINORVERSION_NUMBER 0325
+#define AP_SERVER_PATCHLEVEL_NUMBER   2456
 
-#define AP_SERVER_MAJORVERSION_NUMBER 2022
-#define AP_SERVER_MINORVERSION_NUMBER 0525
-#define AP_SERVER_PATCHLEVEL_NUMBER   2453
 #define AP_SERVER_DEVBUILD_BOOLEAN    0
 
 /* Synchronize the above with docs/manual/style/version.ent */
