@@ -37,6 +37,11 @@
 #define APR_WANT_BYTEFUNC
 #include "apr_want.h"       /* for ntohs and htons */
 
+#include "apr_version.h"
+#if !APR_VERSION_AT_LEAST(2,0,0)
+#include "apu_version.h"
+#endif
+
 #include "mod_dav.h"
 #include "repos.h"
 #include "http_log.h"
@@ -127,11 +132,30 @@ void dav_fs_ensure_state_dir(apr_pool_t * p, const char *dirname)
 dav_error * dav_dbm_open_direct(apr_pool_t *p, const char *pathname, int ro,
                                 dav_db **pdb)
 {
-    apr_status_t status;
+#if APU_MAJOR_VERSION > 1 || (APU_MAJOR_VERSION == 1 && APU_MINOR_VERSION >= 7)
+    const apr_dbm_driver_t *driver;
+    const apu_err_t *err;
+#endif
     apr_dbm_t *file = NULL;
+    apr_status_t status;
 
     *pdb = NULL;
 
+#if APU_MAJOR_VERSION > 1 || (APU_MAJOR_VERSION == 1 && APU_MINOR_VERSION >= 7)
+    if ((status = apr_dbm_get_driver(&driver, NULL, &err, p)) != APR_SUCCESS) {
+        ap_log_error(APLOG_MARK, APLOG_ERR, status, ap_server_conf, APLOGNO(10289)
+                     "mod_dav_fs: The DBM library '%s' could not be loaded: %s",
+                             err->reason, err->msg);
+        return dav_new_error(p, HTTP_INTERNAL_SERVER_ERROR, 1, status,
+                "Could not load library for property database.");
+    }
+    if ((status = apr_dbm_open2(&file, driver, pathname,
+                               ro ? APR_DBM_READONLY : APR_DBM_RWCREATE,
+                               APR_OS_DEFAULT, p))
+                               != APR_SUCCESS && !ro) {
+        return dav_fs_dbm_error(NULL, p, status);
+    }
+#else
     if ((status = apr_dbm_open(&file, pathname,
                                ro ? APR_DBM_READONLY : APR_DBM_RWCREATE,
                                APR_OS_DEFAULT, p))
@@ -143,6 +167,7 @@ dav_error * dav_dbm_open_direct(apr_pool_t *p, const char *pathname, int ro,
            and we need to write */
         return dav_fs_dbm_error(NULL, p, status);
     }
+#endif
 
     /* may be NULL if we tried to open a non-existent db as read-only */
     if (file != NULL) {
@@ -355,29 +380,33 @@ static void dav_append_prop(apr_pool_t *pool,
         /* the property is an empty value */
         if (*name == ':') {
             /* "no namespace" case */
-            s = apr_psprintf(pool, "<%s/>" DEBUG_CR, name+1);
+            s = apr_pstrcat(pool, "<", name+1, "/>" DEBUG_CR, NULL);
         }
         else {
-            s = apr_psprintf(pool, "<ns%s/>" DEBUG_CR, name);
+            s = apr_pstrcat(pool, "<ns", name, "/>" DEBUG_CR, NULL);
         }
     }
     else if (*lang != '\0') {
         if (*name == ':') {
             /* "no namespace" case */
-            s = apr_psprintf(pool, "<%s xml:lang=\"%s\">%s</%s>" DEBUG_CR,
-                             name+1, lang, value, name+1);
+            s = apr_pstrcat(pool, "<", name+1, " xml:lang=\"",
+                            lang, "\">", value, "</", name+1, ">" DEBUG_CR,
+                            NULL);
         }
         else {
-            s = apr_psprintf(pool, "<ns%s xml:lang=\"%s\">%s</ns%s>" DEBUG_CR,
-                             name, lang, value, name);
+            s = apr_pstrcat(pool, "<ns", name, " xml:lang=\"",
+                            lang, "\">", value, "</ns", name, ">" DEBUG_CR,
+                            NULL);
         }
     }
     else if (*name == ':') {
         /* "no namespace" case */
-        s = apr_psprintf(pool, "<%s>%s</%s>" DEBUG_CR, name+1, value, name+1);
+        s = apr_pstrcat(pool, "<", name+1, ">", value, "</", name+1, ">"
+                        DEBUG_CR, NULL);
     }
     else {
-        s = apr_psprintf(pool, "<ns%s>%s</ns%s>" DEBUG_CR, name, value, name);
+        s = apr_pstrcat(pool, "<ns", name, ">", value, "</ns", name, ">"
+                        DEBUG_CR, NULL);
     }
 
     apr_text_append(pool, phdr, s);

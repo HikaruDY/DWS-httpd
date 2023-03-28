@@ -601,7 +601,7 @@ AP_CORE_DECLARE(void) ap_parse_uri(request_rec *r, const char *uri)
     if (status == APR_SUCCESS) {
         /* if it has a scheme we may need to do absoluteURI vhost stuff */
         if (r->parsed_uri.scheme
-            && !strcasecmp(r->parsed_uri.scheme, ap_http_scheme(r))) {
+            && !ap_cstr_casecmp(r->parsed_uri.scheme, ap_http_scheme(r))) {
             r->hostname = r->parsed_uri.hostname;
         }
         else if (r->method_number == M_CONNECT) {
@@ -609,8 +609,15 @@ AP_CORE_DECLARE(void) ap_parse_uri(request_rec *r, const char *uri)
         }
 
         r->args = r->parsed_uri.query;
-        r->uri = r->parsed_uri.path ? r->parsed_uri.path
-                 : apr_pstrdup(r->pool, "/");
+        if (r->parsed_uri.path) {
+            r->uri = r->parsed_uri.path;
+        }
+        else if (r->method_number == M_OPTIONS) {
+            r->uri = apr_pstrdup(r->pool, "*");
+        }
+        else {
+            r->uri = apr_pstrdup(r->pool, "/");
+        }
 
 #if defined(OS2) || defined(WIN32)
         /* Handle path translations for OS/2 and plug security hole.
@@ -645,13 +652,6 @@ static int field_name_len(const char *field)
 
 static int read_request_line(request_rec *r, apr_bucket_brigade *bb)
 {
-    enum {
-        rrl_none, rrl_badmethod, rrl_badwhitespace, rrl_excesswhitespace,
-        rrl_missinguri, rrl_baduri, rrl_badprotocol, rrl_trailingtext,
-        rrl_badmethod09, rrl_reject09
-    } deferred_error = rrl_none;
-    char *ll;
-    char *uri;
     apr_size_t len;
     int num_blank_lines = DEFAULT_LIMIT_BLANK_LINES;
     core_server_config *conf = ap_get_core_module_config(r->server->module_config);
@@ -704,13 +704,29 @@ static int read_request_line(request_rec *r, apr_bucket_brigade *bb)
         }
     } while ((len <= 0) && (--num_blank_lines >= 0));
 
+    /* Set r->request_time before any logging, mod_unique_id needs it. */
+    r->request_time = apr_time_now();
+
     if (APLOGrtrace5(r)) {
         ap_log_rerror(APLOG_MARK, APLOG_TRACE5, 0, r,
                       "Request received from client: %s",
                       ap_escape_logitem(r->pool, r->the_request));
     }
 
-    r->request_time = apr_time_now();
+    return 1;
+}
+
+AP_DECLARE(int) ap_parse_request_line(request_rec *r)
+{
+    core_server_config *conf = ap_get_core_module_config(r->server->module_config);
+    int strict = (conf->http_conformance != AP_HTTP_CONFORMANCE_UNSAFE);
+    enum {
+        rrl_none, rrl_badmethod, rrl_badwhitespace, rrl_excesswhitespace,
+        rrl_missinguri, rrl_baduri, rrl_badprotocol, rrl_trailingtext,
+        rrl_badmethod09, rrl_reject09
+    } deferred_error = rrl_none;
+    apr_size_t len = 0;
+    char *uri, *ll;
 
     r->method = r->the_request;
 
@@ -742,7 +758,6 @@ static int read_request_line(request_rec *r, apr_bucket_brigade *bb)
         if (deferred_error == rrl_none)
             deferred_error = rrl_missinguri;
         r->protocol = uri = "";
-        len = 0;
         goto rrl_done;
     }
     else if (strict && ll[0] && apr_isspace(ll[1])
@@ -773,7 +788,6 @@ static int read_request_line(request_rec *r, apr_bucket_brigade *bb)
     /* Verify URI terminated with a single SP, or mark as specific error */
     if (!ll) {
         r->protocol = "";
-        len = 0;
         goto rrl_done;
     }
     else if (strict && ll[0] && apr_isspace(ll[1])
@@ -866,6 +880,14 @@ rrl_done:
         r->header_only = 1;
 
     ap_parse_uri(r, uri);
+    if (r->status == HTTP_OK
+            && (r->parsed_uri.path != NULL)
+            && (r->parsed_uri.path[0] != '/')
+            && (r->method_number != M_OPTIONS
+                || strcmp(r->parsed_uri.path, "*") != 0)) {
+        /* Invalid request-target per RFC 7230 section 5.3 */
+        r->status = HTTP_BAD_REQUEST;
+    }
 
     /* With the request understood, we can consider HTTP/0.9 specific errors */
     if (r->proto_num == HTTP_VERSION(0, 9) && deferred_error == rrl_none) {
@@ -901,7 +923,7 @@ rrl_done:
         else if (deferred_error == rrl_excesswhitespace)
             ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(03448)
                           "HTTP Request Line; Excess whitespace "
-                          "(disallowed by HttpProtocolOptions Strict");
+                          "(disallowed by HttpProtocolOptions Strict)");
         else if (deferred_error == rrl_trailingtext)
             ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(03449)
                           "HTTP Request Line; Extraneous text found '%.*s' "
@@ -971,6 +993,79 @@ rrl_failed:
         r->protocol  = apr_pstrdup(r->pool, "HTTP/1.0");
     }
     return 0;
+}
+
+AP_DECLARE(int) ap_check_request_header(request_rec *r)
+{
+    core_server_config *conf;
+    int strict_host_check;
+    const char *expect;
+    int access_status;
+
+    conf = ap_get_core_module_config(r->server->module_config);
+
+    /* update what we think the virtual host is based on the headers we've
+     * now read. may update status.
+     */
+    strict_host_check = (conf->strict_host_check == AP_CORE_CONFIG_ON);
+    access_status = ap_update_vhost_from_headers_ex(r, strict_host_check);
+    if (strict_host_check && access_status != HTTP_OK) { 
+        if (r->server == ap_server_conf) { 
+            ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, APLOGNO(10156)
+                          "Requested hostname '%s' did not match any ServerName/ServerAlias "
+                          "in the global server configuration ", r->hostname);
+        }
+        else { 
+            ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, APLOGNO(10157)
+                          "Requested hostname '%s' did not match any ServerName/ServerAlias "
+                          "in the matching virtual host (default vhost for "
+                          "current connection is %s:%u)", 
+                          r->hostname, r->server->defn_name, r->server->defn_line_number);
+        }
+        r->status = access_status;
+    }
+    if (r->status != HTTP_OK) { 
+        return 0;
+    }
+
+    if ((!r->hostname && (r->proto_num >= HTTP_VERSION(1, 1)))
+        || ((r->proto_num == HTTP_VERSION(1, 1))
+            && !apr_table_get(r->headers_in, "Host"))) {
+        /*
+         * Client sent us an HTTP/1.1 or later request without telling us the
+         * hostname, either with a full URL or a Host: header. We therefore
+         * need to (as per the 1.1 spec) send an error.  As a special case,
+         * HTTP/1.1 mentions twice (S9, S14.23) that a request MUST contain
+         * a Host: header, and the server MUST respond with 400 if it doesn't.
+         */
+        ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(00569)
+                      "client sent HTTP/1.1 request without hostname "
+                      "(see RFC2616 section 14.23): %s", r->uri);
+        r->status = HTTP_BAD_REQUEST;
+        return 0;
+    }
+
+    if (((expect = apr_table_get(r->headers_in, "Expect")) != NULL)
+        && (expect[0] != '\0')) {
+        /*
+         * The Expect header field was added to HTTP/1.1 after RFC 2068
+         * as a means to signal when a 100 response is desired and,
+         * unfortunately, to signal a poor man's mandatory extension that
+         * the server must understand or return 417 Expectation Failed.
+         */
+        if (ap_cstr_casecmp(expect, "100-continue") == 0) {
+            r->expecting_100 = 1;
+        }
+        else {
+            ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, APLOGNO(00570)
+                          "client sent an unrecognized expectation value "
+                          "of Expect: %s", expect);
+            r->status = HTTP_EXPECTATION_FAILED;
+            return 0;
+        }
+    }
+
+    return 1;
 }
 
 static int table_do_fn_check_lengths(void *r_, const char *key,
@@ -1256,16 +1351,10 @@ AP_DECLARE(void) ap_get_mime_headers(request_rec *r)
     apr_brigade_destroy(tmp_bb);
 }
 
-request_rec *ap_read_request(conn_rec *conn)
+AP_DECLARE(request_rec *) ap_create_request(conn_rec *conn)
 {
     request_rec *r;
     apr_pool_t *p;
-    const char *expect;
-    int access_status;
-    apr_bucket_brigade *tmp_bb;
-    apr_socket_t *csd;
-    apr_interval_time_t cur_timeout;
-
 
     apr_pool_create(&p, conn->pool);
     apr_pool_tag(p, "request");
@@ -1304,6 +1393,7 @@ request_rec *ap_read_request(conn_rec *conn)
     r->read_body       = REQUEST_NO_BODY;
 
     r->status          = HTTP_OK;  /* Until further notice */
+    r->header_only     = 0;
     r->the_request     = NULL;
 
     /* Begin by presuming any module can make its own path_info assumptions,
@@ -1314,12 +1404,35 @@ request_rec *ap_read_request(conn_rec *conn)
     r->useragent_addr = conn->client_addr;
     r->useragent_ip = conn->client_ip;
 
+    return r;
+}
+
+/* Apply the server's timeout/config to the connection/request. */
+static void apply_server_config(request_rec *r)
+{
+    apr_socket_t *csd;
+
+    csd = ap_get_conn_socket(r->connection);
+    apr_socket_timeout_set(csd, r->server->timeout);
+
+    r->per_dir_config = r->server->lookup_defaults;
+}
+
+request_rec *ap_read_request(conn_rec *conn)
+{
+    int access_status;
+    apr_bucket_brigade *tmp_bb;
+
+    request_rec *r = ap_create_request(conn);
+
     tmp_bb = apr_brigade_create(r->pool, r->connection->bucket_alloc);
+    conn->keepalive = AP_CONN_UNKNOWN;
 
     ap_run_pre_read_request(r, conn);
 
     /* Get the request... */
-    if (!read_request_line(r, tmp_bb)) {
+    if (!read_request_line(r, tmp_bb) || !ap_parse_request_line(r)) {
+        apr_brigade_cleanup(tmp_bb);
         switch (r->status) {
         case HTTP_REQUEST_URI_TOO_LARGE:
         case HTTP_BAD_REQUEST:
@@ -1335,116 +1448,84 @@ request_rec *ap_read_request(conn_rec *conn)
                               "request failed: malformed request line");
             }
             access_status = r->status;
-            r->status = HTTP_OK;
-            ap_die(access_status, r);
-            ap_update_child_status(conn->sbh, SERVER_BUSY_LOG, r);
-            ap_run_log_transaction(r);
-            r = NULL;
-            apr_brigade_destroy(tmp_bb);
-            goto traceout;
+            goto die_unusable_input;
+
         case HTTP_REQUEST_TIME_OUT:
+            /* Just log, no further action on this connection. */
             ap_update_child_status(conn->sbh, SERVER_BUSY_LOG, NULL);
             if (!r->connection->keepalives)
                 ap_run_log_transaction(r);
-            apr_brigade_destroy(tmp_bb);
-            goto traceout;
-        default:
-            apr_brigade_destroy(tmp_bb);
-            r = NULL;
-            goto traceout;
+            break;
         }
+        /* Not worth dying with. */
+        conn->keepalive = AP_CONN_CLOSE;
+        apr_pool_destroy(r->pool);
+        goto ignore;
     }
+    apr_brigade_cleanup(tmp_bb);
 
     /* We may have been in keep_alive_timeout mode, so toggle back
      * to the normal timeout mode as we fetch the header lines,
      * as necessary.
      */
-    csd = ap_get_conn_socket(conn);
-    apr_socket_timeout_get(csd, &cur_timeout);
-    if (cur_timeout != conn->base_server->timeout) {
-        apr_socket_timeout_set(csd, conn->base_server->timeout);
-        cur_timeout = conn->base_server->timeout;
-    }
+    apply_server_config(r);
 
     if (!r->assbackwards) {
-        const char *tenc;
+        const char *tenc, *clen;
 
         ap_get_mime_headers_core(r, tmp_bb);
+        apr_brigade_cleanup(tmp_bb);
         if (r->status != HTTP_OK) {
             ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(00567)
                           "request failed: error reading the headers");
-            ap_send_error_response(r, 0);
-            ap_update_child_status(conn->sbh, SERVER_BUSY_LOG, r);
-            ap_run_log_transaction(r);
-            apr_brigade_destroy(tmp_bb);
-            goto traceout;
+            access_status = r->status;
+            goto die_unusable_input;
+        }
+
+        clen = apr_table_get(r->headers_in, "Content-Length");
+        if (clen) {
+            apr_off_t cl;
+
+            if (!ap_parse_strict_length(&cl, clen)) {
+                ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(10242)
+                              "client sent invalid Content-Length "
+                              "(%s): %s", clen, r->uri);
+                access_status = HTTP_BAD_REQUEST;
+                goto die_unusable_input;
+            }
         }
 
         tenc = apr_table_get(r->headers_in, "Transfer-Encoding");
         if (tenc) {
-            /* http://tools.ietf.org/html/draft-ietf-httpbis-p1-messaging-23
+            /* https://tools.ietf.org/html/rfc7230
              * Section 3.3.3.3: "If a Transfer-Encoding header field is
              * present in a request and the chunked transfer coding is not
              * the final encoding ...; the server MUST respond with the 400
              * (Bad Request) status code and then close the connection".
              */
-            if (!(strcasecmp(tenc, "chunked") == 0 /* fast path */
-                    || ap_find_last_token(r->pool, tenc, "chunked"))) {
+            if (!ap_is_chunked(r->pool, tenc)) {
                 ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(02539)
                               "client sent unknown Transfer-Encoding "
                               "(%s): %s", tenc, r->uri);
-                r->status = HTTP_BAD_REQUEST;
-                conn->keepalive = AP_CONN_CLOSE;
-                ap_send_error_response(r, 0);
-                ap_update_child_status(conn->sbh, SERVER_BUSY_LOG, r);
-                ap_run_log_transaction(r);
-                apr_brigade_destroy(tmp_bb);
-                goto traceout;
+                access_status = HTTP_BAD_REQUEST;
+                goto die_unusable_input;
             }
 
-            /* http://tools.ietf.org/html/draft-ietf-httpbis-p1-messaging-23
+            /* https://tools.ietf.org/html/rfc7230
              * Section 3.3.3.3: "If a message is received with both a
              * Transfer-Encoding and a Content-Length header field, the
              * Transfer-Encoding overrides the Content-Length. ... A sender
              * MUST remove the received Content-Length field".
              */
-            apr_table_unset(r->headers_in, "Content-Length");
+            if (clen) {
+                apr_table_unset(r->headers_in, "Content-Length");
+
+                /* Don't reuse this connection anyway to avoid confusion with
+                 * intermediaries and request/reponse spltting.
+                 */
+                conn->keepalive = AP_CONN_CLOSE;
+            }
         }
-    }
-
-    apr_brigade_destroy(tmp_bb);
-
-    /* update what we think the virtual host is based on the headers we've
-     * now read. may update status.
-     */
-    ap_update_vhost_from_headers(r);
-    access_status = r->status;
-
-    /* Toggle to the Host:-based vhost's timeout mode to fetch the
-     * request body and send the response body, if needed.
-     */
-    if (cur_timeout != r->server->timeout) {
-        apr_socket_timeout_set(csd, r->server->timeout);
-        cur_timeout = r->server->timeout;
-    }
-
-    /* we may have switched to another server */
-    r->per_dir_config = r->server->lookup_defaults;
-
-    if ((!r->hostname && (r->proto_num >= HTTP_VERSION(1, 1)))
-        || ((r->proto_num == HTTP_VERSION(1, 1))
-            && !apr_table_get(r->headers_in, "Host"))) {
-        /*
-         * Client sent us an HTTP/1.1 or later request without telling us the
-         * hostname, either with a full URL or a Host: header. We therefore
-         * need to (as per the 1.1 spec) send an error.  As a special case,
-         * HTTP/1.1 mentions twice (S9, S14.23) that a request MUST contain
-         * a Host: header, and the server MUST respond with 400 if it doesn't.
-         */
-        access_status = HTTP_BAD_REQUEST;
-        ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(00569)
-                      "client sent HTTP/1.1 request without hostname "
-                      "(see RFC2616 section 14.23): %s", r->uri);
     }
 
     /*
@@ -1453,47 +1534,94 @@ request_rec *ap_read_request(conn_rec *conn)
      * status codes that do not cause the connection to be dropped and
      * in situations where the connection should be kept alive.
      */
-
     ap_add_input_filter_handle(ap_http_input_filter_handle,
                                NULL, r, r->connection);
 
-    if (access_status != HTTP_OK
-        || (access_status = ap_run_post_read_request(r))) {
-        ap_die(access_status, r);
-        ap_update_child_status(conn->sbh, SERVER_BUSY_LOG, r);
-        ap_run_log_transaction(r);
-        r = NULL;
-        goto traceout;
+    /* Validate Host/Expect headers and select vhost. */
+    if (!ap_check_request_header(r)) {
+        /* we may have switched to another server still */
+        apply_server_config(r);
+        access_status = r->status;
+        goto die_before_hooks;
     }
 
-    if (((expect = apr_table_get(r->headers_in, "Expect")) != NULL)
-        && (expect[0] != '\0')) {
-        /*
-         * The Expect header field was added to HTTP/1.1 after RFC 2068
-         * as a means to signal when a 100 response is desired and,
-         * unfortunately, to signal a poor man's mandatory extension that
-         * the server must understand or return 417 Expectation Failed.
-         */
-        if (strcasecmp(expect, "100-continue") == 0) {
-            r->expecting_100 = 1;
-        }
-        else {
-            r->status = HTTP_EXPECTATION_FAILED;
-            ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, APLOGNO(00570)
-                          "client sent an unrecognized expectation value of "
-                          "Expect: %s", expect);
-            ap_send_error_response(r, 0);
-            ap_update_child_status(conn->sbh, SERVER_BUSY_LOG, r);
-            ap_run_log_transaction(r);
-            goto traceout;
-        }
+    /* we may have switched to another server */
+    apply_server_config(r);
+
+    if ((access_status = ap_post_read_request(r))) {
+        goto die;
     }
 
-    AP_READ_REQUEST_SUCCESS((uintptr_t)r, (char *)r->method, (char *)r->uri, (char *)r->server->defn_name, r->status);
+    AP_READ_REQUEST_SUCCESS((uintptr_t)r, (char *)r->method,
+                            (char *)r->uri, (char *)r->server->defn_name,
+                            r->status);
     return r;
-    traceout:
+
+    /* Everything falls through on failure */
+
+die_unusable_input:
+    /* Input filters are in an undeterminate state, cleanup (including
+     * CORE_IN's socket) such that any further attempt to read is EOF.
+     */
+    {
+        ap_filter_t *f = conn->input_filters;
+        while (f) {
+            if (f->frec == ap_core_input_filter_handle) {
+                core_net_rec *net = f->ctx;
+                apr_brigade_cleanup(net->in_ctx->b);
+                break;
+            }
+            ap_remove_input_filter(f);
+            f = f->next;
+        }
+        conn->input_filters = r->input_filters = f;
+        conn->keepalive = AP_CONN_CLOSE;
+    }
+
+die_before_hooks:
+    /* First call to ap_die() (non recursive) */
+    r->status = HTTP_OK;
+
+die:
+    ap_die(access_status, r);
+
+    /* ap_die() sent the response through the output filters, we must now
+     * end the request with an EOR bucket for stream/pipeline accounting.
+     */
+    {
+        apr_bucket_brigade *eor_bb;
+        eor_bb = apr_brigade_create(conn->pool, conn->bucket_alloc);
+        APR_BRIGADE_INSERT_TAIL(eor_bb,
+                                ap_bucket_eor_create(conn->bucket_alloc, r));
+        ap_pass_brigade(conn->output_filters, eor_bb);
+        apr_brigade_cleanup(eor_bb);
+    }
+
+ignore:
+    r = NULL;
     AP_READ_REQUEST_FAILURE((uintptr_t)r);
-    return r;
+    return NULL;
+}
+
+AP_DECLARE(int) ap_post_read_request(request_rec *r)
+{
+    int status;
+
+    if ((status = ap_run_post_read_request(r))) {
+        return status;
+    }
+
+    /* Enforce http(s) only scheme for non-forward-proxy requests */
+    if (!r->proxyreq
+            && r->parsed_uri.scheme
+            && (ap_cstr_casecmpn(r->parsed_uri.scheme, "http", 4) != 0
+                || (r->parsed_uri.scheme[4] != '\0'
+                    && (apr_tolower(r->parsed_uri.scheme[4]) != 's'
+                        || r->parsed_uri.scheme[5] != '\0')))) {
+        return HTTP_BAD_REQUEST;
+    }
+
+    return OK;
 }
 
 /* if a request with a body creates a subrequest, remove original request's
@@ -1559,23 +1687,29 @@ AP_DECLARE(void) ap_set_sub_req_protocol(request_rec *rnew,
     rnew->main = (request_rec *) r;
 }
 
-static void end_output_stream(request_rec *r)
+static void end_output_stream(request_rec *r, int status)
 {
     conn_rec *c = r->connection;
     apr_bucket_brigade *bb;
     apr_bucket *b;
 
     bb = apr_brigade_create(r->pool, c->bucket_alloc);
+    if (status != OK) {
+        b = ap_bucket_error_create(status, NULL, r->pool, c->bucket_alloc);
+        APR_BRIGADE_INSERT_TAIL(bb, b);
+    }
     b = apr_bucket_eos_create(c->bucket_alloc);
     APR_BRIGADE_INSERT_TAIL(bb, b);
+
     ap_pass_brigade(r->output_filters, bb);
+    apr_brigade_cleanup(bb);
 }
 
 AP_DECLARE(void) ap_finalize_sub_req_protocol(request_rec *sub)
 {
     /* tell the filter chain there is no more content coming */
     if (!sub->eos_sent) {
-        end_output_stream(sub);
+        end_output_stream(sub, OK);
     }
 }
 
@@ -1586,11 +1720,11 @@ AP_DECLARE(void) ap_finalize_sub_req_protocol(request_rec *sub)
  */
 AP_DECLARE(void) ap_finalize_request_protocol(request_rec *r)
 {
-    (void) ap_discard_request_body(r);
+    int status = ap_discard_request_body(r);
 
     /* tell the filter chain there is no more content coming */
     if (!r->eos_sent) {
-        end_output_stream(r);
+        end_output_stream(r, status);
     }
 }
 
@@ -1627,7 +1761,7 @@ AP_DECLARE(int) ap_get_basic_auth_pw(request_rec *r, const char **pw)
                                               : "Authorization");
     const char *t;
 
-    if (!(t = ap_auth_type(r)) || strcasecmp(t, "Basic"))
+    if (!(t = ap_auth_type(r)) || ap_cstr_casecmp(t, "Basic"))
         return DECLINED;
 
     if (!ap_auth_name(r)) {
@@ -1641,7 +1775,7 @@ AP_DECLARE(int) ap_get_basic_auth_pw(request_rec *r, const char **pw)
         return HTTP_UNAUTHORIZED;
     }
 
-    if (strcasecmp(ap_getword(r->pool, &auth_line, ' '), "Basic")) {
+    if (ap_cstr_casecmp(ap_getword(r->pool, &auth_line, ' '), "Basic")) {
         /* Client tried to authenticate using wrong auth scheme */
         ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, APLOGNO(00573)
                       "client used wrong authentication scheme: %s", r->uri);
@@ -2036,7 +2170,7 @@ static int r_flush(apr_vformatter_buff_t *buff)
 
 AP_DECLARE(int) ap_vrprintf(request_rec *r, const char *fmt, va_list va)
 {
-    apr_size_t written;
+    int written;
     struct ap_vrprintf_data vd;
     char vrprintf_buf[AP_IOBUFSIZE];
 
@@ -2054,7 +2188,7 @@ AP_DECLARE(int) ap_vrprintf(request_rec *r, const char *fmt, va_list va)
         int n = vd.vbuff.curpos - vrprintf_buf;
 
         /* last call to buffer_output, to finish clearing the buffer */
-        if (buffer_output(r, vrprintf_buf,n) != APR_SUCCESS)
+        if (buffer_output(r, vrprintf_buf, n) != APR_SUCCESS)
             return -1;
 
         written += n;
@@ -2100,6 +2234,7 @@ AP_DECLARE_NONSTD(int) ap_rvputs(request_rec *r, ...)
 
         len = strlen(s);
         if (buffer_output(r, s, len) != APR_SUCCESS) {
+            va_end(va);
             return -1;
         }
 
@@ -2176,7 +2311,8 @@ static int send_header(void *data, const char *key, const char *val)
 AP_DECLARE(void) ap_send_interim_response(request_rec *r, int send_headers)
 {
     hdr_ptr x;
-    char *status_line = NULL;
+    char *response_line = NULL;
+    const char *status_line;
     request_rec *rr;
 
     if (r->proto_num < HTTP_VERSION(1,1)) {
@@ -2188,30 +2324,38 @@ AP_DECLARE(void) ap_send_interim_response(request_rec *r, int send_headers)
                       "Status is %d - not sending interim response", r->status);
         return;
     }
-    if ((r->status == HTTP_CONTINUE) && !r->expecting_100) {
-        /*
-         * Don't send 100-Continue when there was no Expect: 100-continue
-         * in the request headers. For origin servers this is a SHOULD NOT
-         * for proxies it is a MUST NOT according to RFC 2616 8.2.3
+    if (r->status == HTTP_CONTINUE) {
+        if (!r->expecting_100) {
+            /*
+             * Don't send 100-Continue when there was no Expect: 100-continue
+             * in the request headers. For origin servers this is a SHOULD NOT
+             * for proxies it is a MUST NOT according to RFC 2616 8.2.3
+             */
+            return;
+        }
+
+        /* if we send an interim response, we're no longer in a state of
+         * expecting one.  Also, this could feasibly be in a subrequest,
+         * so we need to propagate the fact that we responded.
          */
-        return;
+        for (rr = r; rr != NULL; rr = rr->main) {
+            rr->expecting_100 = 0;
+        }
     }
 
-    /* if we send an interim response, we're no longer in a state of
-     * expecting one.  Also, this could feasibly be in a subrequest,
-     * so we need to propagate the fact that we responded.
-     */
-    for (rr = r; rr != NULL; rr = rr->main) {
-        rr->expecting_100 = 0;
+    status_line = r->status_line;
+    if (status_line == NULL) {
+        status_line = ap_get_status_line_ex(r->pool, r->status);
     }
-
-    status_line = apr_pstrcat(r->pool, AP_SERVER_PROTOCOL, " ", r->status_line, CRLF, NULL);
-    ap_xlate_proto_to_ascii(status_line, strlen(status_line));
+    response_line = apr_pstrcat(r->pool,
+                                AP_SERVER_PROTOCOL " ", status_line, CRLF,
+                                NULL);
+    ap_xlate_proto_to_ascii(response_line, strlen(response_line));
 
     x.f = r->connection->output_filters;
     x.bb = apr_brigade_create(r->pool, r->connection->bucket_alloc);
 
-    ap_fputs(x.f, x.bb, status_line);
+    ap_fputs(x.f, x.bb, response_line);
     if (send_headers) {
         apr_table_do(send_header, &x, r->headers_out, NULL);
         apr_table_clear(r->headers_out);
@@ -2239,7 +2383,7 @@ static int protocol_cmp(const apr_array_header_t *preferences,
             return (index2 >= 0) ? -1 : 1;
         }
     }
-    /* both have the same index (mabye -1 or no pref configured) and we compare
+    /* both have the same index (maybe -1 or no pref configured) and we compare
      * the names so that spdy3 gets precedence over spdy2. That makes
      * the outcome at least deterministic. */
     return strcmp(proto1, proto2);

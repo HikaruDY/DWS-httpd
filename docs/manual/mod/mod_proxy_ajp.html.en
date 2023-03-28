@@ -1,7 +1,7 @@
-<?xml version="1.0" encoding="ISO-8859-1"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
-<meta content="text/html; charset=ISO-8859-1" http-equiv="Content-Type" />
+<meta content="text/html; charset=UTF-8" http-equiv="Content-Type" />
 <!--
         XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
               This file is generated from xml source: DO NOT EDIT
@@ -27,14 +27,14 @@
 <div id="preamble"><h1>Apache Module mod_proxy_ajp</h1>
 <div class="toplang">
 <p><span>Available Languages: </span><a href="../en/mod/mod_proxy_ajp.html" title="English">&nbsp;en&nbsp;</a> |
-<a href="../fr/mod/mod_proxy_ajp.html" hreflang="fr" rel="alternate" title="Français">&nbsp;fr&nbsp;</a> |
+<a href="../fr/mod/mod_proxy_ajp.html" hreflang="fr" rel="alternate" title="FranÃ§ais">&nbsp;fr&nbsp;</a> |
 <a href="../ja/mod/mod_proxy_ajp.html" hreflang="ja" rel="alternate" title="Japanese">&nbsp;ja&nbsp;</a></p>
 </div>
 <table class="module"><tr><th><a href="module-dict.html#Description">Description:</a></th><td>AJP support module for
 <code class="module"><a href="../mod/mod_proxy.html">mod_proxy</a></code></td></tr>
 <tr><th><a href="module-dict.html#Status">Status:</a></th><td>Extension</td></tr>
-<tr><th><a href="module-dict.html#ModuleIdentifier">Module Identifier:</a></th><td>proxy_ajp_module</td></tr>
-<tr><th><a href="module-dict.html#SourceFile">Source File:</a></th><td>mod_proxy_ajp.c</td></tr>
+<tr><th><a href="module-dict.html#ModuleIdentifier">ModuleÂ Identifier:</a></th><td>proxy_ajp_module</td></tr>
+<tr><th><a href="module-dict.html#SourceFile">SourceÂ File:</a></th><td>mod_proxy_ajp.c</td></tr>
 <tr><th><a href="module-dict.html#Compatibility">Compatibility:</a></th><td>Available in version 2.1 and later</td></tr></table>
 <h3>Summary</h3>
 
@@ -78,6 +78,14 @@
     <div class="example"><h3>Simple Reverse Proxy</h3><pre class="prettyprint lang-config">ProxyPass "/app" "ajp://backend.example.com:8009/app"</pre>
 </div>
 
+    <p>Options such as the <code>secret</code> option of Tomcat (required by
+    default since Tomcat 8.5.51 and 9.0.31) can just be added as a separate
+    parameter at the end of <code class="directive"><a href="../mod/mod_proxy.html#proxypass">ProxyPass</a></code>
+    or <code class="directive"><a href="../mod/mod_proxy.html#balancermember">BalancerMember</a></code>. This parameter
+    is available in Apache HTTP Server 2.4.42 and later:</p>
+    <div class="example"><h3>Simple Reverse Proxy with <code>secret</code> option</h3><pre class="prettyprint lang-config">ProxyPass "/app" "ajp://backend.example.com:8009/app" secret=YOUR_AJP_SECRET</pre>
+</div>
+
     <p>Balancers may also be used:</p>
     <div class="example"><h3>Balancer Reverse Proxy</h3><pre class="prettyprint lang-config">&lt;Proxy "balancer://cluster"&gt;
     BalancerMember "ajp://app1.example.com:8009" loadfactor=1
@@ -93,7 +101,7 @@ ProxyPass "/app" "balancer://cluster/app"</pre>
     header given to the proxy, and the application server can be expected
     to generate self-referential headers relative to this host, so no
     rewriting is necessary.</p>
-    
+
     <p>The main exception is when the URL path on the proxy differs from that
     on the
     backend. In this case, a redirect header can be rewritten relative to the
@@ -110,7 +118,7 @@ ProxyPassReverse "/apps/foo" "http://www.example.com/foo"</pre>
 <h2><a name="env" id="env">Environment Variables</a></h2>
     <p>Environment variables whose names have the prefix <code>AJP_</code>
     are forwarded to the origin server as AJP request attributes
-    (with the AJP_ prefix removed from the name of the key).</p>
+    (with the <code>AJP_</code> prefix removed from the name of the key).</p>
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
 <h2><a name="overviewprotocol" id="overviewprotocol">Overview of the protocol</a></h2>
@@ -482,6 +490,7 @@ attribute_value := (string)</pre></div>
       <tr><td>?req_attribute</td><td>0x0A</td><td>String</td><td>Name (the name of the
       attribute follows)</td></tr>
       <tr><td>?ssl_key_size</td><td>0x0B</td><td>Integer</td><td /></tr>
+      <tr><td>?secret</td><td>0x0C</td><td>String</td><td>Supported since 2.4.42</td></tr>
       <tr><td>are_done</td><td>0xFF</td><td>-</td><td>request_terminator</td></tr>
     </table>
     <p>The <code>context</code> and <code>servlet_path</code> are not
@@ -495,11 +504,19 @@ attribute_value := (string)</pre></div>
     username and the type of authentication used to establish their identity
     (e.g. Basic, Digest).</p>
     <p>The <code>query_string</code>, <code>ssl_cert</code>,
-    <code>ssl_cipher</code>, and <code>ssl_session</code> refer to the
+    <code>ssl_cipher</code>, <code>ssl_session</code> and
+    <code>ssl_key_size</code> refer to the
     corresponding pieces of HTTP and HTTPS.</p>
     <p>The <code>jvm_route</code>, is used to support sticky
     sessions -- associating a user's sesson with a particular Tomcat instance
     in the presence of multiple, load-balancing servers.</p>
+    <p>The <code>secret</code> is sent when the <code>secret=secret_keyword</code>
+    parameter is used in
+    <code class="directive"><a href="../mod/mod_proxy.html#proxypass">ProxyPass</a></code> or
+    <code class="directive"><a href="../mod/mod_proxy.html#balancermember">BalancerMember</a></code> directives.
+    The backend needs to support secret and the values must match.
+    <code>request.secret</code> or <code>requiredSecret</code> are documented in the AJP
+    configuration of the Apache Tomcat.</p>
     <p>Beyond this list of basic attributes, any number of other attributes
     can be sent via the <code>req_attribute</code> code <code>0x0A</code>.
     A pair of strings to represent the attribute name and value are sent
@@ -593,9 +610,9 @@ AJP13_GET_BODY_CHUNK :=
 </div>
 <div class="bottomlang">
 <p><span>Available Languages: </span><a href="../en/mod/mod_proxy_ajp.html" title="English">&nbsp;en&nbsp;</a> |
-<a href="../fr/mod/mod_proxy_ajp.html" hreflang="fr" rel="alternate" title="Français">&nbsp;fr&nbsp;</a> |
+<a href="../fr/mod/mod_proxy_ajp.html" hreflang="fr" rel="alternate" title="FranÃ§ais">&nbsp;fr&nbsp;</a> |
 <a href="../ja/mod/mod_proxy_ajp.html" hreflang="ja" rel="alternate" title="Japanese">&nbsp;ja&nbsp;</a></p>
-</div><div class="top"><a href="#page-header"><img src="../images/up.gif" alt="top" /></a></div><div class="section"><h2><a id="comments_section" name="comments_section">Comments</a></h2><div class="warning"><strong>Notice:</strong><br />This is not a Q&amp;A section. Comments placed here should be pointed towards suggestions on improving the documentation or server, and may be removed again by our moderators if they are either implemented or considered invalid/off-topic. Questions on how to manage the Apache HTTP Server should be directed at either our IRC channel, #httpd, on Freenode, or sent to our <a href="http://httpd.apache.org/lists.html">mailing lists</a>.</div>
+</div><div class="top"><a href="#page-header"><img src="../images/up.gif" alt="top" /></a></div><div class="section"><h2><a id="comments_section" name="comments_section">Comments</a></h2><div class="warning"><strong>Notice:</strong><br />This is not a Q&amp;A section. Comments placed here should be pointed towards suggestions on improving the documentation or server, and may be removed by our moderators if they are either implemented or considered invalid/off-topic. Questions on how to manage the Apache HTTP Server should be directed at either our IRC channel, #httpd, on Libera.chat, or sent to our <a href="https://httpd.apache.org/lists.html">mailing lists</a>.</div>
 <script type="text/javascript"><!--//--><![CDATA[//><!--
 var comments_shortname = 'httpd';
 var comments_identifier = 'http://httpd.apache.org/docs/2.4/mod/mod_proxy_ajp.html';
@@ -613,7 +630,7 @@ var comments_identifier = 'http://httpd.apache.org/docs/2.4/mod/mod_proxy_ajp.ht
     }
 })(window, document);
 //--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2018 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
+<p class="apache">Copyright 2022 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
 <p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/directives.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossary</a> | <a href="../sitemap.html">Sitemap</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();

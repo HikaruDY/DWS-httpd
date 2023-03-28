@@ -309,9 +309,15 @@ static const char *constant_item(request_rec *dummy, char *stuff)
 
 static const char *log_remote_host(request_rec *r, char *a)
 {
-    return ap_escape_logitem(r->pool, ap_get_remote_host(r->connection,
-                                                         r->per_dir_config,
-                                                         REMOTE_NAME, NULL));
+    const char *remote_host;
+    if (a && !strcmp(a, "c")) {
+        remote_host = ap_get_remote_host(r->connection, r->per_dir_config,
+                                         REMOTE_NAME, NULL);
+    }
+    else {
+        remote_host = ap_get_useragent_host(r, REMOTE_NAME, NULL);
+    }
+    return ap_escape_logitem(r->pool, remote_host);
 }
 
 static const char *log_remote_address(request_rec *r, char *a)
@@ -467,7 +473,7 @@ static APR_INLINE char *find_multiple_headers(apr_pool_t *pool,
     result_list = rp = NULL;
 
     do {
-        if (!strcasecmp(t_elt->key, key)) {
+        if (!ap_cstr_casecmp(t_elt->key, key)) {
             if (!result_list) {
                 result_list = rp = apr_palloc(pool, sizeof(*rp));
             }
@@ -511,10 +517,10 @@ static const char *log_header_out(request_rec *r, char *a)
 {
     const char *cp = NULL;
 
-    if (!strcasecmp(a, "Content-type") && r->content_type) {
+    if (!ap_cstr_casecmp(a, "Content-type") && r->content_type) {
         cp = ap_field_noparam(r->pool, r->content_type);
     }
-    else if (!strcasecmp(a, "Set-Cookie")) {
+    else if (!ap_cstr_casecmp(a, "Set-Cookie")) {
         cp = find_multiple_headers(r->pool, r->headers_out, a);
     }
     else {
@@ -570,7 +576,7 @@ static const char *log_cookie(request_rec *r, char *a)
                     --last;
                 }
 
-                if (!strcasecmp(name, a)) {
+                if (!ap_cstr_casecmp(name, a)) {
                     /* last1 points to the next char following the ';' delim,
                        or the trailing NUL char of the string */
                     last = last1 - (*last1 ? 2 : 1);
@@ -841,14 +847,8 @@ static const char *log_pid_tid(request_rec *r, char *a)
         int tid = 0; /* APR will format "0" anyway but an arg is needed */
 #endif
         return apr_psprintf(r->pool,
-#if APR_MAJOR_VERSION > 1 || (APR_MAJOR_VERSION == 1 && APR_MINOR_VERSION >= 2)
                             /* APR can format a thread id in hex */
-                            *a == 'h' ? "%pt" : "%pT",
-#else
-                            /* APR is missing the feature, so always use decimal */
-                            "%pT",
-#endif
-                            &tid);
+                            *a == 'h' ? "%pt" : "%pT", &tid);
     }
     /* bogus format */
     return a;
@@ -1099,7 +1099,8 @@ static const char *process_item(request_rec *r, request_rec *orig,
 static void flush_log(buffered_log *buf)
 {
     if (buf->outcnt && buf->handle != NULL) {
-        apr_file_write(buf->handle, buf->outbuf, &buf->outcnt);
+        /* XXX: error handling */
+        apr_file_write_full(buf->handle, buf->outbuf, buf->outcnt, NULL);
         buf->outcnt = 0;
     }
 }
@@ -1165,11 +1166,9 @@ static int config_log_transaction(request_rec *r, config_log_state *cls,
 
     for (i = 0; i < format->nelts; ++i) {
         strs[i] = process_item(r, orig, &items[i]);
-    }
-
-    for (i = 0; i < format->nelts; ++i) {
         len += strl[i] = strlen(strs[i]);
     }
+
     if (!log_writer) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(00645)
                 "log writer isn't correctly setup");
@@ -1710,7 +1709,7 @@ static apr_status_t ap_buffered_log_writer(request_rec *r,
             s += strl[i];
         }
         w = len;
-        rv = apr_file_write(buf->handle, str, &w);
+        rv = apr_file_write_full(buf->handle, str, w, NULL);
 
     }
     else {

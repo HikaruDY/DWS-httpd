@@ -21,6 +21,7 @@
 #include "apr_lib.h"
 #include "apr_md5.h"
 #include "apr_time.h"
+#include "apr_thread_proc.h"
 #include "apr_version.h"
 #include "apu_version.h"
 
@@ -98,13 +99,17 @@ static void show_compile_settings(void)
     printf("Server's Module Magic Number: %u:%u\n",
            MODULE_MAGIC_NUMBER_MAJOR, MODULE_MAGIC_NUMBER_MINOR);
 #if APR_MAJOR_VERSION >= 2
-    printf("Server loaded:  APR %s\n", apr_version_string());
-    printf("Compiled using: APR %s\n", APR_VERSION_STRING);
+    printf("Server loaded:  APR %s, PCRE %s\n",
+           apr_version_string(), ap_pcre_version_string(AP_REG_PCRE_LOADED));
+    printf("Compiled using: APR %s, PCRE %s\n",
+           APR_VERSION_STRING, ap_pcre_version_string(AP_REG_PCRE_COMPILED));
 #else
-    printf("Server loaded:  APR %s, APR-UTIL %s\n",
-           apr_version_string(), apu_version_string());
-    printf("Compiled using: APR %s, APR-UTIL %s\n",
-           APR_VERSION_STRING, APU_VERSION_STRING);
+    printf("Server loaded:  APR %s, APR-UTIL %s, PCRE %s\n",
+           apr_version_string(), apu_version_string(),
+           ap_pcre_version_string(AP_REG_PCRE_LOADED));
+    printf("Compiled using: APR %s, APR-UTIL %s, PCRE %s\n",
+           APR_VERSION_STRING, APU_VERSION_STRING,
+           ap_pcre_version_string(AP_REG_PCRE_COMPILED));
 #endif
     /* sizeof(foo) is long on some platforms so we might as well
      * make it long everywhere to keep the printf format
@@ -256,7 +261,7 @@ static void destroy_and_exit_process(process_rec *process,
      * Sleep for TASK_SWITCH_SLEEP micro seconds to cause a task switch on
      * OS layer and thus give possibly started piped loggers a chance to
      * process their input. Otherwise it is possible that they get killed
-     * by us before they can do so. In this case maybe valueable log messages
+     * by us before they can do so. In this case maybe valuable log messages
      * might get lost.
      */
     apr_sleep(TASK_SWITCH_SLEEP);
@@ -348,6 +353,23 @@ static process_rec *init_process(int *argc, const char * const * *argv)
     process->argc = *argc;
     process->argv = *argv;
     process->short_name = apr_filepath_name_get((*argv)[0]);
+
+#if AP_HAS_THREAD_LOCAL
+    {
+        apr_status_t rv;
+        apr_thread_t *thd = NULL;
+        if ((rv = ap_thread_main_create(&thd, process->pool))) {
+            char ctimebuff[APR_CTIME_LEN];
+            apr_ctime(ctimebuff, apr_time_now());
+            fprintf(stderr, "[%s] [crit] (%d) %s: failed "
+                            "to initialize thread context, exiting\n",
+                            ctimebuff, rv, (*argv)[0]);
+            apr_terminate();
+            exit(1);
+        }
+    }
+#endif
+
     return process;
 }
 

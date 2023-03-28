@@ -774,7 +774,7 @@ static enum header_state get_header_line(char *buffer, int len, apr_file_t *map)
     /* We need to shortcut the rest of this block following the Body:
      * tag - we will not look for continutation after this line.
      */
-    if (!strncasecmp(buffer, "Body:", 5))
+    if (!ap_cstr_casecmpn(buffer, "Body:", 5))
         return header_seen;
 
     while (apr_file_getc(&c, map) != APR_EOF) {
@@ -988,19 +988,17 @@ static int read_type_map(apr_file_t **map, negotiation_state *neg,
                 has_content = 1;
             }
             else if (!strncmp(buffer, "content-length:", 15)) {
-                char *errp;
-                apr_off_t number;
+                apr_off_t clen;
 
                 body1 = ap_get_token(neg->pool, &body, 0);
-                if (apr_strtoff(&number, body1, &errp, 10) != APR_SUCCESS
-                    || *errp || number < 0) {
+                if (!ap_parse_strict_length(&clen, body1)) {
                     ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(00684)
                                   "Parse error in type map, Content-Length: "
                                   "'%s' in %s is invalid.",
                                   body1, r->filename);
                     break;
                 }
-                mime_info.bytes = number;
+                mime_info.bytes = clen;
                 has_content = 1;
             }
             else if (!strncmp(buffer, "content-language:", 17)) {
@@ -1459,7 +1457,7 @@ static int find_lang_index(apr_array_header_t *accept_langs, char *lang)
     alang = (const char **) accept_langs->elts;
 
     for (i = 0; i < accept_langs->nelts; ++i) {
-        if (!strncmp(lang, *alang, strlen(*alang))) {
+        if (!ap_cstr_casecmpn(lang, *alang, strlen(*alang))) {
             return i;
         }
         alang += (accept_langs->elt_size / sizeof(char*));
@@ -1549,9 +1547,6 @@ static void set_language_quality(negotiation_state *neg, var_rec *variant)
          */
         if (!neg->dont_fiddle_headers) {
             variant->lang_quality = neg->default_lang_quality;
-        }
-        if (!neg->accept_langs) {
-            return;             /* no accept-language header */
         }
         return;
     }

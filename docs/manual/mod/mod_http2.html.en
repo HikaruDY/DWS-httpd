@@ -1,7 +1,7 @@
-<?xml version="1.0" encoding="ISO-8859-1"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
-<meta content="text/html; charset=ISO-8859-1" http-equiv="Content-Type" />
+<meta content="text/html; charset=UTF-8" http-equiv="Content-Type" />
 <!--
         XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
               This file is generated from xml source: DO NOT EDIT
@@ -27,12 +27,12 @@
 <div id="preamble"><h1>Apache Module mod_http2</h1>
 <div class="toplang">
 <p><span>Available Languages: </span><a href="../en/mod/mod_http2.html" title="English">&nbsp;en&nbsp;</a> |
-<a href="../fr/mod/mod_http2.html" hreflang="fr" rel="alternate" title="Français">&nbsp;fr&nbsp;</a></p>
+<a href="../fr/mod/mod_http2.html" hreflang="fr" rel="alternate" title="FranÃ§ais">&nbsp;fr&nbsp;</a></p>
 </div>
 <table class="module"><tr><th><a href="module-dict.html#Description">Description:</a></th><td>Support for the HTTP/2 transport layer</td></tr>
 <tr><th><a href="module-dict.html#Status">Status:</a></th><td>Extension</td></tr>
-<tr><th><a href="module-dict.html#ModuleIdentifier">Module Identifier:</a></th><td>http2_module</td></tr>
-<tr><th><a href="module-dict.html#SourceFile">Source File:</a></th><td>mod_http2.c</td></tr>
+<tr><th><a href="module-dict.html#ModuleIdentifier">ModuleÂ Identifier:</a></th><td>http2_module</td></tr>
+<tr><th><a href="module-dict.html#SourceFile">SourceÂ File:</a></th><td>mod_http2.c</td></tr>
 <tr><th><a href="module-dict.html#Compatibility">Compatibility:</a></th><td>Available in version 2.4.17 and later</td></tr></table>
 <h3>Summary</h3>
 
@@ -84,6 +84,8 @@
 <li><img alt="" src="../images/down.gif" /> <a href="#h2maxworkers">H2MaxWorkers</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#h2minworkers">H2MinWorkers</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#h2moderntlsonly">H2ModernTLSOnly</a></li>
+<li><img alt="" src="../images/down.gif" /> <a href="#h2outputbuffering">H2OutputBuffering</a></li>
+<li><img alt="" src="../images/down.gif" /> <a href="#h2padding">H2Padding</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#h2push">H2Push</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#h2pushdiarysize">H2PushDiarySize</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#h2pushpriority">H2PushPriority</a></li>
@@ -309,7 +311,8 @@
             </p>
             <p>
                 When set to <code>on</code>, PUSH resources announced with
-                <code>H2PushResource</code> will trigger an interim 103 response
+                <code class="directive"><a href="#h2pushresource">H2PushResource</a></code> will
+                trigger an interim 103 response
                 before the final response. The 103 response will carry <code>Link</code>
                 headers that advise the <code>preload</code> of such resources. 
             </p>
@@ -435,12 +438,67 @@
         
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
+<div class="directive-section"><h2><a name="H2OutputBuffering" id="H2OutputBuffering">H2OutputBuffering</a> <a name="h2outputbuffering" id="h2outputbuffering">Directive</a></h2>
+<table class="directive">
+<tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Determine buffering behaviour of output</td></tr>
+<tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>H2OutputBuffering on|off</code></td></tr>
+<tr><th><a href="directive-dict.html#Default">Default:</a></th><td><code>H2OutputBuffering on</code></td></tr>
+<tr><th><a href="directive-dict.html#Context">Context:</a></th><td>server config, virtual host</td></tr>
+<tr><th><a href="directive-dict.html#Status">Status:</a></th><td>Extension</td></tr>
+<tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_http2</td></tr>
+<tr><th><a href="directive-dict.html#Compatibility">Compatibility:</a></th><td>Available in version 2.4.48 and later.</td></tr>
+</table>
+            <p>
+                The directive <code class="directive">H2OutputBuffering</code> controls the buffering of stream output.
+                The default is on, which is the behaviour of previous versions. When off, all
+                bytes are made available immediately to the main connection for sending them
+                out to the client. This fixes interop issues with certain flavours of gRPC.
+            </p>
+        
+</div>
+<div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
+<div class="directive-section"><h2><a name="H2Padding" id="H2Padding">H2Padding</a> <a name="h2padding" id="h2padding">Directive</a></h2>
+<table class="directive">
+<tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Determine the range of padding bytes added to payload frames</td></tr>
+<tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>H2Padding <em>numbits</em></code></td></tr>
+<tr><th><a href="directive-dict.html#Default">Default:</a></th><td><code>H2Padding 0</code></td></tr>
+<tr><th><a href="directive-dict.html#Context">Context:</a></th><td>server config, virtual host</td></tr>
+<tr><th><a href="directive-dict.html#Status">Status:</a></th><td>Extension</td></tr>
+<tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_http2</td></tr>
+<tr><th><a href="directive-dict.html#Compatibility">Compatibility:</a></th><td>Available in version 2.4.39 and later.</td></tr>
+</table>
+            <p>
+                With the default 0, no padding bytes are added to any payload
+                frames, e.g. HEADERS, DATA and PUSH_PROMISE. This is the behaviour
+                of previous versions. It means that under certain conditions, an
+                observer of network traffic can see the length of those frames 
+                in the TLS stream.
+            </p>
+            <p>
+                When configuring numbits of 1-8, a random number in range
+                [0, 2^numbits[ are added to each frame. The random value is chosen
+                independently for each frame that the module sends back to the client.
+            </p>
+            <p>
+                While more padding bytes give better message length obfuscation, they
+                are also additional traffic. The optimal number therefore depends on
+                the kind of web traffic the server carries.
+            </p>
+            <p>
+                The default of 0, e.g. no padding, was chosen for maximum backward
+                compatibility. There might be deployments where padding bytes are
+                unwanted or do harm. The most likely cause would be a client that
+                has a faults implementation.
+            </p>
+        
+</div>
+<div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="directive-section"><h2><a name="H2Push" id="H2Push">H2Push</a> <a name="h2push" id="h2push">Directive</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>H2 Server Push Switch</td></tr>
 <tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>H2Push on|off</code></td></tr>
 <tr><th><a href="directive-dict.html#Default">Default:</a></th><td><code>H2Push on</code></td></tr>
-<tr><th><a href="directive-dict.html#Context">Context:</a></th><td>server config, virtual host</td></tr>
+<tr><th><a href="directive-dict.html#Context">Context:</a></th><td>server config, virtual host, directory, .htaccess</td></tr>
 <tr><th><a href="directive-dict.html#Status">Status:</a></th><td>Extension</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_http2</td></tr>
 <tr><th><a href="directive-dict.html#Compatibility">Compatibility:</a></th><td>Available in version 2.4.18 and later.</td></tr>
@@ -466,7 +524,8 @@
             </p>
             <p> 
                 Link headers in responses are either set by the application or
-                can be configured via <code class="module"><a href="../mod/mod_headers.html">mod_headers</a></code> as:
+                can be configured via <code class="directive"><a href="#h2pushresource">H2PushResource</a></code> or
+                using <code class="module"><a href="../mod/mod_headers.html">mod_headers</a></code> as:
             </p>
             <div class="example"><h3>mod_headers example</h3><pre class="prettyprint lang-config">&lt;Location /index.html&gt;
     Header add Link "&lt;/css/site.css&gt;;rel=preload"
@@ -480,9 +539,10 @@
                 twice or more to one client. Use with care.
             </p>
             <p> 
-                HTTP/2 server pushes are enabled by default. This directive 
-                allows it to be switch off on all resources of this server/virtual
-                host.
+                HTTP/2 server pushes are enabled by default. On a server or virtual host,
+                you may enable/disable this feature for any connection to the host. In addition,
+                you may disable PUSH for a set of resources in a Directory/Location. This controls
+                which resources may cause a PUSH, not which resources may be sent via PUSH.
             </p>
             <div class="example"><h3>Example</h3><pre class="prettyprint lang-config">H2Push off</pre>
 </div>
@@ -512,12 +572,10 @@
                 section to influence the number for all connections to that virtual host. 
             </p>
             <p>
-                The push diary records a digest (currently using a 64 bit number) of pushed
+                The push diary records a digest of pushed
                 resources (their URL) to avoid duplicate pushes on the same connection.
                 These value are not persisted, so clients opening a new connection
-                will experience known pushes again. There is ongoing work to enable
-                a client to disclose a digest of the resources it already has, so
-                the diary maybe initialized by the client on each connection setup.
+                will experience known pushes again.
             </p>
             <p>
                 If the maximum size is reached, newer entries replace the oldest
@@ -533,7 +591,7 @@
 <div class="directive-section"><h2><a name="H2PushPriority" id="H2PushPriority">H2PushPriority</a> <a name="h2pushpriority" id="h2pushpriority">Directive</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>H2 Server Push Priority</td></tr>
-<tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>H2PushPriority <em>mime-type</em> [after|before|interleaved] [weight]</code></td></tr>
+<tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>H2PushPriority <em>mime-type</em> [after|before|interleaved] [<em>weight</em>]</code></td></tr>
 <tr><th><a href="directive-dict.html#Default">Default:</a></th><td><code>H2PushPriority * After 16</code></td></tr>
 <tr><th><a href="directive-dict.html#Context">Context:</a></th><td>server config, virtual host</td></tr>
 <tr><th><a href="directive-dict.html#Status">Status:</a></th><td>Extension</td></tr>
@@ -558,7 +616,7 @@
                 all bandwidth allocated to Y can be used by X.
             </p>
             <p>
-                When a stream has more than one dependant, say X1 and X2 both
+                When a stream has more than one dependent, say X1 and X2 both
                 depend on Y, the <em>weight</em> determines the bandwidth
                 allocation. If X1 and X2 have the same weight, they both get
                 half of the available bandwidth. If the weight of X1 is twice
@@ -650,7 +708,7 @@ H2PushPriority text/css   interleaved      # weight 256 default</pre>
 <div class="directive-section"><h2><a name="H2PushResource" id="H2PushResource">H2PushResource</a> <a name="h2pushresource" id="h2pushresource">Directive</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Declares resources for early pushing to the client</td></tr>
-<tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>H2PushResource [add] path [critical]</code></td></tr>
+<tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>H2PushResource [add] <em>path</em> [critical]</code></td></tr>
 <tr><th><a href="directive-dict.html#Context">Context:</a></th><td>server config, virtual host, directory, .htaccess</td></tr>
 <tr><th><a href="directive-dict.html#Status">Status:</a></th><td>Extension</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_http2</td></tr>
@@ -729,7 +787,7 @@ H2PushPriority text/css   interleaved      # weight 256 default</pre>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="directive-section"><h2><a name="H2TLSCoolDownSecs" id="H2TLSCoolDownSecs">H2TLSCoolDownSecs</a> <a name="h2tlscooldownsecs" id="h2tlscooldownsecs">Directive</a></h2>
 <table class="directive">
-<tr><th><a href="directive-dict.html#Description">Description:</a></th><td /></tr>
+<tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Configure the number of seconds of idle time on TLS before shrinking writes</td></tr>
 <tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>H2TLSCoolDownSecs <em>seconds</em></code></td></tr>
 <tr><th><a href="directive-dict.html#Default">Default:</a></th><td><code>H2TLSCoolDownSecs 1</code></td></tr>
 <tr><th><a href="directive-dict.html#Context">Context:</a></th><td>server config, virtual host</td></tr>
@@ -768,7 +826,7 @@ H2PushPriority text/css   interleaved      # weight 256 default</pre>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="directive-section"><h2><a name="H2TLSWarmUpSize" id="H2TLSWarmUpSize">H2TLSWarmUpSize</a> <a name="h2tlswarmupsize" id="h2tlswarmupsize">Directive</a></h2>
 <table class="directive">
-<tr><th><a href="directive-dict.html#Description">Description:</a></th><td /></tr>
+<tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Configure the number of bytes on TLS connection before doing max writes</td></tr>
 <tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>H2TLSWarmUpSize <em>amount</em></code></td></tr>
 <tr><th><a href="directive-dict.html#Default">Default:</a></th><td><code>H2TLSWarmUpSize 1048576</code></td></tr>
 <tr><th><a href="directive-dict.html#Context">Context:</a></th><td>server config, virtual host</td></tr>
@@ -820,7 +878,7 @@ H2PushPriority text/css   interleaved      # weight 256 default</pre>
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>H2 Upgrade Protocol Switch</td></tr>
 <tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>H2Upgrade on|off</code></td></tr>
 <tr><th><a href="directive-dict.html#Default">Default:</a></th><td><code>H2Upgrade on for h2c, off for h2 protocol</code></td></tr>
-<tr><th><a href="directive-dict.html#Context">Context:</a></th><td>server config, virtual host</td></tr>
+<tr><th><a href="directive-dict.html#Context">Context:</a></th><td>server config, virtual host, directory, .htaccess</td></tr>
 <tr><th><a href="directive-dict.html#Status">Status:</a></th><td>Extension</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_http2</td></tr>
 </table>
@@ -884,8 +942,8 @@ H2PushPriority text/css   interleaved      # weight 256 default</pre>
 </div>
 <div class="bottomlang">
 <p><span>Available Languages: </span><a href="../en/mod/mod_http2.html" title="English">&nbsp;en&nbsp;</a> |
-<a href="../fr/mod/mod_http2.html" hreflang="fr" rel="alternate" title="Français">&nbsp;fr&nbsp;</a></p>
-</div><div class="top"><a href="#page-header"><img src="../images/up.gif" alt="top" /></a></div><div class="section"><h2><a id="comments_section" name="comments_section">Comments</a></h2><div class="warning"><strong>Notice:</strong><br />This is not a Q&amp;A section. Comments placed here should be pointed towards suggestions on improving the documentation or server, and may be removed again by our moderators if they are either implemented or considered invalid/off-topic. Questions on how to manage the Apache HTTP Server should be directed at either our IRC channel, #httpd, on Freenode, or sent to our <a href="http://httpd.apache.org/lists.html">mailing lists</a>.</div>
+<a href="../fr/mod/mod_http2.html" hreflang="fr" rel="alternate" title="FranÃ§ais">&nbsp;fr&nbsp;</a></p>
+</div><div class="top"><a href="#page-header"><img src="../images/up.gif" alt="top" /></a></div><div class="section"><h2><a id="comments_section" name="comments_section">Comments</a></h2><div class="warning"><strong>Notice:</strong><br />This is not a Q&amp;A section. Comments placed here should be pointed towards suggestions on improving the documentation or server, and may be removed by our moderators if they are either implemented or considered invalid/off-topic. Questions on how to manage the Apache HTTP Server should be directed at either our IRC channel, #httpd, on Libera.chat, or sent to our <a href="https://httpd.apache.org/lists.html">mailing lists</a>.</div>
 <script type="text/javascript"><!--//--><![CDATA[//><!--
 var comments_shortname = 'httpd';
 var comments_identifier = 'http://httpd.apache.org/docs/2.4/mod/mod_http2.html';
@@ -903,7 +961,7 @@ var comments_identifier = 'http://httpd.apache.org/docs/2.4/mod/mod_http2.html';
     }
 })(window, document);
 //--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2018 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
+<p class="apache">Copyright 2022 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
 <p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/directives.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossary</a> | <a href="../sitemap.html">Sitemap</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();
