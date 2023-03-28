@@ -219,6 +219,8 @@ ProxyVia On
   Require host internal.example.com
 &lt;/Proxy&gt;</pre>
 </div>
+    <div class="example"><h3><a id="wsupgrade" name="wsupgrade">Websocket Upgrade (2.4.47 and later)</a></h3><pre class="prettyprint lang-config">ProxyPass "/some/ws/capable/path/" "http://example.com/some/ws/capable/path/" upgrade=websocket</pre>
+</div>
     </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
 <h2><a name="handler" id="handler">Access via Handler</a></h2>
@@ -462,9 +464,6 @@ ProxyPass "/examples" "http://backend.example.com/examples" timeout=10</pre>
     This spooling can also occur if the request body already has a
     Content-Length header, but the server is configured to filter incoming
     request bodies.</p>
-
-    <p><code class="directive"><a href="../mod/core.html#limitrequestbody">LimitRequestBody</a></code> only applies to
-    request bodies that the server will spool to disk</p>
 
     </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
@@ -1382,10 +1381,13 @@ ProxyPass "/mirror/foo" "http://backend.example.com"</pre>
         AJP connection.<br />
         Available in Apache HTTP Server 2.4.42 and later.
     </td></tr>
-    <tr><td>upgrade</td>
-        <td>WebSocket</td>
-        <td><p>Protocol accepted in the Upgrade header by <code class="module"><a href="../mod/mod_proxy_wstunnel.html">mod_proxy_wstunnel</a></code>.
-        See the documentation of this module for more details.</p>
+    <tr><td><a id="upgrade" name="upgrade">upgrade</a></td>
+        <td>-</td>
+        <td><p>Protocol accepted by <code class="module"><a href="../mod/mod_proxy_http.html">mod_proxy_http</a></code> or
+        <code class="module"><a href="../mod/mod_proxy_wstunnel.html">mod_proxy_wstunnel</a></code> for the HTTP Upgrade mechanism
+        upon negotiation by the HTTP client/browser (per
+        <a href="https://www.ietf.org/rfc/rfc9110.html#name-upgrade">RFC 9110 - Upgrade</a>).
+        See the <a href="#protoupgrade">Protocol Upgrade</a> note below</p>
     </td></tr>
     <tr><td>mapping</td>
         <td>-</td>
@@ -1582,7 +1584,7 @@ ProxyPass "/" "balancer://mycluster/" stickysession=JSESSIONID|jsessionid nofail
     The optional <var>noquery</var> keyword (available in
     httpd 2.4.1 and later) prevents this.</p>
 
-    <p>The optional <var>interpolate</var> keyword, in combination with
+    <p>The optional <code>interpolate</code> keyword, in combination with
     <code class="directive"><a href="#proxypassinterpolateenv">ProxyPassInterpolateEnv</a></code>, causes the ProxyPass
     to interpolate environment variables, using the syntax
     <var>${VARNAME}</var>.  Note that many of the standard CGI-derived
@@ -1607,6 +1609,26 @@ RewriteRule "^/mirror/foo/(.*)" "%{ENV:protocol}://backend.example.com/$1" [P]
 ProxyPassReverse  "/mirror/foo/" "http://backend.example.com/"
 ProxyPassReverse  "/mirror/foo/" "https://backend.example.com/"</pre>
 
+
+    <div class="note"><h3><a id="protoupgrade" name="protoupgrade">Protocol Upgrade</a></h3>
+      <p>Since Apache HTTP Server 2.4.47, protocol Upgrade (tunneling) can be handled
+      end-to-end by <code class="module"><a href="../mod/mod_proxy_http.html">mod_proxy_http</a></code> using the <code class="directive">ProxyPass</code>
+      parameter <var><a href="#upgrade">upgrade</a></var>.</p>
+      <p>End-to-end means that the HTTP Upgrade request from the client/browser is first
+      forwarded by <code class="module"><a href="../mod/mod_proxy_http.html">mod_proxy_http</a></code> to the origin server and the connection
+      will be upgraded (and tunneled by <code class="module"><a href="../mod/mod_proxy_http.html">mod_proxy_http</a></code>) only if the origin
+      server accepts/initiates the upgrade (HTTP response <code>101 Switching Protocols</code>).
+      If the origin server responds with anything else <code class="module"><a href="../mod/mod_proxy_http.html">mod_proxy_http</a></code>
+      will continue forwarding (and enforcing) the HTTP protocol as usual for this
+      connection.</p>
+      <p>See <a href="#wsupgrade">Websocket Upgrade (2.4.47 and later)</a> for an example of
+      configuration using <code class="module"><a href="../mod/mod_proxy_http.html">mod_proxy_http</a></code>.</p>
+      <p>For Apache HTTP Server 2.4.46 and earlier (or if
+      <code class="directive"><a href="../mod/mod_proxy_wstunnel.html#proxywebsocketfallbacktoproxyhttp">ProxyWebsocketFallbackToProxyHttp</a></code>
+      from 2.4.48 and later disables <code class="module"><a href="../mod/mod_proxy_http.html">mod_proxy_http</a></code> handling), see the
+      documentation of <code class="module"><a href="../mod/mod_proxy_wstunnel.html">mod_proxy_wstunnel</a></code> for how to proxy the WebSocket
+      protocol.</p>
+    </div>
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
@@ -1641,7 +1663,7 @@ ProxyPassReverse  "/mirror/foo/" "https://backend.example.com/"</pre>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_proxy</td></tr>
 <tr><th><a href="directive-dict.html#Compatibility">Compatibility:</a></th><td>Available in httpd 2.2.9 and later</td></tr>
 </table>
-    <p>This directive, together with the <var>interpolate</var> argument to
+    <p>This directive, together with the <code>interpolate</code> argument to
     <code class="directive">ProxyPass</code>, <code class="directive">ProxyPassReverse</code>,
     <code class="directive">ProxyPassReverseCookieDomain</code>, and
     <code class="directive">ProxyPassReverseCookiePath</code>,
@@ -1654,7 +1676,7 @@ ProxyPassReverse  "/mirror/foo/" "https://backend.example.com/"</pre>
     <code class="directive">ProxyPassReverseCookiePath</code> directives
     and causes them to substitute the value of an environment
     variable <code>varname</code> for the string <code>${varname}</code>
-    in configuration directives if the <var>interpolate</var> option is set.</p>
+    in configuration directives if the <code>interpolate</code> option is set.</p>
     <p>The scheme/hostname/port portion of <code class="directive">ProxyPass</code> may
     contain variables, but only the ones available when the directive is parsed
     (for example, using <code class="directive"><a href="../mod/core.html#define">Define</a></code>).
@@ -1741,7 +1763,7 @@ ProxyPassReverse  "/mirror/foo/" "https://backend.example.com/"</pre>
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Adjusts the URL in HTTP response headers sent from a reverse
 proxied server</td></tr>
 <tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>ProxyPassReverse [<var>path</var>] <var>url</var>
-[<var>interpolate</var>]</code></td></tr>
+[interpolate]</code></td></tr>
 <tr><th><a href="directive-dict.html#Context">Context:</a></th><td>server config, virtual host, directory</td></tr>
 <tr><th><a href="directive-dict.html#Status">Status:</a></th><td>Extension</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_proxy</td></tr>
@@ -1791,8 +1813,8 @@ ProxyPassReverseCookiePath  "/"  "/mirror/foo/"</pre>
     (<code>RewriteRule ...  [P]</code>) from <code class="module"><a href="../mod/mod_rewrite.html">mod_rewrite</a></code>
     because it doesn't depend on a corresponding <code class="directive"><a href="#proxypass">ProxyPass</a></code> directive.</p>
 
-    <p>The optional <var>interpolate</var> keyword, used together with
-    <code class="directive">ProxyPassInterpolateEnv</code>, enables interpolation
+    <p>The optional <code>interpolate</code> keyword, used together with
+    <code class="directive"><a href="#proxypassinterpolateenv">ProxyPassInterpolateEnv</a></code>, enables interpolation
     of environment variables specified using the format <var>${VARNAME}</var>.
     Note that interpolation is not supported within the scheme portion of a
     URL.</p>
@@ -1812,7 +1834,7 @@ ProxyPassReverseCookiePath  "/"  "/mirror/foo/"</pre>
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Adjusts the Domain string in Set-Cookie headers from a reverse-
 proxied server</td></tr>
 <tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>ProxyPassReverseCookieDomain <var>internal-domain</var>
-<var>public-domain</var> [<var>interpolate</var>]</code></td></tr>
+<var>public-domain</var> [interpolate]</code></td></tr>
 <tr><th><a href="directive-dict.html#Context">Context:</a></th><td>server config, virtual host, directory</td></tr>
 <tr><th><a href="directive-dict.html#Status">Status:</a></th><td>Extension</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_proxy</td></tr>
@@ -1829,7 +1851,7 @@ string in <code>Set-Cookie</code> headers.</p>
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Adjusts the Path string in Set-Cookie headers from a reverse-
 proxied server</td></tr>
 <tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>ProxyPassReverseCookiePath <var>internal-path</var>
-<var>public-path</var> [<var>interpolate</var>]</code></td></tr>
+<var>public-path</var> [interpolate]</code></td></tr>
 <tr><th><a href="directive-dict.html#Context">Context:</a></th><td>server config, virtual host, directory</td></tr>
 <tr><th><a href="directive-dict.html#Status">Status:</a></th><td>Extension</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_proxy</td></tr>
@@ -1867,7 +1889,7 @@ request</td></tr>
 <tr><th><a href="directive-dict.html#Compatibility">Compatibility:</a></th><td>Usable in directory
 context in 2.3.3 and later.</td></tr>
 </table>
-    <p>When enabled, this option will pass the Host: line from the incoming
+    <p>When enabled, this option will pass the <code>Host:</code> line from the incoming
     request to the proxied host, instead of the hostname specified in the
     <code class="directive"><a href="#proxypass">ProxyPass</a></code> line.</p>
 
@@ -2142,7 +2164,7 @@ var comments_identifier = 'http://httpd.apache.org/docs/2.4/mod/mod_proxy.html';
     }
 })(window, document);
 //--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2022 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
+<p class="apache">Copyright 2023 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
 <p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/directives.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossary</a> | <a href="../sitemap.html">Sitemap</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();

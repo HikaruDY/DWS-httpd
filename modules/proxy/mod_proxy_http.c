@@ -125,6 +125,16 @@ static int proxy_http_canon(request_rec *r, char *url)
             path = ap_proxy_canonenc(r->pool, url, strlen(url),
                                      enc_path, 0, r->proxyreq);
             search = r->args;
+            if (search && *(ap_scan_vchar_obstext(search))) {
+                /*
+                 * We have a raw control character or a ' ' in r->args.
+                 * Correct encoding was missed.
+                 */
+                ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(10408)
+                              "To be forwarded query string contains control "
+                              "characters or spaces");
+                return HTTP_FORBIDDEN;
+            }
         }
         break;
     case PROXYREQ_PROXY:
@@ -463,10 +473,6 @@ static int ap_proxy_http_prefetch(proxy_http_req_t *req,
     apr_off_t bytes;
     int rv;
 
-    if (req->force10 && r->expecting_100) {
-        return HTTP_EXPECTATION_FAILED;
-    }
-
     rv = ap_proxy_create_hdrbrgd(p, header_brigade, r, p_conn,
                                  req->worker, req->sconf,
                                  uri, url, req->server_portstr,
@@ -792,7 +798,7 @@ static void process_proxy_header(request_rec *r, proxy_dir_conf *c,
  * any sense at all, since we depend on buffer still containing
  * what was read by ap_getline() upon return.
  */
-static void ap_proxy_read_headers(request_rec *r, request_rec *rr,
+static apr_status_t ap_proxy_read_headers(request_rec *r, request_rec *rr,
                                   char *buffer, int size,
                                   conn_rec *c, int *pread_len)
 {
@@ -824,19 +830,26 @@ static void ap_proxy_read_headers(request_rec *r, request_rec *rr,
         rc = ap_proxygetline(tmp_bb, buffer, size, rr,
                              AP_GETLINE_FOLD | AP_GETLINE_NOSPC_EOL, &len);
 
-        if (len <= 0)
-            break;
 
-        if (APR_STATUS_IS_ENOSPC(rc)) {
-            /* The header could not fit in the provided buffer, warn.
-             * XXX: falls through with the truncated header, 5xx instead?
-             */
-            int trunc = (len > 128 ? 128 : len) / 2;
-            ap_log_rerror(APLOG_MARK, APLOG_WARNING, rc, r, APLOGNO(10124)
-                    "header size is over the limit allowed by "
-                    "ResponseFieldSize (%d bytes). "
-                    "Bad response header: '%.*s[...]%s'",
-                    size, trunc, buffer, buffer + len - trunc);
+        if (rc != APR_SUCCESS) {
+            if (APR_STATUS_IS_ENOSPC(rc)) {
+                int trunc = (len > 128 ? 128 : len) / 2;
+                ap_log_rerror(APLOG_MARK, APLOG_WARNING, rc, r, APLOGNO(10124)
+                        "header size is over the limit allowed by "
+                        "ResponseFieldSize (%d bytes). "
+                        "Bad response header: '%.*s[...]%s'",
+                        size, trunc, buffer, buffer + len - trunc);
+            }
+            else {
+                ap_log_rerror(APLOG_MARK, APLOG_WARNING, rc, r, APLOGNO(10404) 
+                              "Error reading headers from backend");
+            }
+            r->headers_out = NULL;
+            return rc;
+        }
+
+        if (len <= 0) {
+            break;
         }
         else {
             ap_log_rerror(APLOG_MARK, APLOG_TRACE4, 0, r, "%s", buffer);
@@ -859,7 +872,7 @@ static void ap_proxy_read_headers(request_rec *r, request_rec *rr,
                 if (psc->badopt == bad_error) {
                     /* Nope, it wasn't even an extra HTTP header. Give up. */
                     r->headers_out = NULL;
-                    return;
+                    return APR_EINVAL;
                 }
                 else if (psc->badopt == bad_body) {
                     /* if we've already started loading headers_out, then
@@ -873,13 +886,13 @@ static void ap_proxy_read_headers(request_rec *r, request_rec *rr,
                                       "in headers returned by %s (%s)",
                                       r->uri, r->method);
                         *pread_len = len;
-                        return;
+                        return APR_SUCCESS;
                     }
                     else {
                         ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, APLOGNO(01099)
                                       "No HTTP headers returned by %s (%s)",
                                       r->uri, r->method);
-                        return;
+                        return APR_SUCCESS;
                     }
                 }
             }
@@ -909,6 +922,7 @@ static void ap_proxy_read_headers(request_rec *r, request_rec *rr,
         process_proxy_header(r, dconf, buffer, value);
         saw_headers = 1;
     }
+    return APR_SUCCESS;
 }
 
 
@@ -1138,8 +1152,23 @@ int ap_proxy_http_process_response(proxy_http_req_t *req)
                 ap_pass_brigade(r->output_filters, bb);
                 /* Mark the backend connection for closing */
                 backend->close = 1;
-                /* Need to return OK to avoid sending an error message */
-                return OK;
+                if (origin->keepalives) {
+                    /* We already had a request on this backend connection and
+                     * might just have run into a keepalive race. Hence we
+                     * think positive and assume that the backend is fine and
+                     * we do not need to signal an error on backend side.
+                     */
+                    return OK;
+                }
+                /*
+                 * This happened on our first request on this connection to the
+                 * backend. This indicates something fishy with the backend.
+                 * Return HTTP_INTERNAL_SERVER_ERROR to signal an unrecoverable
+                 * server error. We do not worry about r->status code and a
+                 * possible error response here as the ap_http_outerror_filter
+                 * will fix all of this for us.
+                 */
+                return HTTP_INTERNAL_SERVER_ERROR;
             }
             if (!c->keepalives) {
                 ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(01105)
@@ -1207,10 +1236,10 @@ int ap_proxy_http_process_response(proxy_http_req_t *req)
                          "Set-Cookie", NULL);
 
             /* shove the headers direct into r->headers_out */
-            ap_proxy_read_headers(r, backend->r, buffer, response_field_size,
-                                  origin, &pread_len);
+            rc = ap_proxy_read_headers(r, backend->r, buffer, response_field_size,
+                                       origin, &pread_len);
 
-            if (r->headers_out == NULL) {
+            if (rc != APR_SUCCESS || r->headers_out == NULL) {
                 ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, APLOGNO(01106)
                               "bad HTTP/%d.%d header returned by %s (%s)",
                               major, minor, r->uri, r->method);
@@ -1336,6 +1365,14 @@ int ap_proxy_http_process_response(proxy_http_req_t *req)
                 backend->close = 1;
                 origin->keepalive = AP_CONN_CLOSE;
             }
+            else {
+                /*
+                 * Keep track of the number of keepalives we processed on this
+                 * connection.
+                 */
+                origin->keepalives++;
+            }
+
         } else {
             /* an http/0.9 response */
             backasswards = 1;
@@ -1907,8 +1944,11 @@ static int proxy_http_handler(request_rec *r, proxy_worker *worker,
     apr_pool_userdata_get((void **)&input_brigade, "proxy-req-input", p);
 
     /* Should we handle end-to-end or ping 100-continue? */
-    if ((r->expecting_100 && (dconf->forward_100_continue || input_brigade))
-            || PROXY_DO_100_CONTINUE(worker, r)) {
+    if (!req->force10
+        && ((r->expecting_100 && (dconf->forward_100_continue || input_brigade))
+            || PROXY_SHOULD_PING_100_CONTINUE(worker, r))) {
+        /* Tell ap_proxy_create_hdrbrgd() to preserve/add the Expect header */
+        apr_table_setn(r->notes, "proxy-100-continue", "1");
         req->do_100_continue = 1;
     }
 
@@ -2024,8 +2064,9 @@ static int proxy_http_handler(request_rec *r, proxy_worker *worker,
         if (status != OK) {
             if (req->do_100_continue && status == HTTP_SERVICE_UNAVAILABLE) {
                 ap_log_rerror(APLOG_MARK, APLOG_INFO, status, r, APLOGNO(01115)
-                              "HTTP: 100-Continue failed to %pI (%s)",
-                              worker->cp->addr, worker->s->hostname_ex);
+                              "HTTP: 100-Continue failed to %pI (%s:%d)",
+                              worker->cp->addr, worker->s->hostname_ex,
+                              (int)worker->s->port);
                 backend->close = 1;
                 retry++;
                 continue;
