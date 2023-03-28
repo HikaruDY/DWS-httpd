@@ -14,27 +14,12 @@
  * limitations under the License.
  */
 
-#ifndef __mod_h2__h2_alt_svc__
-#define __mod_h2__h2_alt_svc__
+#ifndef mod_md_md_tailscale_h
+#define mod_md_md_tailscale_h
 
-typedef struct h2_alt_svc h2_alt_svc;
+#define MD_PROTO_TAILSCALE      "tailscale"
 
-struct h2_alt_svc {
-    const char *alpn;
-    const char *host;
-    int port;
-};
+apr_status_t md_tailscale_protos_add(struct apr_hash_t *protos, apr_pool_t *p);
 
-void h2_alt_svc_register_hooks(void);
+#endif /* mod_md_md_tailscale_h */
 
-/**
- * Parse an Alt-Svc specifier as described in "HTTP Alternative Services"
- * (https://tools.ietf.org/html/draft-ietf-httpbis-alt-svc-04)
- * with the following changes:
- * - do not percent encode token values
- * - do not use quotation marks
- */
-h2_alt_svc *h2_alt_svc_parse(const char *s, apr_pool_t *pool);
-
-
-#endif /* defined(__mod_h2__h2_alt_svc__) */
