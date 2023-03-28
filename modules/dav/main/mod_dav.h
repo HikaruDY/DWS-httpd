@@ -1419,7 +1419,7 @@ DAV_DECLARE(dav_error *) dav_open_lockdb(request_rec *r,
                                          dav_lockdb **lockdb);
 DAV_DECLARE(void) dav_close_lockdb(dav_lockdb *lockdb);
 DAV_DECLARE(dav_error *) dav_lock_parse_lockinfo(request_rec *r,
-                                                 const dav_resource *resrouce,
+                                                 const dav_resource *resource,
                                                  dav_lockdb *lockdb,
                                                  const apr_xml_doc *doc,
                                                  dav_lock **lock_request);
@@ -1685,12 +1685,15 @@ struct dav_hooks_locks
 
 typedef struct dav_propdb dav_propdb;
 
+#define DAV_PROPDB_NONE                  0 
+#define DAV_PROPDB_RO                    1
+#define DAV_PROPDB_DISABLE_LOCKDISCOVERY 2 
 
 DAV_DECLARE(dav_error *) dav_open_propdb(
     request_rec *r,
     dav_lockdb *lockdb,
     const dav_resource *resource,
-    int ro,
+    int flags,
     apr_array_header_t *ns_xlate,
     dav_propdb **propdb);
 
@@ -1699,7 +1702,7 @@ DAV_DECLARE(dav_error *) dav_popen_propdb(
     request_rec *r,
     dav_lockdb *lockdb,
     const dav_resource *resource,
-    int ro,
+    int flags,
     apr_array_header_t *ns_xlate,
     dav_propdb **propdb);
 

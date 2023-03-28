@@ -1,4 +1,6 @@
 import os
+import time
+
 import pytest
 
 from pyhttpd.conf import HttpdConf
@@ -131,7 +133,8 @@ class TestAutov2:
         assert env.apache_restart() == 0
         env.check_md(domains)
         assert env.await_completion([domain])
-        env.check_md_complete(domain)
+        md = env.check_md_complete(domain)
+        assert md['ca']['url'], f"URL of CA used not set in md: {md}"
         #
         # check: SSL is running OK
         cert_a = env.get_cert(name_a)
@@ -661,7 +664,7 @@ class TestAutov2:
             "<IfModule tls_module>",
             f"  TLSEngine {env.https_port}",
             "</IfModule>",
-            ])
+        ])
         conf.add_md([domain])
         conf.install()
         assert env.apache_restart() == 0
