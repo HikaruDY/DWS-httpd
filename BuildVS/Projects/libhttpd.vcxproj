@@ -14,26 +14,14 @@
   <PropertyGroup Label="Globals">
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
-  <PropertyGroup Condition="'$(Configuration)'=='Release'" Label="Configuration">
+  <PropertyGroup>
     <ConfigurationType>DynamicLibrary</ConfigurationType>
-    <UseDebugLibraries>false</UseDebugLibraries>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
-  <ImportGroup Label="ExtensionSettings">
-  </ImportGroup>
-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)'=='Release'">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-  </ImportGroup>
-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-  </ImportGroup>
-  <PropertyGroup Label="UserMacros" />
-  <PropertyGroup />
-  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
+  <ItemDefinitionGroup>
     <PreBuildEvent>
       <Command>"$(ProjectDir)/../Scripts/libhttpd-init.cmd" "$(SolutionDir)/../"</Command>
     </PreBuildEvent>
-    <ClCompile />
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="$(root)\modules\arch\win32\mod_win32.c" />
@@ -70,6 +58,7 @@
     <ClCompile Include="$(root)\server\provider.c" />
     <ClCompile Include="$(root)\server\request.c" />
     <ClCompile Include="$(root)\server\scoreboard.c" />
+    <ClCompile Include="$(root)\server\ssl.c" />
     <ClCompile Include="$(root)\server\util.c" />
     <ClCompile Include="$(root)\server\util_cfgtree.c" />
     <ClCompile Include="$(root)\server\util_charset.c" />
@@ -99,6 +88,4 @@
     <ClInclude Include="$(root)\server\util_expr_private.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-  <ImportGroup Label="ExtensionTargets">
-  </ImportGroup>
 </Project>

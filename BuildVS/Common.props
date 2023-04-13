@@ -1,22 +1,44 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-	<PropertyGroup>
-		<TrackFileAccess>true</TrackFileAccess>
-		<IntDir>$(SolutionDir)/TEMP/$(MSBuildProjectName)/</IntDir>
-	</PropertyGroup>
+
 	<PropertyGroup Label="UserMacros">
 		<root>$(SolutionDir)/../</root>
 		<aproot>$(root)</aproot>
 	</PropertyGroup>
 
-	<PropertyGroup Condition="'$(Platform)'=='Win32'">
-		<OutDir>$(SolutionDir)$(Configuration)_x86/</OutDir>
+	<!-- $(PlatformID) macro -->
+	<PropertyGroup Label="UserMacros">
+		<PlatformID>unknown</PlatformID>
 	</PropertyGroup>
-	<PropertyGroup Condition="'$(Platform)'=='x64'">
-		<OutDir>$(SolutionDir)$(Configuration)_x64/</OutDir>
+
+	<PropertyGroup Label="UserMacros" Condition="('$(Platform)'=='Win32')">
+		<PlatformID>x86</PlatformID>
+	</PropertyGroup>
+	<PropertyGroup Label="UserMacros" Condition="('$(Platform)'=='x64')">
+		<PlatformID>x64</PlatformID>
+	</PropertyGroup>
+	<PropertyGroup Label="UserMacros" Condition="('$(Platform)'=='Itanium')">
+		<PlatformID>ia64</PlatformID>
+	</PropertyGroup>
+	<PropertyGroup Label="UserMacros" Condition="('$(Platform)'=='ARM')">
+		<PlatformID>a32</PlatformID>
+	</PropertyGroup>
+	<PropertyGroup Label="UserMacros" Condition="('$(Platform)'=='ARM64')">
+		<PlatformID>a64</PlatformID>
+	</PropertyGroup>
+	<PropertyGroup Label="UserMacros" Condition="('$(Platform)'=='ARM64EC')">
+		<PlatformID>a64ec</PlatformID>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<TrackFileAccess>true</TrackFileAccess>
+		<OutDir>$(SolutionDir)$(Configuration)_$(PlatformID)/</OutDir>
+		<IntDir>$(SolutionDir)/TEMP/$(PlatformID)/$(MSBuildProjectName)/</IntDir>
+		<UseDebugLibraries>false</UseDebugLibraries>
 	</PropertyGroup>
 
 	<Import Project="$(SolutionDir)\PathEnv.props" />
+
 	<ItemDefinitionGroup>
 		<ClCompile>
 			<MultiProcessorCompilation>true</MultiProcessorCompilation>
@@ -27,12 +49,17 @@
 			<OmitFramePointers>true</OmitFramePointers>
 			<BufferSecurityCheck>false</BufferSecurityCheck>
 			<FunctionLevelLinking>true</FunctionLevelLinking>
-			<EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
-			<PreprocessorDefinitions>DWS;NDEBUG;WIN32;WINNT;_WINDOWS;HAVE_MEMMOVE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+			<PreprocessorDefinitions>DWS;NDEBUG;WIN32;WINNT;_WINDOWS;HAVE_MEMMOVE;_WIN32_WINNT=0x0600;%(PreprocessorDefinitions)</PreprocessorDefinitions>
 		</ClCompile>
 		<Link>
 			<AdditionalDependencies>ws2_32.lib;Mswsock.lib;Rpcrt4.lib;%(AdditionalDependencies)</AdditionalDependencies>
 		</Link>
+	</ItemDefinitionGroup>
+
+	<ItemDefinitionGroup Condition="('$(PlatformID)'=='x86')">
+		<ClCompile>
+			<EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+		</ClCompile>
 	</ItemDefinitionGroup>
 
   	<ItemGroup Condition="('$(ProjectName)'!='AM') and ('$(ProjectName)'!='ApacheMonitor')">
