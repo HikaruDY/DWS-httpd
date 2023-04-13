@@ -50,6 +50,8 @@ Thumbs.db
 .DS_Store
 
 # This project
+/BuildVS/ServerRoot*
+
 #  External libralies
 /srclib
 

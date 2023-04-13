@@ -7,5 +7,7 @@
 		<pcre>$(aproot)/srclib/pcre</pcre>
 		<openssl>$(aproot)/srclib/openssl</openssl>
 		<lua>$(aproot)/srclib/lua</lua>
+		<libxml2>$(aproot)/srclib/libxml2</libxml2>
+		<zlib>$(aproot)/srclib/zlib</zlib>
 	</PropertyGroup>
 </Project>
