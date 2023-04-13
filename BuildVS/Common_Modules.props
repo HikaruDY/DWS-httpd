@@ -63,8 +63,11 @@
 
 	<ItemDefinitionGroup Condition="('$(ProjectName)'=='mod_deflate')">
 		<ClCompile>
-			<AdditionalIncludeDirectories>$(root)/modules/ssl;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+			<AdditionalIncludeDirectories>$(zlib);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
 		</ClCompile>
+		<Link>
+			<AdditionalDependencies>$(zlib)/BuildVS/$(Configuration)_$(PlatformID)/zlib.lib;%(AdditionalDependencies)</AdditionalDependencies>
+		</Link>
 	</ItemDefinitionGroup>
 
 	<ItemDefinitionGroup Condition="('$(ProjectName)'=='mod_dav')">
@@ -224,9 +227,19 @@
 		</ClCompile>
 	</ItemDefinitionGroup>
 
-	<ItemDefinitionGroup Condition="('$(ProjectName)'=='mod_win32')"><ClCompile>
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='mod_win32')">
+		<ClCompile>
 			<AdditionalIncludeDirectories>$(root)/modules/generators;$(root)/modules/filters;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-	</ClCompile></ItemDefinitionGroup>
+		</ClCompile>
+	</ItemDefinitionGroup>
 
+	<ItemDefinitionGroup Condition="('$(ProjectName)'=='mod_xml2enc') or ('$(ProjectName)'=='mod_proxy_html')">
+		<ClCompile>
+			<AdditionalIncludeDirectories>$(libxml2)/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+		</ClCompile>
+		<Link>
+			<AdditionalDependencies>$(libxml2)/BuildVS/$(Configuration)_$(PlatformID)/libxml2.lib;%(AdditionalDependencies)</AdditionalDependencies>
+		</Link>
+	</ItemDefinitionGroup>
 
 </Project>
