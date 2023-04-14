@@ -137,7 +137,7 @@
 			<PreprocessorDefinitions>AP_LUA_DECLARE_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
 		</ClCompile>
 		<Link>
-			<AdditionalDependencies>$(lua)/BuildVS/Release/lua_static.lib;%(AdditionalDependencies)</AdditionalDependencies>
+			<AdditionalDependencies>$(lua)/BuildVS/$(Configuration)_$(PlatformID)/lua_static.lib;%(AdditionalDependencies)</AdditionalDependencies>
 		</Link>
 	</ItemDefinitionGroup>
 

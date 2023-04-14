@@ -35,6 +35,8 @@
 		<OutDir>$(SolutionDir)$(Configuration)_$(PlatformID)/</OutDir>
 		<IntDir>$(SolutionDir)/TEMP/$(PlatformID)/$(MSBuildProjectName)/</IntDir>
 		<UseDebugLibraries>false</UseDebugLibraries>
+		<GenerateManifest>false</GenerateManifest>
+		<PlatformToolset>v143</PlatformToolset>
 	</PropertyGroup>
 
 	<Import Project="$(SolutionDir)\PathEnv.props" />
