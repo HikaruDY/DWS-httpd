@@ -32,6 +32,9 @@
 #include <openssl/rand.h>
 #include <openssl/rsa.h>
 #include <openssl/x509v3.h>
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#include <openssl/core_names.h>
+#endif
 
 #include "md.h"
 #include "md_crypt.h"
@@ -54,21 +57,11 @@
 #include <process.h>
 #endif
 
-#if defined(LIBRESSL_VERSION_NUMBER)
-/* Missing from LibreSSL */
-#define MD_USE_OPENSSL_PRE_1_1_API (LIBRESSL_VERSION_NUMBER < 0x2070000f)
-#else /* defined(LIBRESSL_VERSION_NUMBER) */
-#define MD_USE_OPENSSL_PRE_1_1_API (OPENSSL_VERSION_NUMBER < 0x10100000L)
-#endif
-
-#if (defined(LIBRESSL_VERSION_NUMBER) && (LIBRESSL_VERSION_NUMBER < 0x3050000fL)) || (OPENSSL_VERSION_NUMBER < 0x10100000L) 
+#if !defined(OPENSSL_NO_CT) \
+    && OPENSSL_VERSION_NUMBER >= 0x10100000L \
+    && (!defined(LIBRESSL_VERSION_NUMBER) \
+        || LIBRESSL_VERSION_NUMBER >= 0x3050000fL)
 /* Missing from LibreSSL < 3.5.0 and only available since OpenSSL v1.1.x */
-#ifndef OPENSSL_NO_CT
-#define OPENSSL_NO_CT
-#endif
-#endif
-
-#ifndef OPENSSL_NO_CT
 #include <openssl/ct.h>
 #endif
 
@@ -952,12 +945,9 @@ apr_status_t md_pkey_gen(md_pkey_t **ppkey, apr_pool_t *p, md_pkey_spec_t *spec)
     }
 }
 
-#if MD_USE_OPENSSL_PRE_1_1_API || (defined(LIBRESSL_VERSION_NUMBER) && \
-                                   LIBRESSL_VERSION_NUMBER < 0x2070000f)
-
-#ifndef NID_tlsfeature
-#define NID_tlsfeature          1020
-#endif
+#if OPENSSL_VERSION_NUMBER < 0x10100000L \
+    || (defined(LIBRESSL_VERSION_NUMBER) \
+        && LIBRESSL_VERSION_NUMBER < 0x2070000f)
 
 static void RSA_get0_key(const RSA *r,
                          const BIGNUM **n, const BIGNUM **e, const BIGNUM **d)
@@ -988,26 +978,42 @@ static const char *bn64(const BIGNUM *b, apr_pool_t *p)
 
 const char *md_pkey_get_rsa_e64(md_pkey_t *pkey, apr_pool_t *p)
 {
-    const BIGNUM *e;
-    RSA *rsa = EVP_PKEY_get1_RSA(pkey->pkey);
-    
-    if (!rsa) {
-        return NULL;
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
+    const RSA *rsa = EVP_PKEY_get0_RSA(pkey->pkey);
+    if (rsa) {
+        const BIGNUM *e;
+        RSA_get0_key(rsa, NULL, &e, NULL);
+        return bn64(e, p);
     }
-    RSA_get0_key(rsa, NULL, &e, NULL);
-    return bn64(e, p);
+#else
+    BIGNUM *e = NULL;
+    if (EVP_PKEY_get_bn_param(pkey->pkey, OSSL_PKEY_PARAM_RSA_E, &e)) {
+        const char *e64 = bn64(e, p);
+        BN_free(e);
+        return e64;
+    }
+#endif
+    return NULL;
 }
 
 const char *md_pkey_get_rsa_n64(md_pkey_t *pkey, apr_pool_t *p)
 {
-    const BIGNUM *n;
-    RSA *rsa = EVP_PKEY_get1_RSA(pkey->pkey);
-    
-    if (!rsa) {
-        return NULL;
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
+    const RSA *rsa = EVP_PKEY_get0_RSA(pkey->pkey);
+    if (rsa) {
+        const BIGNUM *n;
+        RSA_get0_key(rsa, &n, NULL, NULL);
+        return bn64(n, p);
     }
-    RSA_get0_key(rsa, &n, NULL, NULL);
-    return bn64(n, p);
+#else
+    BIGNUM *n = NULL;
+    if (EVP_PKEY_get_bn_param(pkey->pkey, OSSL_PKEY_PARAM_RSA_N, &n)) {
+        const char *n64 = bn64(n, p);
+        BN_free(n);
+        return n64;
+    }
+#endif
+    return NULL;
 }
 
 apr_status_t md_crypt_sign64(const char **psign64, md_pkey_t *pkey, apr_pool_t *p, 
