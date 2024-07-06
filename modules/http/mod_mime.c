@@ -755,11 +755,11 @@ static int find_ct(request_rec *r)
     mime_dir_config *conf;
     apr_array_header_t *exception_list;
     char *ext;
-    const char *fn, *fntmp, *type, *charset = NULL, *resource_name;
+    const char *fn, *fntmp, *type, *charset = NULL, *resource_name, *qm;
     int found_metadata = 0;
 
     if (r->finfo.filetype == APR_DIR) {
-        ap_set_content_type(r, DIR_MAGIC_TYPE);
+        ap_set_content_type_ex(r, DIR_MAGIC_TYPE, 1);
         return OK;
     }
 
@@ -774,6 +774,19 @@ static int find_ct(request_rec *r)
     /* If use_path_info is explicitly set to on (value & 1 == 1), append. */
     if (conf->use_path_info & 1) {
         resource_name = apr_pstrcat(r->pool, r->filename, r->path_info, NULL);
+    }
+    /*
+     * In the reverse proxy case r->filename might contain a query string if
+     * the nocanon option was used with ProxyPass.
+     * If this is the case cut off the query string as the last parameter in
+     * this query string might end up on an extension we take care about, but
+     * we only want to match against path components not against query
+     * parameters.
+     */
+    else if ((r->proxyreq == PROXYREQ_REVERSE)
+             && (apr_table_get(r->notes, "proxy-nocanon"))
+             && ((qm = ap_strchr_c(r->filename, '?')) != NULL)) {
+        resource_name = apr_pstrmemdup(r->pool, r->filename, qm - r->filename);
     }
     else {
         resource_name = r->filename;
@@ -837,7 +850,7 @@ static int find_ct(request_rec *r)
         if (exinfo == NULL || !exinfo->forced_type) {
             if ((type = apr_hash_get(mime_type_extensions, ext,
                                      APR_HASH_KEY_STRING)) != NULL) {
-                ap_set_content_type(r, (char*) type);
+                ap_set_content_type_ex(r, (char*) type, 1);
                 found = 1;
             }
         }
@@ -846,7 +859,7 @@ static int find_ct(request_rec *r)
 
             /* empty string is treated as special case for RemoveType */
             if (exinfo->forced_type && *exinfo->forced_type) {
-                ap_set_content_type(r, exinfo->forced_type);
+                ap_set_content_type_ex(r, exinfo->forced_type, 1);
                 found = 1;
             }
 
@@ -951,33 +964,33 @@ static int find_ct(request_rec *r)
             memcpy(tmp, ctp->subtype, ctp->subtype_len);
             tmp += ctp->subtype_len;
             *tmp = 0;
-            ap_set_content_type(r, base_content_type);
+            ap_set_content_type_ex(r, base_content_type, AP_REQUEST_IS_TRUSTED_CT(r));
             while (pp != NULL) {
                 if (charset && !strcmp(pp->attr, "charset")) {
                     if (!override) {
-                        ap_set_content_type(r,
+                        ap_set_content_type_ex(r,
                                             apr_pstrcat(r->pool,
                                                         r->content_type,
                                                         "; charset=",
                                                         charset,
-                                                        NULL));
+                                                        NULL), AP_REQUEST_IS_TRUSTED_CT(r));
                         override = 1;
                     }
                 }
                 else {
-                    ap_set_content_type(r,
+                    ap_set_content_type_ex(r,
                                         apr_pstrcat(r->pool,
                                                     r->content_type,
                                                     "; ", pp->attr,
                                                     "=", pp->val,
-                                                    NULL));
+                                                    NULL), AP_REQUEST_IS_TRUSTED_CT(r));
                 }
                 pp = pp->next;
             }
             if (charset && !override) {
-                ap_set_content_type(r, apr_pstrcat(r->pool, r->content_type,
+                ap_set_content_type_ex(r, apr_pstrcat(r->pool, r->content_type,
                                                    "; charset=", charset,
-                                                   NULL));
+                                                   NULL), AP_REQUEST_IS_TRUSTED_CT(r));
             }
         }
     }

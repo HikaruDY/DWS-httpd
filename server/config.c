@@ -418,7 +418,7 @@ AP_CORE_DECLARE(int) ap_invoke_handler(request_rec *r)
     }
 
     if (!r->handler) {
-        if (r->content_type) {
+        if (r->content_type && AP_REQUEST_IS_TRUSTED_CT(r)) {
             handler = r->content_type;
             if ((p=ap_strchr_c(handler, ';')) != NULL) {
                 char *new_handler = (char *)apr_pmemdup(r->pool, handler,
@@ -2300,6 +2300,9 @@ AP_DECLARE(server_rec*) ap_read_config(process_rec *process, apr_pool_t *ptemp,
     server_rec *s = init_server_config(process, p);
     if (s == NULL) {
         return s;
+    }
+    if (ap_server_conf == NULL) {
+        ap_server_conf = s;
     }
 
     init_config_globals(p);
