@@ -224,6 +224,24 @@ static const char *set_worker_param(apr_pool_t *p,
             return "EnableReuse must be On|Off";
         worker->s->disablereuse_set = 1;
     }
+    else if (!strcasecmp(key, "addressttl")) {
+        /* Address TTL in seconds
+         */
+        apr_interval_time_t ttl;
+        if (strcmp(val, "-1") == 0) {
+            worker->s->address_ttl = -1;
+        }
+        else if (ap_timeout_parameter_parse(val, &ttl, "s") == APR_SUCCESS
+                 && (ttl <= apr_time_from_sec(APR_INT32_MAX))
+                 && (ttl % apr_time_from_sec(1)) == 0) {
+            worker->s->address_ttl = apr_time_sec(ttl);
+        }
+        else {
+            return "AddressTTL must be -1 or a number of seconds not "
+                   "exceeding " APR_STRINGIFY(APR_INT32_MAX);
+        }
+        worker->s->address_ttl_set = 1;
+    }
     else if (!strcasecmp(key, "route")) {
         /* Worker route.
          */
@@ -963,6 +981,8 @@ PROXY_DECLARE(int) ap_proxy_trans_match(request_rec *r, struct proxy_alias *ent,
     }
 
     if (found) {
+        unsigned int encoded = ent->flags & PROXYPASS_MAP_ENCODED;
+
         /* A proxy module is assigned this URL, check whether it's interested
          * in the request itself (e.g. proxy_wstunnel cares about Upgrade
          * requests only, and could hand over to proxy_http otherwise).
@@ -982,6 +1002,9 @@ PROXY_DECLARE(int) ap_proxy_trans_match(request_rec *r, struct proxy_alias *ent,
         if (ent->flags & PROXYPASS_NOQUERY) {
             apr_table_setn(r->notes, "proxy-noquery", "1");
         }
+        if (encoded) {
+            apr_table_setn(r->notes, "proxy-noencode", "1");
+        }
 
         if (servlet_uri) {
             ap_log_rerror(APLOG_MARK, APLOG_TRACE1, 0, r, APLOGNO(10248)
@@ -995,13 +1018,13 @@ PROXY_DECLARE(int) ap_proxy_trans_match(request_rec *r, struct proxy_alias *ent,
              */
             AP_DEBUG_ASSERT(strlen(r->uri) >= strlen(servlet_uri));
             strcpy(r->uri, servlet_uri);
-            return DONE;
         }
-
-        ap_log_rerror(APLOG_MARK, APLOG_TRACE1, 0, r, APLOGNO(03464)
-                      "URI path '%s' matches proxy handler '%s'", r->uri,
-                      found);
-        return OK;
+        else {
+            ap_log_rerror(APLOG_MARK, APLOG_TRACE1, 0, r, APLOGNO(03464)
+                          "URI path '%s' matches proxy handler '%s'", r->uri,
+                          found);
+        }
+        return (encoded) ? DONE : OK;
     }
 
     return HTTP_CONTINUE;
@@ -1222,6 +1245,7 @@ static int proxy_fixup(request_rec *r)
 
     return OK;      /* otherwise; we've done the best we can */
 }
+
 /* Send a redirection if the request contains a hostname which is not */
 /* fully qualified, i.e. doesn't have a domain name appended. Some proxy */
 /* servers like Netscape's allow this and access hosts from the local */
@@ -1275,7 +1299,7 @@ static int proxy_handler(request_rec *r)
         ap_get_module_config(sconf, &proxy_module);
     apr_array_header_t *proxies = conf->proxies;
     struct proxy_remote *ents = (struct proxy_remote *) proxies->elts;
-    int i, rc, access_status;
+    int rc = DECLINED, access_status, i;
     int direct_connect = 0;
     const char *str;
     apr_int64_t maxfwd;
@@ -1290,19 +1314,28 @@ static int proxy_handler(request_rec *r)
         return DECLINED;
     }
 
-    if (!r->proxyreq) {
-        /* We may have forced the proxy handler via config or .htaccess */
-        if (r->handler &&
-            strncmp(r->handler, "proxy:", 6) == 0 &&
-            strncmp(r->filename, "proxy:", 6) != 0) {
-            r->proxyreq = PROXYREQ_REVERSE;
-            r->filename = apr_pstrcat(r->pool, r->handler, r->filename, NULL);
+    /* We may have forced the proxy handler via config or .htaccess */
+    if (!r->proxyreq && r->handler && strncmp(r->handler, "proxy:", 6) == 0) {
+        char *old_filename = r->filename;
+
+        r->proxyreq = PROXYREQ_REVERSE;
+        r->filename = apr_pstrcat(r->pool, r->handler, r->filename, NULL);
+
+        /* Still need to fixup/canonicalize r->filename */
+        rc = ap_proxy_fixup_uds_filename(r);
+        if (rc <= OK) {
+            rc = proxy_fixup(r);
         }
-        else {
-            return DECLINED;
+        if (rc != OK) {
+            r->filename = old_filename;
+            r->proxyreq = 0;
         }
-    } else if (strncmp(r->filename, "proxy:", 6) != 0) {
-        return DECLINED;
+    }
+    else if (r->proxyreq && strncmp(r->filename, "proxy:", 6) == 0) {
+        rc = OK;
+    }
+    if (rc != OK) {
+        return rc;
     }
 
     /* handle max-forwards / OPTIONS / TRACE */
@@ -1455,10 +1488,19 @@ static int proxy_handler(request_rec *r)
                     /* handle the scheme */
                     ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(01142)
                                   "Trying to run scheme_handler against proxy");
+
+                    if (ents[i].creds) {
+                        apr_table_set(r->notes, "proxy-basic-creds", ents[i].creds);
+                        ap_log_rerror(APLOG_MARK, APLOG_TRACE1, 0, r,
+                                      "Using proxy auth creds %s", ents[i].creds);
+                    }
+
                     access_status = proxy_run_scheme_handler(r, worker,
                                                              conf, url,
                                                              ents[i].hostname,
                                                              ents[i].port);
+
+                    if (ents[i].creds) apr_table_unset(r->notes, "proxy-basic-creds");
 
                     /* Did the scheme handler process the request? */
                     if (access_status != DECLINED) {
@@ -1897,8 +1939,8 @@ static void *merge_proxy_dir_config(apr_pool_t *p, void *basev, void *addv)
     return new;
 }
 
-static const char *
-    add_proxy(cmd_parms *cmd, void *dummy, const char *f1, const char *r1, int regex)
+static const char *add_proxy(cmd_parms *cmd, void *dummy, const char *f1,
+                             const char *r1, const char *creds, int regex)
 {
     server_rec *s = cmd->server;
     proxy_server_conf *conf =
@@ -1956,19 +1998,24 @@ static const char *
     new->port = port;
     new->regexp = reg;
     new->use_regex = regex;
+    if (creds) {
+        new->creds = apr_pstrcat(cmd->pool, "Basic ",
+                                 ap_pbase64encode(cmd->pool, (char *)creds),
+                                 NULL);
+    }
     return NULL;
 }
 
-static const char *
-    add_proxy_noregex(cmd_parms *cmd, void *dummy, const char *f1, const char *r1)
+static const char *add_proxy_noregex(cmd_parms *cmd, void *dummy, const char *f1,
+                                     const char *r1, const char *creds)
 {
-    return add_proxy(cmd, dummy, f1, r1, 0);
+    return add_proxy(cmd, dummy, f1, r1, creds, 0);
 }
 
-static const char *
-    add_proxy_regex(cmd_parms *cmd, void *dummy, const char *f1, const char *r1)
+static const char *add_proxy_regex(cmd_parms *cmd, void *dummy, const char *f1,
+                                   const char *r1, const char *creds)
 {
-    return add_proxy(cmd, dummy, f1, r1, 1);
+    return add_proxy(cmd, dummy, f1, r1, creds, 1);
 }
 
 PROXY_DECLARE(const char *) ap_proxy_de_socketfy(apr_pool_t *p, const char *url)
@@ -3007,9 +3054,9 @@ static const command_rec proxy_cmds[] =
     "location, in regular expression syntax"),
     AP_INIT_FLAG("ProxyRequests", set_proxy_req, NULL, RSRC_CONF,
      "on if the true proxy requests should be accepted"),
-    AP_INIT_TAKE2("ProxyRemote", add_proxy_noregex, NULL, RSRC_CONF,
+    AP_INIT_TAKE23("ProxyRemote", add_proxy_noregex, NULL, RSRC_CONF,
      "a scheme, partial URL or '*' and a proxy server"),
-    AP_INIT_TAKE2("ProxyRemoteMatch", add_proxy_regex, NULL, RSRC_CONF,
+    AP_INIT_TAKE23("ProxyRemoteMatch", add_proxy_regex, NULL, RSRC_CONF,
      "a regex pattern and a proxy server"),
     AP_INIT_FLAG("ProxyPassInterpolateEnv", ap_set_flag_slot_char,
         (void*)APR_OFFSETOF(proxy_dir_conf, interpolate_env),
